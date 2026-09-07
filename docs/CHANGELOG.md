@@ -50,8 +50,34 @@ alembic upgrade head
 - **Deployment** — Docker Compose with ai-helper, postgres, qdrant, ollama,
   n8n and open-webui, named volumes for everything stateful, a non-root image,
   setup/health/backup scripts, and four n8n workflows.
-- **Tests** — 388, including the ten critical regression tests and the
+- **Tests** — 418, including the ten critical regression tests and the
   cost-saving cycle, all runnable with no external service.
+
+### Fixed during the pre-release audit
+
+Six issues found by `audit/`, each with a regression test. Full detail in
+`audit/AUDIT_REPORT.md`.
+
+- **Production could start on the published placeholder `AUTH_SECRET`**, which
+  signs the admin session cookie. Production now refuses to start unless it is
+  at least 32 characters and not the default, and refuses `DEBUG=true`.
+- **The privacy refusal that actually fires left no audit row.** The audit
+  trail could answer "what did we send out?" but not "what did we refuse to
+  send, and why?". Every refused escalation is now recorded.
+- **Solution reuse could fail silently and expensively** when an embedding
+  model's score scale did not match the configured threshold — every
+  paraphrase would re-escalate and pay, invisibly. Added
+  `ai-helper calibrate`, which measures the live embedder and exits non-zero
+  when the thresholds do not fit it.
+- **A near-miss was indistinguishable from an absence.** Retrieval now reports
+  `near_miss_score` and `reuse_threshold`.
+- **Refused escalations were not aggregated anywhere**, so a budget set too low
+  to admit any request looked like a local model performing perfectly.
+  `/api/v1/usage` and the dashboard now report them.
+- **`/api/v1/documents/formats` was public by omission**, and
+  **`ALLOW_ANONYMOUS` was dead configuration that read like a switch.** Both
+  fixed; a test now enumerates the whole OpenAPI surface, and another keeps
+  `.env.example` in sync with Settings in both directions.
 
 ### Decisions worth recording
 

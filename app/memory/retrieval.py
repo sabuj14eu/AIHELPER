@@ -56,6 +56,11 @@ class RetrievalResult:
     exact_match: bool = False
     memory_hit: bool = False
     counts: dict[str, int] = field(default_factory=dict)
+    # The best promoted-solution score that did NOT clear the reuse threshold.
+    # 0.0 means nothing came close; a value just under the threshold means the
+    # threshold is probably wrong for the embedder in use.
+    near_miss_score: float = 0.0
+    reuse_threshold: float = 0.0
 
     @property
     def has_context(self) -> bool:
@@ -71,6 +76,8 @@ class RetrievalResult:
             "top_score": round(self.top_score, 4),
             "solution_id": self.solution.id if self.solution else None,
             "solution_score": round(self.solution_score, 4),
+            "near_miss_score": round(self.near_miss_score, 4),
+            "reuse_threshold": round(self.reuse_threshold, 4),
             "counts": dict(self.counts),
             "sources": [
                 {"source": i.source, "ref": i.ref, "score": round(i.score, 4)} for i in self.items
@@ -189,25 +196,46 @@ class Retriever:
             return None
         return solution
 
-    def _similar_solutions(self, vector: list[float], limit: int) -> list[tuple[SolutionCandidate, float]]:
+    def _similar_solutions(
+        self, vector: list[float], limit: int
+    ) -> tuple[list[tuple[SolutionCandidate, float]], float]:
+        """Solutions above the reuse threshold, and the best score below it.
+
+        The near-miss is returned, not discarded, because the two failure modes
+        it separates need completely different fixes and look identical
+        otherwise: "nothing similar has ever been learned" (ingest more, or
+        wait for the system to learn) versus "we learned this and scored 0.59
+        against a threshold of 0.80" (the threshold is wrong for this embedding
+        model). The second one silently re-escalates and pays for every
+        paraphrase, forever, and without this number nobody can see it.
+        """
+        threshold = self.thresholds.solution_reuse
+        # Search below the threshold so a near-miss is visible, then apply the
+        # threshold here. The floor keeps the scan bounded.
+        diagnostic_floor = max(0.0, threshold * 0.5)
         hits = self.store.search(
             collection=collection_name("solutions", self.embedder),
             client_id=self.client_id,
             vector=vector,
-            limit=limit,
-            min_score=self.thresholds.solution_reuse,
+            limit=limit + 2,
+            min_score=diagnostic_floor,
             ref_type=REF_SOLUTION,
             extra_filter={"status": SolutionStatus.PROMOTED.value},
         )
         out: list[tuple[SolutionCandidate, float]] = []
+        near_miss = 0.0
         for hit in hits:
             solution = self.session.get(SolutionCandidate, hit.ref_id)
             if solution is None or solution.client_id != self.client_id:
                 continue
             if solution.status != SolutionStatus.PROMOTED.value or _expired(solution.expires_at):
                 continue
-            out.append((solution, hit.score))
-        return out
+            if hit.score < threshold:
+                near_miss = max(near_miss, hit.score)
+                continue
+            if len(out) < limit:
+                out.append((solution, hit.score))
+        return out, near_miss
 
     def retrieve(
         self,
@@ -218,7 +246,7 @@ class Retriever:
         top_k: int | None = None,
         include_solutions: bool = True,
     ) -> RetrievalResult:
-        result = RetrievalResult()
+        result = RetrievalResult(reuse_threshold=self.thresholds.solution_reuse)
         top_k = top_k or self.settings.MEMORY_TOP_K
         counts = {"solutions": 0, "memory": 0, "chunks": 0}
 
@@ -250,7 +278,9 @@ class Retriever:
 
         if vector is not None and include_solutions and result.solution is None:
             # 2. Paraphrase of a question we already paid to answer.
-            for solution, score in self._similar_solutions(vector, limit=2):
+            similar, near_miss = self._similar_solutions(vector, limit=2)
+            result.near_miss_score = near_miss
+            for solution, score in similar:
                 # A vector hit is corroborated by lexical overlap before it is
                 # trusted enough to answer from: a single similarity number is
                 # one witness, and one witness is how you get a confident
@@ -335,6 +365,14 @@ class Retriever:
         result.items.sort(key=lambda i: i.score, reverse=True)
         result.top_score = result.items[0].score if result.items else 0.0
         result.counts = counts
+        if result.solution is None and result.near_miss_score > 0:
+            log.info(
+                "solution_reuse_near_miss",
+                best_score=round(result.near_miss_score, 4),
+                threshold=round(self.thresholds.solution_reuse, 4),
+                embedder=self.embedder.id,
+                detail="a learned solution was found but scored below the reuse threshold",
+            )
         return result
 
 

@@ -267,3 +267,79 @@ class TestThresholdsAreEvidenceBased:
         semantic = for_embedder(FakeSemantic(512), settings)
         assert semantic.memory == settings.MEMORY_SIMILARITY_THRESHOLD
         assert semantic.memory > lexical.memory
+
+
+class TestNearMissVisibility:
+    """"Nothing similar exists" and "we scored 0.59 against a 0.80 threshold"
+    are different problems with different fixes, and they must not look the
+    same. The second one silently re-escalates and pays, forever."""
+
+    def _promote(self, runtime, db, client_row, question, answer):
+        from app.learning.fallback_capture import capture
+        from app.learning.promotion import PromotionPipeline
+
+        solution = capture(
+            db,
+            client_row.client_id,
+            question=question,
+            answer=answer,
+            task_type="general",
+            provider="anthropic",
+            model="m",
+            failure_reason="VALIDATION_FAILURE",
+            local_attempt="INSUFFICIENT_CONTEXT",
+            validation={},
+            confidence=0.9,
+            classification="INTERNAL",
+        ).solution
+        PromotionPipeline(
+            db,
+            client_row.client_id,
+            settings=runtime.settings,
+            local_provider=runtime.providers.local,
+            retriever=runtime.retriever(db, client_row.client_id),
+        ).process(solution)
+        db.flush()
+        return solution
+
+    def test_a_below_threshold_solution_is_reported_not_silently_dropped(
+        self, runtime, db, client_row, settings
+    ):
+        self._promote(
+            runtime, db, client_row,
+            "What is the VAT rate in Poland?",
+            "The standard Polish VAT rate is 23%.",
+        )
+        # Raise the bar so the same question's near-neighbour cannot clear it.
+        settings.LEXICAL_SOLUTION_REUSE_THRESHOLD = 0.99
+        from app.memory.thresholds import for_embedder
+
+        runtime.thresholds = for_embedder(runtime.embedder, settings)
+
+        result = runtime.retriever(db, client_row.client_id).retrieve(
+            "what's the VAT rate for Poland"
+        )
+        assert result.solution is None, "the solution should not have been reused"
+        assert result.near_miss_score > 0, (
+            "a near-miss was found but reported as nothing at all"
+        )
+        assert result.reuse_threshold == 0.99
+        assert result.as_dict()["near_miss_score"] > 0
+
+    def test_a_genuine_absence_reports_zero_not_a_near_miss(
+        self, runtime, db, client_row
+    ):
+        self._promote(
+            runtime, db, client_row,
+            "What is the VAT rate in Poland?",
+            "The standard Polish VAT rate is 23%.",
+        )
+        result = runtime.retriever(db, client_row.client_id).retrieve(
+            "How do I bake sourdough bread at home?"
+        )
+        assert result.solution is None
+        assert result.near_miss_score == 0.0
+
+    def test_the_threshold_in_force_is_always_reported(self, runtime, db, client_row):
+        result = runtime.retriever(db, client_row.client_id).retrieve("anything")
+        assert result.reuse_threshold == runtime.thresholds.solution_reuse

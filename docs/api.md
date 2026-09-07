@@ -228,6 +228,7 @@ Statuses: `CANDIDATE` → `VALIDATED` → `PROMOTED`, or `REJECTED`, or `EXPIRED
 | `GET /api/v1/usage/fallbacks` | why local AI failed, who solved it, what happened to the answer |
 | `GET /api/v1/usage/requests` | recent request log |
 | `GET /api/v1/models` | installed models, the active embedder, provider status |
+| `POST /api/v1/models/{model}/pull` | download a local model through Ollama (**admin key only**; long-running and blocking) |
 | `GET /api/v1/tools` | tools this client may use |
 | `GET /api/v1/agents` | agent profiles |
 

@@ -286,3 +286,120 @@ class TestHostileInput:
         assert record is not None
         assert record.succeeded is False
         assert record.input_tokens > 0
+
+
+class TestRefusalsAreAudited:
+    """"What did we send out" and "what did we refuse to send" are both
+    questions a privacy review asks. The second one used to leave no trace."""
+
+    def _ask(self, runtime, db, client, message, **kwargs):
+        services = runtime.for_session(db, client.client_id)
+        response = services.router.handle(
+            GatewayRequest(message=message, client=client, **kwargs)
+        )
+        db.flush()
+        return response
+
+    def _actions(self, db, request_id):
+        return {
+            e.action: e
+            for e in db.scalars(
+                select(AuditEvent).where(AuditEvent.request_id == request_id)
+            )
+        }
+
+    def test_a_privacy_refusal_is_recorded(self, runtime, db, client_row):
+        response = self._ask(
+            runtime,
+            db,
+            client_row,
+            f"Explain the {HARD_MARKER} rule. Our key is sk-abcdefghijklmnopqrstuvwxyz01",
+        )
+        assert response.escalation_blocked_reason.value == "CLASSIFICATION_BLOCKED"
+        events = self._actions(db, response.request_id)
+        assert "privacy.escalation_blocked" in events, (
+            "a RESTRICTED request was refused with no audit row"
+        )
+        detail = events["privacy.escalation_blocked"].detail
+        assert detail["classification"] == "RESTRICTED"
+        assert detail["blocked_reason"] == "CLASSIFICATION_BLOCKED"
+        assert detail["escalation_reason"]
+
+    def test_a_budget_refusal_is_recorded_as_a_provider_block_not_a_privacy_one(
+        self, runtime, db, client_row, settings
+    ):
+        settings.AI_DAILY_API_BUDGET = 0.0
+        response = self._ask(runtime, db, client_row, f"Explain the {HARD_MARKER} rule.")
+        events = self._actions(db, response.request_id)
+        # The budget check happens inside the provider manager, which already
+        # audited it; either way a refusal must be traceable.
+        assert {"cost.budget_tripped", "provider.external_blocked"} & set(events)
+        assert "privacy.escalation_blocked" not in events
+
+    def test_a_client_permission_refusal_is_recorded(self, runtime, db):
+        client, _ = make_client(db, "noescalate", may_escalate=False)
+        response = self._ask(runtime, db, client, f"Explain the {HARD_MARKER} rule.")
+        events = self._actions(db, response.request_id)
+        assert "provider.external_blocked" in events
+        assert events["provider.external_blocked"].detail["blocked_reason"] == "CLIENT_NOT_PERMITTED"
+
+    def test_the_refusal_row_carries_no_content(self, runtime, db, client_row):
+        response = self._ask(
+            runtime,
+            db,
+            client_row,
+            "A very distinctive private sentence. Key sk-abcdefghijklmnopqrstuvwxyz01",
+        )
+        events = self._actions(db, response.request_id)
+        blob = str(events)
+        assert "very distinctive private sentence" not in blob
+        assert "sk-abcdefghijklmnopqrstuvwxyz01" not in blob
+
+
+class TestEveryEndpointIsAccountedFor:
+    """Enumerate the whole surface rather than spot-checking it.
+
+    A new route that forgets its auth dependency is a silent hole, and the way
+    it gets found is a test that walks the OpenAPI schema instead of a list
+    somebody remembered to update.
+    """
+
+    # Public by DECISION, each with a reason. Anything not listed must require
+    # a key; adding to this set should take an argument.
+    PUBLIC = {
+        "/": "service identity; no data",
+        "/health": "component status for dashboards and deploy gates",
+        "/healthz": "liveness probe for the orchestrator",
+        "/readyz": "readiness probe for the orchestrator",
+        "/api/v1/health": "the versioned alias of /health",
+        "/docs": "API documentation",
+        "/redoc": "API documentation",
+        "/openapi.json": "the schema the documentation renders",
+        "/docs/oauth2-redirect": "swagger-ui plumbing",
+        "/admin/login": "the sign-in form itself",
+    }
+
+    def test_no_endpoint_is_reachable_without_a_key_by_accident(self, api):
+        spec = api.get("/openapi.json").json()
+        reachable = []
+        for path, methods in spec["paths"].items():
+            if "{" in path or path in self.PUBLIC:
+                continue
+            for method in methods:
+                if method not in ("get", "post", "put", "patch", "delete"):
+                    continue
+                response = api.request(method.upper(), path)
+                if response.status_code not in (401, 403):
+                    reachable.append(f"{method.upper()} {path} → {response.status_code}")
+        assert reachable == [], (
+            "these endpoints answered without a key and are not in the public set: "
+            + ", ".join(reachable)
+        )
+
+    def test_the_public_set_really_is_public(self, api):
+        for path in ("/", "/health", "/healthz", "/readyz", "/api/v1/health"):
+            assert api.get(path).status_code in (200, 503), path
+
+    def test_the_admin_ui_is_not_public(self, api):
+        for path in ("/admin", "/admin/audit", "/admin/clients", "/admin/solutions"):
+            assert api.get(path, follow_redirects=False).status_code == 401, path

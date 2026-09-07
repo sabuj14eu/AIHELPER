@@ -259,3 +259,65 @@ class TestSuccessRateHonesty:
         summary = usage_summary(db)
         assert summary["answered_locally"] == 0
         assert summary["estimated_money_saved_usd"] == 0.0
+
+
+class TestBlockedEscalationsAreVisible:
+    """A budget set too low to admit any request kills escalation silently:
+    nothing is spent, the fallback count reads zero, and the dashboard looks
+    like a local model performing beautifully. The refusals have to be counted."""
+
+    def _ask_hard(self, runtime, db, client_row, n=0):
+        from app.gateway.router import GatewayRequest
+        from tests.fakes import HARD_MARKER
+
+        services = runtime.for_session(db, client_row.client_id)
+        response = services.router.handle(
+            GatewayRequest(
+                message=f"Explain the {HARD_MARKER} rule, case {n}.", client=client_row
+            )
+        )
+        db.flush()
+        return response
+
+    def test_refused_escalations_are_counted_and_named(
+        self, runtime, db, client_row, settings, paid_provider
+    ):
+        settings.AI_DAILY_API_BUDGET = 0.0
+        for i in range(3):
+            self._ask_hard(runtime, db, client_row, i)
+
+        summary = usage_summary(db)
+        assert paid_provider.call_count == 0
+        assert summary["api_fallback_requests"] == 0
+        assert summary["escalations_blocked_total"] == 3
+        assert summary["escalations_blocked_by_budget"] == 3
+        assert summary["escalations_blocked"][0]["reason"] == "DAILY_BUDGET_EXHAUSTED"
+
+    def test_a_privacy_refusal_is_not_counted_as_a_budget_problem(
+        self, runtime, db, client_row
+    ):
+        from app.gateway.router import GatewayRequest
+        from tests.fakes import HARD_MARKER
+
+        services = runtime.for_session(db, client_row.client_id)
+        services.router.handle(
+            GatewayRequest(
+                message=f"Explain the {HARD_MARKER} rule. Key sk-abcdefghijklmnopqrstuvwxyz01",
+                client=client_row,
+            )
+        )
+        db.flush()
+        summary = usage_summary(db)
+        assert summary["escalations_blocked_total"] == 1
+        assert summary["escalations_blocked_by_budget"] == 0
+        assert summary["escalations_blocked"][0]["reason"] == "CLASSIFICATION_BLOCKED"
+
+    def test_nothing_blocked_reports_zero_rather_than_nothing(self, runtime, db, client_row):
+        from app.gateway.router import GatewayRequest
+
+        services = runtime.for_session(db, client_row.client_id)
+        services.router.handle(GatewayRequest(message="2 + 2", client=client_row))
+        db.flush()
+        summary = usage_summary(db)
+        assert summary["escalations_blocked"] == []
+        assert summary["escalations_blocked_total"] == 0

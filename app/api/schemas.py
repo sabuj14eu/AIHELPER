@@ -206,6 +206,9 @@ class UsageResponse(BaseModel):
     rejected_solutions: int
     candidate_solutions: int
     escalation_reasons: list[dict]
+    escalations_blocked: list[dict]
+    escalations_blocked_total: int
+    escalations_blocked_by_budget: int
     estimated_money_saved_usd: float
     api_cost_today: float
     api_cost_month: float

@@ -76,7 +76,13 @@ def list_documents(
 
 
 @router.get("/documents/formats", summary="Supported upload formats")
-def supported_formats() -> dict:
+def supported_formats(_client: Client = Depends(current_client)) -> dict:
+    """Requires a key like everything else under /api/v1.
+
+    It discloses only a static list of extensions, but "harmless" is not the
+    test — consistency is. An endpoint that is public by omission rather than
+    by decision is the kind of thing that gets copied.
+    """
     return {"extensions": sorted(SUPPORTED_EXTENSIONS)}
 
 

@@ -236,3 +236,50 @@ class TestCli:
             "solutions_expired": 0,
             "memory_expired": 0,
         }
+
+
+class TestCalibrateCommand:
+    """The threshold is chosen from which CLASS of embedder is running, never
+    from a measurement of the model actually installed. `calibrate` is the
+    measurement, and it must fail loudly rather than reassure."""
+
+    def test_it_refuses_an_embedder_that_cannot_separate_related_from_unrelated(
+        self, engine, capsys, monkeypatch
+    ):
+        from app import cli
+
+        # The lexical fallback genuinely cannot match a paraphrase that shares
+        # no words, so calibration must say so rather than pass.
+        monkeypatch.setenv("OLLAMA_ENABLED", "false")
+        monkeypatch.setenv("QDRANT_ENABLED", "false")
+        from app.core.config import reset_settings_cache
+
+        reset_settings_cache()
+        try:
+            assert cli.main(["calibrate"]) == 1
+            captured = capsys.readouterr()
+            assert "CANNOT SEPARATE" in captured.err
+            assert "not a tuning problem" in captured.err
+            assert '"verdict": "no_separation"' in captured.out
+        finally:
+            reset_settings_cache()
+
+    def test_it_reports_the_measured_distribution_as_json(self, engine, capsys, monkeypatch):
+        import json
+
+        from app import cli
+        from app.core.config import reset_settings_cache
+
+        monkeypatch.setenv("OLLAMA_ENABLED", "false")
+        monkeypatch.setenv("QDRANT_ENABLED", "false")
+        reset_settings_cache()
+        try:
+            cli.main(["calibrate"])
+            report = json.loads(capsys.readouterr().out)
+            assert report["embedder"]
+            assert len(report["related_pairs"]) == len(cli.CALIBRATION_RELATED)
+            assert len(report["unrelated_pairs"]) == len(cli.CALIBRATION_UNRELATED)
+            assert "worst_related" in report and "best_unrelated" in report
+            assert report["thresholds"]["solution_reuse"] > 0
+        finally:
+            reset_settings_cache()

@@ -154,3 +154,74 @@ class TestLogDestination:
         captured = capsys.readouterr()
         assert captured.out.strip() == "machine-readable output"
         assert "a log line" in captured.err
+
+
+class TestProductionGuards:
+    """A placeholder secret in production is a forged admin session waiting to
+    happen. A warning in a log nobody reads is not a control."""
+
+    def test_development_may_run_on_the_default_secret(self):
+        assert Settings(ENVIRONMENT="development").AUTH_SECRET
+
+    def test_production_refuses_the_published_default_secret(self):
+        from app.core.config import DEFAULT_AUTH_SECRET
+
+        with pytest.raises(ValueError, match="AUTH_SECRET"):
+            Settings(ENVIRONMENT="production", AUTH_SECRET=DEFAULT_AUTH_SECRET)
+
+    @pytest.mark.parametrize("secret", ["", "short", "x" * 31])
+    def test_production_refuses_a_weak_secret(self, secret):
+        with pytest.raises(ValueError, match="AUTH_SECRET"):
+            Settings(ENVIRONMENT="production", AUTH_SECRET=secret)
+
+    def test_production_refuses_debug_mode(self):
+        with pytest.raises(ValueError, match="DEBUG"):
+            Settings(ENVIRONMENT="production", AUTH_SECRET="x" * 64, DEBUG=True)
+
+    def test_a_properly_configured_production_starts(self):
+        settings = Settings(ENVIRONMENT="production", AUTH_SECRET="x" * 64)
+        assert settings.ENVIRONMENT == "production"
+
+    def test_the_refusal_says_how_to_fix_it(self):
+        with pytest.raises(ValueError, match="openssl rand -hex 32"):
+            Settings(ENVIRONMENT="production")
+
+
+class TestConfigurationIsDocumented:
+    """`.env.example` is the only place most operators will look. A setting
+    that exists but is not there is a setting nobody knows to set; a setting
+    documented but not implemented is a promise nothing keeps."""
+
+    # Consumed by docker-compose.yml, not by the application itself.
+    COMPOSE_ONLY = {
+        "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
+        "N8N_ENCRYPTION_KEY", "WEBUI_SECRET_KEY", "TZ",
+    }
+
+    def _documented(self) -> set[str]:
+        import re
+        from pathlib import Path
+
+        text = Path(__file__).resolve().parents[2].joinpath(".env.example").read_text()
+        return set(re.findall(r"^([A-Z][A-Z0-9_]*)=", text, re.M))
+
+    def test_every_setting_appears_in_env_example(self):
+        undocumented = sorted(set(Settings.model_fields) - self._documented())
+        assert undocumented == [], (
+            f"these settings exist but are not in .env.example: {undocumented}"
+        )
+
+    def test_env_example_documents_nothing_that_does_not_exist(self):
+        unknown = sorted(self._documented() - set(Settings.model_fields) - self.COMPOSE_ONLY)
+        assert unknown == [], (
+            f".env.example documents settings the application does not read: {unknown}"
+        )
+
+    def test_there_is_no_switch_that_appears_to_disable_authentication(self):
+        suspicious = [
+            name for name in Settings.model_fields
+            if any(word in name for word in ("ANONYMOUS", "NO_AUTH", "DISABLE_AUTH", "SKIP_AUTH"))
+        ]
+        assert suspicious == [], (
+            f"these settings read like a way to turn authentication off: {suspicious}"
+        )

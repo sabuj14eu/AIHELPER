@@ -30,6 +30,11 @@
 {% if s.paid_disabled_by_budget %}
 <p class="note bad">PAID API DISABLED — a budget is exhausted. The system is still answering locally.</p>
 {% endif %}
+{% if u.escalations_blocked_by_budget %}
+<p class="note warn">{{ u.escalations_blocked_by_budget }} escalation(s) were wanted but refused by a
+cost limit in this window. If that number is large while spend is near zero, a budget or the
+per-request cap is set too low to admit any request — escalation is effectively switched off.</p>
+{% endif %}
 
 <h2>Providers</h2>
 <div class="panel scroll"><table>
@@ -50,6 +55,14 @@
     <td>{{ data.runtime.vector_backend }}</td>
     <td>{{ data.runtime.thresholds.solution_reuse }}</td>
     <td class="wrap">{{ data.runtime.tools|join(', ') }}</td></tr>
+</table></div>
+
+<h2>Escalations that were refused</h2>
+<div class="panel scroll"><table>
+<tr><th>Blocked because</th><th>Requests</th></tr>
+{% for r in u.escalations_blocked %}
+<tr><td>{{ r.reason }}</td><td>{{ r.count }}</td></tr>
+{% else %}<tr><td colspan="2" class="muted">No escalation was refused in this window.</td></tr>{% endfor %}
 </table></div>
 
 <h2>Why we are paying for AI</h2>

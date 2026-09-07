@@ -141,12 +141,13 @@ EXTERNAL_ALLOWED_CLASSIFICATIONS=PUBLIC,INTERNAL   # RESTRICTED is refused here
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
-.venv/bin/python -m pytest            # 388 tests, no external services needed
+.venv/bin/python -m pytest            # the whole suite; no external services needed
 .venv/bin/python -m pytest tests/test_acceptance.py -s   # the acceptance scenario
 ```
 
-The suite runs against a real database, the real gateway, the real validation
-pipeline and the real cost tracker. Only the two model providers are fakes.
+418 tests at the time of writing. They run against a real database, the real
+gateway, the real validation pipeline and the real cost tracker; only the two
+model providers are fakes.
 `tests/gateway/test_critical_regressions.py` holds the ten guarantees from the
 specification, and `tests/fallback/test_cost_saving_cycle.py` holds the one that
 matters most: a question is paid for once and answered locally thereafter.
@@ -162,9 +163,15 @@ matters most: a question is paid for once and answered locally thereafter.
 | [`docs/operations.md`](docs/operations.md) | Backups, models, logs, troubleshooting, tuning |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Releases and migration notes |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | What this does not do, and what it costs you |
+| [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) | Independent verification, findings, and the production verdict |
 
 Read `docs/LIMITATIONS.md` before you rely on any of this in production. It is
 short, and it is the honest half of this README.
+
+**Production status: NOT APPROVED.** No real language model has ever run
+against this system, and the Docker image has never been built — both because
+the build environment had neither. `audit/AUDIT_REPORT.md` lists exactly what
+that leaves unproven and the seven steps to close it.
 
 ## Future integration
 

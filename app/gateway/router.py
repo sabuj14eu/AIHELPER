@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from app.agents.base import AgentSpec, narrowed_tools
-from app.core.audit import CHAT_REQUEST, record
+from app.core.audit import CHAT_REQUEST, EXTERNAL_BLOCKED, PRIVACY_BLOCK, record
 from app.core.config import Settings
 from app.core.errors import ProviderTimeoutError, ProviderUnavailableError
 from app.core.ids import new_request_id
@@ -356,6 +356,31 @@ class GatewayRouter:
         if not permission.allowed:
             base.escalation_blocked_reason = permission.blocked_reason
             base.notes.append(f"escalation blocked: {permission.detail}")
+            # A refusal is audited as reliably as a send. This is the branch
+            # that actually fires in production — the identical check inside
+            # PaidProviderManager is a last-ditch guard that is only reached if
+            # this one is bypassed — so without a row here the audit trail can
+            # answer "what did we send out?" but not "what did we refuse to
+            # send, and why?", which is the question a privacy review asks.
+            is_privacy = permission.blocked_reason is EscalationBlockReason.CLASSIFICATION_BLOCKED
+            record(
+                self.session,
+                actor=client.client_id,
+                action=PRIVACY_BLOCK if is_privacy else EXTERNAL_BLOCKED,
+                resource_type="request",
+                resource_id=request_id,
+                request_id=request_id,
+                result="blocked",
+                detail={
+                    "blocked_reason": permission.blocked_reason.value
+                    if permission.blocked_reason
+                    else None,
+                    "detail": permission.detail,
+                    "classification": classification.value,
+                    "task_type": task_type.value,
+                    "escalation_reason": intent.reason.value if intent.reason else None,
+                },
+            )
             return self._degraded(base, local_result, short_term, conversation, request_id)
 
         paid_result = self._run_paid(

@@ -11,8 +11,12 @@ import os
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Published in this file and in .env.example, so it is a known value, not a
+# secret. Production refuses to start with it (see the validator below).
+DEFAULT_AUTH_SECRET = "change-me-in-production"
 
 
 class Settings(BaseSettings):
@@ -84,14 +88,17 @@ class Settings(BaseSettings):
     REDACT_BEFORE_ESCALATION: bool = True
 
     # ------------------------------------------------------------ security
-    AUTH_SECRET: str = "change-me-in-production"
+    AUTH_SECRET: str = DEFAULT_AUTH_SECRET
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD_HASH: str | None = None
     SESSION_TTL_MINUTES: int = 720
     RATE_LIMIT_PER_MINUTE: int = 60
     RATE_LIMIT_BURST: int = 20
     MAX_REQUEST_CHARS: int = 32_000
-    ALLOW_ANONYMOUS: bool = False
+    # NOTE: there is deliberately no ALLOW_ANONYMOUS setting. Every endpoint
+    # except the health probes and the docs requires an API key, and that is
+    # not configurable — a switch that appears to relax it, whether or not it
+    # is wired up, is an invitation to relax it.
 
     # ------------------------------------------------------------- memory
     # Similarity thresholds. A semantic embedder and a lexical one live on
@@ -130,6 +137,32 @@ class Settings(BaseSettings):
 
     # ---------------------------------------------------------- workers
     WORKER_CONCURRENCY: int = 2
+
+    @model_validator(mode="after")
+    def _production_must_not_run_on_defaults(self) -> Settings:
+        """Refuse to start a production deployment on placeholder secrets.
+
+        AUTH_SECRET signs the admin session cookie. Its default is published in
+        this file and in .env.example, so a production instance still carrying
+        it can have an admin session forged by anyone who has read the repo.
+        A warning in a log nobody reads is not a control; refusing to start is.
+        """
+        if self.ENVIRONMENT != "production":
+            return self
+        problems: list[str] = []
+        if self.AUTH_SECRET in (DEFAULT_AUTH_SECRET, "", None) or len(self.AUTH_SECRET) < 32:
+            problems.append(
+                "AUTH_SECRET is the placeholder or is shorter than 32 characters — "
+                "an admin session cookie signed with it can be forged. "
+                "Generate one with: openssl rand -hex 32"
+            )
+        if self.DEBUG:
+            problems.append("DEBUG must be false in production")
+        if problems:
+            raise ValueError(
+                "refusing to start in production:\n  - " + "\n  - ".join(problems)
+            )
+        return self
 
     @field_validator("EXTERNAL_ALLOWED_CLASSIFICATIONS")
     @classmethod

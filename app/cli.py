@@ -77,6 +77,150 @@ def cmd_health(_args) -> int:
     return 0
 
 
+# Pairs used to measure an embedder's score distribution. Each "related" pair
+# is a question and a paraphrase of it that a working retrieval layer must
+# match; each "unrelated" pair must not match. Deliberately plain and
+# domain-neutral — this measures the embedder, not the deployment's content.
+CALIBRATION_RELATED = [
+    ("What is the VAT rate in Poland?", "what's the Polish VAT rate"),
+    ("How are invoices numbered?", "what is the invoice numbering scheme"),
+    ("When is the contribution due?", "what is the deadline for paying the contribution"),
+    ("Explain the look-back rule and when it applies.",
+     "When does the look-back rule apply, and what exactly does it say?"),
+    ("Who is allowed to approve an expense?", "which people can sign off on expenses"),
+]
+CALIBRATION_UNRELATED = [
+    ("What is the VAT rate in Poland?", "How do I bake sourdough bread at home?"),
+    ("How are invoices numbered?", "Chess openings are classified by ECO code."),
+    ("When is the contribution due?", "The train to Krakow leaves from platform four."),
+    ("Explain the look-back rule and when it applies.", "Photosynthesis converts light to energy."),
+    ("Who is allowed to approve an expense?", "The capital of France is Paris."),
+]
+
+
+def cmd_calibrate(args) -> int:
+    """Measure the ACTIVE embedder and check the configured thresholds fit it.
+
+    Why this exists: the thresholds are chosen from which *class* of embedder
+    is running (semantic or lexical), never from a measurement of the model
+    actually installed. If a deployment's embedding model scores on a different
+    scale than the defaults assume, solution reuse silently stops working and
+    every paraphrase re-escalates and pays. That failure is invisible without
+    a measurement, so here is the measurement.
+    """
+    from app.memory.embeddings import cosine
+    from app.memory.thresholds import for_embedder
+    from app.runtime import Runtime
+
+    settings = get_settings()
+    runtime = Runtime(settings)
+    embedder = runtime.embedder
+    thresholds = for_embedder(embedder, settings)
+
+    def scores(pairs):
+        out = []
+        for first, second in pairs:
+            a, b = embedder.embed([first, second])
+            out.append(cosine(a, b))
+        return sorted(out)
+
+    try:
+        related = scores(CALIBRATION_RELATED)
+        unrelated = scores(CALIBRATION_UNRELATED)
+    except Exception as exc:
+        print(f"could not embed: {type(exc).__name__}: {exc}", file=sys.stderr)
+        runtime.close()
+        return 1
+    finally:
+        pass
+
+    worst_related = min(related)
+    best_unrelated = max(unrelated)
+    memory_ok = best_unrelated < thresholds.memory < worst_related
+    reuse_ok = thresholds.solution_reuse <= worst_related
+
+    # Decide the verdict BEFORE printing, so the JSON a machine consumes
+    # actually carries it.
+    if worst_related <= best_unrelated:
+        verdict = "no_separation"
+    elif not memory_ok or not reuse_ok:
+        verdict = "thresholds_misplaced"
+    else:
+        verdict = "ok"
+
+    report = {
+        "embedder": embedder.id,
+        "semantic": embedder.semantic,
+        "dimensions": embedder.dim,
+        "related_pairs": [round(s, 4) for s in related],
+        "unrelated_pairs": [round(s, 4) for s in unrelated],
+        "worst_related": round(worst_related, 4),
+        "best_unrelated": round(best_unrelated, 4),
+        "thresholds": thresholds.as_dict(),
+        "memory_threshold_fits": memory_ok,
+        "reuse_threshold_fits": reuse_ok,
+        "verdict": verdict,
+    }
+    print(json.dumps(report, indent=2))
+
+    names = (
+        "MEMORY_SIMILARITY_THRESHOLD / SOLUTION_REUSE_THRESHOLD"
+        if embedder.semantic
+        else "LEXICAL_MEMORY_SIMILARITY_THRESHOLD / LEXICAL_SOLUTION_REUSE_THRESHOLD"
+    )
+    measurement = (
+        f"  Paraphrases of the same question score as low as {worst_related:.3f}.\n"
+        f"  Unrelated text scores as high as {best_unrelated:.3f}.\n"
+    )
+    consequence = (
+        "\nLeft as is, learned solutions will not be reused for a reworded\n"
+        "question, and every paraphrase will escalate to a paid provider.\n"
+    )
+
+    if verdict == "no_separation":
+        # No threshold can separate the two populations. Saying "adjust the
+        # threshold" here would be wrong advice: there is nothing to adjust it
+        # to. The embedder itself is the problem.
+        print(
+            "\nTHIS EMBEDDER CANNOT SEPARATE RELATED FROM UNRELATED TEXT.\n"
+            + measurement
+            + "  Those ranges overlap, so no threshold exists that admits the\n"
+            "  first and rejects the second. This is not a tuning problem.\n"
+            + consequence
+            + "\nInstall a real embedding model and re-run:\n"
+            "  ollama pull nomic-embed-text\n"
+            "  python -m app.cli calibrate",
+            file=sys.stderr,
+        )
+        runtime.close()
+        return 1
+
+    if verdict == "thresholds_misplaced":
+        print(
+            "\nTHE THRESHOLDS DO NOT FIT THIS EMBEDDER.\n"
+            + measurement
+            + f"  A retrieval threshold must sit strictly between those; it is "
+            f"{thresholds.memory:.3f}.\n"
+            f"  A reuse threshold must be at or below {worst_related:.3f}; it is "
+            f"{thresholds.solution_reuse:.3f}.\n"
+            + consequence
+            + f"\nSet {names} to values inside the measured gap\n"
+            f"(for example {(best_unrelated + worst_related) / 2:.2f} and "
+            f"{max(best_unrelated + 0.01, worst_related - 0.05):.2f}) and re-run this command.",
+            file=sys.stderr,
+        )
+        runtime.close()
+        return 1
+
+    print(
+        f"\nThresholds fit the measured distribution "
+        f"(gap {best_unrelated:.3f} … {worst_related:.3f}).",
+        file=sys.stderr,
+    )
+    runtime.close()
+    return 0
+
+
 def cmd_expire(_args) -> int:
     """Age out memory items and solutions whose time-to-live has elapsed."""
     from app.learning.solution_store import SolutionStore
@@ -112,6 +256,10 @@ def main(argv: list[str] | None = None) -> int:
     create.set_defaults(func=cmd_create_client)
 
     sub.add_parser("health", help="print component status").set_defaults(func=cmd_health)
+    sub.add_parser(
+        "calibrate",
+        help="measure the active embedder and check the similarity thresholds fit it",
+    ).set_defaults(func=cmd_calibrate)
     sub.add_parser("expire", help="expire memory and solutions past their TTL").set_defaults(
         func=cmd_expire
     )

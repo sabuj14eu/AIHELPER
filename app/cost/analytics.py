@@ -84,6 +84,36 @@ def usage_summary(session: Session, *, days: int = 30, client_id: str | None = N
         ).all()
     ]
 
+    # Escalations that were WANTED but did not happen, and why. Without this
+    # a misconfigured budget is invisible: every escalation is refused, no
+    # money is spent, the fallback count reads zero, and the dashboard looks
+    # like a local model performing beautifully.
+    blocked = [
+        {"reason": reason, "count": int(count)}
+        for reason, count in session.execute(
+            scoped(
+                select(
+                    RequestLog.escalation_blocked_reason, func.count(RequestLog.request_id)
+                )
+            )
+            .where(RequestLog.escalation_blocked_reason.is_not(None))
+            .group_by(RequestLog.escalation_blocked_reason)
+            .order_by(func.count(RequestLog.request_id).desc())
+        ).all()
+    ]
+    blocked_total = sum(row["count"] for row in blocked)
+    blocked_by_budget = sum(
+        row["count"]
+        for row in blocked
+        if row["reason"]
+        in (
+            "DAILY_BUDGET_EXHAUSTED",
+            "MONTHLY_BUDGET_EXHAUSTED",
+            "REQUEST_COST_CAP",
+            "REQUEST_TOO_LARGE",
+        )
+    )
+
     solution_stmt = select(SolutionCandidate.status, func.count(SolutionCandidate.id)).group_by(
         SolutionCandidate.status
     )
@@ -127,6 +157,9 @@ def usage_summary(session: Session, *, days: int = 30, client_id: str | None = N
         "rejected_solutions": solutions[SolutionStatus.REJECTED.value],
         "expired_solutions": solutions[SolutionStatus.EXPIRED.value],
         "escalation_reasons": reasons,
+        "escalations_blocked": blocked,
+        "escalations_blocked_total": blocked_total,
+        "escalations_blocked_by_budget": blocked_by_budget,
         "paid_calls": paid_calls,
         "paid_cost_window": round(paid_cost, 4),
         "mean_paid_call_cost": round(mean_paid_cost, 6),

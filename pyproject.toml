@@ -34,3 +34,7 @@ ignore = [
 # C408: dict(...) with keyword arguments reads better than a brace literal
 #       when a test is assembling a payload it then updates.
 "tests/*" = ["B011", "C408"]
+# audit/ holds standalone verification scripts, not shipped code: long
+# procedural bodies, semicolons in teardown and manually-managed subprocess
+# log handles are appropriate there and would be noise to restructure.
+"audit/*" = ["B011", "C408", "E402", "E702", "SIM115", "SIM117", "B008"]
