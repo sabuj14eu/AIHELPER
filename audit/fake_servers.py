@@ -175,8 +175,11 @@ class AnthropicHandler(_Handler):
 
 
 class FakeServer:
-    def __init__(self, handler, port: int):
-        self.httpd = HTTPServer(("127.0.0.1", port), handler)
+    def __init__(self, handler, port: int, bind: str = "127.0.0.1"):
+        # bind="0.0.0.0" lets containers reach these through host.docker.internal,
+        # which is how the containerised persistence audit drives them.
+        self.httpd = HTTPServer((bind, port), handler)
+        self.bind = bind
         self.httpd.calls = []
         self.httpd.offline = False
         self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)

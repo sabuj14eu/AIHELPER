@@ -8,16 +8,22 @@
                        Docker registry unreachable (see Docker, below)
 
     PRODUCTION STATUS: NOT APPROVED
-    Reason: two acceptance criteria could not be executed in this environment
-    (a real Ollama model and a Docker clean install). Everything that could be
-    executed here passed. See "What is blocking approval".
+    Reason: ONE blocker remains — no real model weights are obtainable in this
+    environment, which leaves the Real Ollama gate and the calibration gate
+    unproven. The Docker and persistence gates, previously NOT RUN, now PASS
+    for real. See "What is blocking approval".
+
+    Second pass (2026-09-07, later): Docker Hub proved reachable through
+    mirror.gcr.io, so the image was built for real and the full stack was run
+    with real PostgreSQL and real Qdrant. Container restart persistence was
+    proved with a real `docker compose down` / `up`.
 
 ---
 
 ## Tests
 
-    Total    : 418
-    Passed   : 418
+    Total    : 435
+    Passed   : 435
     Failed   : 0
     Skipped  : 0
     Coverage : 89% of app/
@@ -185,34 +191,58 @@ knowledge without a person.
       are intact, and the learned answer is reused free        PASS
     No lost memory                                             PASS
 
-## Docker
+## Docker — second pass, now PASS
 
-    Clean install                                              NOT RUN
-    Restart persistence                                        NOT RUN (containers)
+    Clean image build (no cache)                               PASS
+    Full stack up                                              PASS
+    Container restart persistence                              PASS
+    PostgreSQL persistence                                     PASS
+    Qdrant persistence                                         PASS
 
-**This environment cannot reach a container registry.** Docker Hub's blob CDN
-(`production.cloudfront.docker.com`) is refused by the network policy with 403,
-and manifest requests return 429. `docker pull alpine:latest` fails, so no
-image can be built or run here. This is an environment limitation, not a
-finding about the Dockerfile — and it is also not a pass.
+`mirror.gcr.io` reaches Docker Hub from this host, so the build and the stack
+were exercised for real.
 
-What was verified instead, statically and locally:
+    docker compose build ai-helper      36s from a cold cache, 522 MB image
+    docker compose up -d                postgres, qdrant, ollama, n8n, ai-helper
+    alembic upgrade head                ran inside the container against real
+                                        PostgreSQL: "Running upgrade -> 0001_baseline"
+    startup log                         "vector_backend": "qdrant"  (not the fallback)
+    HEALTHCHECK                         container reports healthy
 
-    docker-compose.yml validates (docker compose config)       PASS
-    docker-compose.dev.yml overlay validates                   PASS
-    Missing-secret guards fire (POSTGRES_PASSWORD etc.)        PASS
-    Every COPY source in the Dockerfile exists                 PASS
-    .dockerignore excludes nothing the image needs             PASS
-    The container's start command works locally
-      (alembic upgrade head && uvicorn --factory)              PASS
-    The healthcheck path (/healthz) exists and answers         PASS
-    Clean install from requirements.txt into an empty venv     PASS
-    418/418 tests pass on that clean install                   PASS
-    Named volumes cover every stateful service                 PASS
+One service could not start: **Open WebUI**. Its image is published only on
+ghcr.io, whose blob storage this network refuses. It is an optional
+human-facing chat surface that talks to Ollama directly and deliberately does
+not go through the Gateway, so nothing else in this audit depends on it. It
+remains NOT RUN.
 
-Restart persistence was proved at the process and database level (35/35 above),
-which is the same property the volumes exist to provide. It has not been
-proved through `docker compose down && up`.
+### A build failure was found and fixed
+
+The first real build failed: `apt-get install libpq5 curl` could not reach
+`deb.debian.org`. Rather than work around it, the apt layers were removed,
+because they turned out to be unnecessary — see F7 below.
+
+### Container restart persistence — 30/30, twice
+
+Real containers, real named volumes, a real `docker compose down` followed by
+`up`. Row counts read straight from PostgreSQL with `psql`, and vector counts
+straight from Qdrant's own API — not through the application, which could have
+reported whatever it had cached.
+
+    created         a memory item, a document, a learned+promoted solution
+    before          postgres {clients 1, memory_items 1, documents 1,
+                              document_chunks 1, solution_candidates 1,
+                              cost_records 1, audit_events 19}
+                    qdrant   {knowledge 1, memory 1, solutions 1}
+    docker compose down                 containers removed, volumes retained
+    docker compose up
+    after           identical on every count
+    then            the learned answer was still reused, locally, with NO paid
+                    call, and semantic search still worked against Qdrant
+
+    PostgreSQL restarted alone: data intact, app recovered   PASS
+    Qdrant restarted alone: vectors intact                   PASS
+
+No silent loss of learned experience.
 
 ## Documentation
 
@@ -231,8 +261,8 @@ proved through `docker compose down && up`.
 
 ## Findings, and what was done about them
 
-Six issues were found during this audit. All six are fixed, each with a
-regression test.
+Eight issues were found across the two audit passes. All eight are fixed,
+each with a regression test.
 
 **F1 — Solution reuse can fail silently and expensively.** The similarity
 threshold is chosen from *which class* of embedder is running (semantic or
@@ -297,51 +327,93 @@ tests.
 
 ## What is blocking approval
 
-Two acceptance criteria could not be executed here. Neither is a defect; both
-are things nobody has yet seen work.
+One thing, and it is the same one thing in two places.
 
-**1. No real language model has ever run against this system.** There are no
-model weights in this environment. Every "local model" and "paid provider" in
-this audit is a protocol-faithful HTTP stand-in: the real `OllamaClient`,
-`ModelManager`, `AnthropicProvider` and the whole gateway execute exactly as
-they would in production, but the thing at the other end is a rule, not a
-network. Specifically unproven:
+**No real language model has ever run against this system, and none can be
+obtained here.** Every model-weight source is refused by this network's policy:
 
-- that a real 3B model's output passes the validation pipeline at a useful
-  rate — the confidence weights and `CONFIDENCE_THRESHOLD` have never been
-  calibrated against real model output, and if they are wrong the system either
-  escalates constantly (expensive) or accepts poor answers (worse);
-- that `nomic-embed-text` scores paraphrases above `SOLUTION_REUSE_THRESHOLD`
-  (0.80). This is F1's unproven assumption and it is the assumption the entire
-  cost-saving claim rests on. `ai-helper calibrate` now answers it in one
-  command — run it first;
-- that the reproduction gate behaves sensibly with a real model rather than
-  approving nearly everything or rejecting nearly everything.
+    registry.ollama.ai   403 denied      huggingface.co       403 denied
+    ollama.com           403 denied      cdn-lfs.huggingface  403 denied
 
-**2. The Docker image has never been built.** Registry access is blocked here.
-The compose files validate and the start command works locally, but the build
-itself is unverified.
+Only pypi is reachable. The Ollama *container* runs, and the real
+`OllamaClient` talks to it over real HTTP, but with no model it cannot answer,
+so the audit continues to drive a protocol-faithful stand-in. That leaves two
+gates unproven:
 
-### Before approving production, in order
+**Real Ollama (§2) — NOT RUN.** The path
+`request → gateway → model router → Ollama → response → validation → memory`
+is exercised end to end over HTTP, but the responder is a rule, not a network.
+Specifically still unknown: whether a real 3B model's output passes the
+validation pipeline at a useful rate. `CONFIDENCE_THRESHOLD` and the confidence
+weights have never been calibrated against real model output. If they are
+wrong the system either escalates constantly (expensive) or accepts poor
+answers (worse).
 
-1. On a machine with a registry: `./scripts/setup.sh`, then
-   `./scripts/health_check.sh`. Confirm the image builds and every component
-   reports OK.
-2. `docker compose exec ai-helper python -m app.cli calibrate`. If it exits
-   non-zero, fix the thresholds before anything else — until it passes, the
-   system will pay for every reworded question.
-3. `docker compose down && docker compose up -d`, then confirm a previously
-   learned answer is still reused for free. That closes the Docker restart gap.
-4. Run 50–100 real questions with paid providers **disabled**. Watch
-   `local_success_rate` and `escalations_blocked`. Tune
-   `CONFIDENCE_THRESHOLD` against real output before any money is at risk.
-5. Only then enable one paid provider, with `AI_DAILY_API_BUDGET` set to a
-   number you would be relaxed about losing. Watch
-   `/api/v1/costs → by_escalation_reason` for a week.
-6. Keep `AUTO_PROMOTE=false` until you have reviewed a few dozen promotion
+**Calibration (§6) — FAIL, correctly.** Run inside the container:
+
+    $ docker compose exec ai-helper python -m app.cli calibrate
+    THIS EMBEDDER CANNOT SEPARATE RELATED FROM UNRELATED TEXT.
+      Paraphrases of the same question score as low as 0.000.
+      Unrelated text scores as high as 0.105.
+      Those ranges overlap, so no threshold exists that admits the
+      first and rejects the second. This is not a tuning problem.
+    exit 1
+
+This is the gate working, not failing. Without `nomic-embed-text` the system
+falls back to a lexical vectoriser that genuinely cannot match a reworded
+question, and `calibrate` says so and refuses. Per §6, production status
+therefore remains NOT APPROVED.
+
+Both close with one command on a host that can reach `registry.ollama.ai`.
+
+### To reach APPROVED
+
+1. `docker compose exec ollama ollama pull nomic-embed-text`
+   `docker compose exec ollama ollama pull llama3.2:3b`
+2. `docker compose exec ai-helper python -m app.cli calibrate` — must exit 0.
+   Until it does, learned solutions will not be reused for a reworded question
+   and the system will pay for the same problem repeatedly.
+3. `./scripts/health_check.sh` — the embedder must read OK, not DEGRADED.
+4. Re-run `audit/demo_e2e.py` against the real model: confirm a hard question
+   fails locally, escalates, is learned, and is then answered locally.
+5. Run 50–100 real questions with paid providers **disabled**, and tune
+   `CONFIDENCE_THRESHOLD` against what a real model actually produces.
+6. Only then enable one paid provider, with a daily budget you would be
+   relaxed about losing.
+7. Keep `AUTO_PROMOTE=false` until you have reviewed a few dozen promotion
    decisions and agree with them.
-7. Restore a backup into a scratch environment. A backup that has never been
-   restored is a hypothesis.
+
+Steps 1–4 are mechanical and should take under an hour. Step 5 is the one that
+takes real time, and it is the one that decides whether the economics work.
+
+**F7 — The image could not be built on a host without Debian's repositories.**
+`apt-get install build-essential libpq-dev` (builder) and `libpq5 curl`
+(runtime) failed against a network that refuses `deb.debian.org`. On inspection
+none of them was needed: every dependency installs as a pre-built wheel,
+`psycopg[binary]` bundles its own libpq, `useradd` is in the base image, and
+`curl` existed only for the healthcheck.
+
+*Fixed:* the apt layers are gone. `--only-binary=:all:` now makes the
+wheel-only assumption a hard guarantee rather than a coincidence, the
+healthcheck uses the interpreter already present, and an optional `pip_ca`
+build **secret** (never a COPYed layer) lets the image build behind a
+TLS-intercepting proxy. Smaller image, fewer packages to patch, faster build,
+no build-time dependency on a Debian mirror. Eleven regression tests in
+`tests/unit/test_container_build.py` keep it that way.
+
+**F8 — n8n crash-looped forever while reporting itself as running.** On this
+IPv4-only host n8n tried to bind `::`, failed, and — with
+`restart: unless-stopped` — restarted endlessly. `docker compose ps` showed
+"Up 12 seconds" the whole time. The gateway's own `/health` was the only thing
+telling the truth, reporting n8n DOWN, which is precisely the failure mode
+`docs/architecture.md` warns about: a container being "up" is not evidence
+that a service works.
+
+*Fixed:* `N8N_LISTEN_ADDRESS: 0.0.0.0` in `docker-compose.yml`; n8n now starts
+and answers on `/healthz`. Five compose regression tests added covering the
+listen address, named volumes on every stateful service, no port published
+beyond loopback, no database port at all, and no silent default for any
+secret.
 
 ## Standing limitations
 
@@ -361,5 +433,7 @@ asking the same hard question pay ten times.
     .venv/bin/python audit/prove_security.py                     # 51 checks
     .venv/bin/python audit/prove_learning.py                     # 29 checks
     .venv/bin/python audit/prove_persistence.py                  # 35 checks
+    .venv/bin/python audit/prove_container_persistence.py        # 30 checks
+                                                    (needs the Docker stack up)
 
 Each exits non-zero on any failure, so they work in CI.

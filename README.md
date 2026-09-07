@@ -145,7 +145,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest tests/test_acceptance.py -s   # the acceptance scenario
 ```
 
-418 tests at the time of writing. They run against a real database, the real
+435 tests at the time of writing. They run against a real database, the real
 gateway, the real validation pipeline and the real cost tracker; only the two
 model providers are fakes.
 `tests/gateway/test_critical_regressions.py` holds the ten guarantees from the
@@ -168,10 +168,12 @@ matters most: a question is paid for once and answered locally thereafter.
 Read `docs/LIMITATIONS.md` before you rely on any of this in production. It is
 short, and it is the honest half of this README.
 
-**Production status: NOT APPROVED.** No real language model has ever run
-against this system, and the Docker image has never been built — both because
-the build environment had neither. `audit/AUDIT_REPORT.md` lists exactly what
-that leaves unproven and the seven steps to close it.
+**Production status: NOT APPROVED.** The image builds, the full stack runs,
+and data survives a container restart — all verified. What remains is that no
+real language model has ever run against this system, because no model weights
+were obtainable in the build environment. Until `ai-helper calibrate` exits 0
+against a real embedding model, learned solutions will not be reused for a
+reworded question. `audit/AUDIT_REPORT.md` has the detail and the steps.
 
 ## Future integration
 

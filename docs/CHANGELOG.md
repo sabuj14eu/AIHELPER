@@ -50,7 +50,7 @@ alembic upgrade head
 - **Deployment** — Docker Compose with ai-helper, postgres, qdrant, ollama,
   n8n and open-webui, named volumes for everything stateful, a non-root image,
   setup/health/backup scripts, and four n8n workflows.
-- **Tests** — 418, including the ten critical regression tests and the
+- **Tests** — 435, including the ten critical regression tests and the
   cost-saving cycle, all runnable with no external service.
 
 ### Fixed during the pre-release audit
@@ -78,6 +78,42 @@ Six issues found by `audit/`, each with a regression test. Full detail in
   **`ALLOW_ANONYMOUS` was dead configuration that read like a switch.** Both
   fixed; a test now enumerates the whole OpenAPI surface, and another keeps
   `.env.example` in sync with Settings in both directions.
+
+### Container image (found during the Docker gate)
+
+The image could not build on a host without access to Debian's package
+repositories. The `apt-get` layers turned out to be unnecessary and were
+removed:
+
+- every runtime dependency installs as a pre-built wheel, so the builder needs
+  no compiler (`--only-binary=:all:` now makes that a hard guarantee: a
+  dependency that needed compiling would fail the build loudly instead of
+  silently requiring a toolchain);
+- `psycopg[binary]` bundles its own libpq, so `libpq5` was redundant;
+- `useradd` is already in `python:3.11-slim`;
+- the healthcheck now probes `/healthz` with the interpreter that is already
+  in the image, so `curl` is no longer installed purely to check the container.
+
+Net effect: a smaller image with fewer packages to patch, a faster build, and
+no build-time dependency on `deb.debian.org`.
+
+Added an **optional** `pip_ca` build secret for hosts behind a
+TLS-intercepting proxy — a certificate belongs in a build secret, never in an
+image layer:
+
+```bash
+docker build --secret id=pip_ca,src=/path/to/corporate-ca.crt .
+```
+
+`tests/unit/test_container_build.py` keeps all of this from regressing.
+
+### Compose (found during the Docker gate)
+
+- **n8n crash-looped on an IPv4-only host.** It defaults to binding `::`; with
+  `restart: unless-stopped` that becomes an endless restart loop, and
+  `docker compose ps` reports the container as Up throughout. Fixed with
+  `N8N_LISTEN_ADDRESS: 0.0.0.0`. The gateway's `/health` was the only thing
+  that reported it correctly.
 
 ### Decisions worth recording
 

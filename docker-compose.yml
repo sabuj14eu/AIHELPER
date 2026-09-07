@@ -93,6 +93,11 @@ services:
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http
+      # n8n defaults to binding "::". On a host without IPv6 that fails, and
+      # with restart: unless-stopped it crash-loops forever while
+      # `docker compose ps` still reports the container as Up — which is
+      # exactly the kind of green light that is worth nothing.
+      N8N_LISTEN_ADDRESS: 0.0.0.0
       GENERIC_TIMEZONE: ${TZ:-Europe/Warsaw}
       N8N_DIAGNOSTICS_ENABLED: "false"
       N8N_RUNNERS_ENABLED: "true"

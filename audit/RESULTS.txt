@@ -1,27 +1,27 @@
-########## FINAL AUDIT RUN ##########
-commit: 4f0a69d (+ uncommitted audit fixes)
-date:   2026-09-07T19:04:59Z
+########## AUDIT RESULTS ##########
+date:   2026-09-07T20:13:48Z
 
-### TEST SUITE ###
-418 passed, 1 warning in 16.52s
+### TEST SUITE (twice consecutively) ###
+430 passed, 1 warning in 10.45s
+430 passed, 1 warning in 10.50s
 
-### CRITICAL REGRESSION (10) ###
+### CRITICAL REGRESSION ###
 
-### demo_e2e ###
-DEMONSTRATION PASSED  27/27 checks
+### AUDIT SUITES ###
+demo_e2e                           DEMONSTRATION PASSED  27/27 checks
+prove_cost                         COST PROTECTION PROVEN  25/25 checks
+prove_privacy_and_permissions      PRIVACY AND PERMISSIONS PROVEN  54/54 checks
+prove_security                     SECURITY SURFACE PROVEN  51/51 checks
+prove_learning                     LEARNING SYSTEM PROVEN  29/29 checks
+prove_persistence                  PERSISTENCE PROVEN  35/35 checks
+prove_container_persistence        CONTAINER PERSISTENCE PROVEN  30/30 checks
 
-### prove_cost ###
-COST PROTECTION PROVEN  25/25 checks
+### DOCKER ###
+image: ai-helper-ai-helper:latest  size 522MB
+ai-helper: running
+ollama: running
+postgres: running
+qdrant: running
 
-### prove_privacy_and_permissions ###
-PRIVACY AND PERMISSIONS PROVEN  54/54 checks
-
-### prove_security ###
-SECURITY SURFACE PROVEN  51/51 checks
-
-### prove_learning ###
-LEARNING SYSTEM PROVEN  29/29 checks
-
-### prove_persistence ###
-PERSISTENCE PROVEN  35/35 checks
-
+### CALIBRATION GATE ###
+calibrate: exit 1 (FAIL - no embedding model available in this environment)

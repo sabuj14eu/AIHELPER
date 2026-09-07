@@ -91,6 +91,30 @@ Do **not** expose Open WebUI (3000) or n8n (5678) publicly. They are operator
 tools with their own auth models, and neither goes through the Gateway's
 budget, privacy or learning layers.
 
+## Building behind a TLS-intercepting proxy
+
+On a corporate network that inspects TLS, `pip` inside the build will not trust
+the proxy's certificate. Supply it as a build secret rather than copying it
+into a layer, where it would ship with the image:
+
+```bash
+docker build --secret id=pip_ca,src=/etc/ssl/certs/corporate-ca.crt -t ai-helper .
+```
+
+Ollama pulls its models over the same network. If model pulls fail with a
+certificate error, mount the CA into that container too — in an override file,
+not in `docker-compose.yml`:
+
+```yaml
+# docker-compose.override.yml
+services:
+  ollama:
+    volumes:
+      - ollama_models:/root/.ollama
+      - /etc/ssl/certs/corporate-ca.crt:/usr/local/share/ca-certificates/proxy-ca.crt:ro
+    entrypoint: ["/bin/sh", "-c", "update-ca-certificates >/dev/null 2>&1 || true; exec /bin/ollama serve"]
+```
+
 ## Migrations
 
 The compose command runs `alembic upgrade head` before starting uvicorn, so a

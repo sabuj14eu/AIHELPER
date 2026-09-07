@@ -12,6 +12,11 @@ exits non-zero on any failure, so they work as CI gates.
 | `prove_security.py` | auth, authz, rate limits, validation, SSRF, uploads | 51 |
 | `prove_learning.py` | an API answer is never automatically trusted | 29 |
 | `prove_persistence.py` | migrations, restart, backup/restore, no lost memory | 35 |
+| `prove_container_persistence.py` | real `docker compose down`/`up`; PostgreSQL and Qdrant counts survive | 30 |
+
+`prove_container_persistence.py` needs the Docker stack running. It reads row
+counts with `psql` and vector counts from Qdrant's own API rather than through
+the application, which could otherwise report whatever it had cached.
 
 `fake_servers.py` provides protocol-faithful stand-ins for Ollama and
 Anthropic. They fake the **wire protocol**, not the application: the real
