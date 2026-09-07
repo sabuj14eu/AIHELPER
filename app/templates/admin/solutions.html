@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% block title %}Solutions — AI Helper{% endblock %}
+{% block content %}
+<h1>Learned solutions</h1>
+<p class="note">A paid answer becomes a CANDIDATE. It reaches PROMOTED only after it passes
+validation and the local model demonstrates it can answer the question with that solution in
+front of it. Only PROMOTED rows are offered back as context.</p>
+<form class="filters" method="get">
+  <label>Status
+    <select name="status" onchange="this.form.submit()">
+      <option value="">all</option>
+      {% for s in statuses %}<option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <noscript><button type="submit">Filter</button></noscript>
+</form>
+<div class="panel scroll"><table>
+<tr><th>When</th><th>Client</th><th>Question</th><th>Failure</th><th>Provider</th><th>Conf.</th>
+    <th>Status</th><th>Reused</th><th>Reproduced</th><th></th></tr>
+{% for s in solutions %}
+<tr>
+  <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at }}</td>
+  <td>{{ s.client_id }}</td>
+  <td class="wrap" title="{{ s.status_reason or '' }}">{{ s.question[:180] }}</td>
+  <td>{{ s.failure_reason or '—' }}</td>
+  <td>{{ s.provider }}</td>
+  <td>{{ '%.2f'|format(s.confidence) }}</td>
+  <td class="{% if s.status=='PROMOTED' %}ok{% elif s.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ s.status }}</td>
+  <td>{{ s.reuse_count }}</td>
+  <td class="muted">
+    {% if s.reproduction and s.reproduction.get('attempted') %}
+      {{ 'passed' if s.reproduction.get('passed') else 'failed' }}
+    {% else %}not attempted{% endif %}
+  </td>
+  <td>
+    {% if s.status != 'PROMOTED' %}
+    <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/promote"><button>Promote</button></form>
+    {% endif %}
+    {% if s.status != 'REJECTED' %}
+    <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/reject"><button>Reject</button></form>
+    {% endif %}
+  </td>
+</tr>
+{% else %}<tr><td colspan="10" class="muted">No solutions recorded yet.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

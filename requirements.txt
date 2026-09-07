@@ -1,0 +1,35 @@
+# AI Helper — runtime dependencies.
+# Pinned to a minor range: patch updates flow, a surprise major does not.
+
+# --- web layer -------------------------------------------------------------
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+python-multipart>=0.0.9,<1.0
+jinja2>=3.1,<4.0
+
+# --- configuration and models ---------------------------------------------
+pydantic>=2.9,<3.0
+pydantic-settings>=2.5,<3.0
+
+# --- database --------------------------------------------------------------
+sqlalchemy>=2.0,<3.0
+alembic>=1.13,<2.0
+psycopg[binary]>=3.2,<4.0
+
+# --- vector store ----------------------------------------------------------
+qdrant-client>=1.11,<2.0
+
+# --- providers -------------------------------------------------------------
+# Ollama, OpenAI and Anthropic are all called over plain HTTP; no vendor SDK.
+httpx>=0.27,<1.0
+
+# --- document ingestion ----------------------------------------------------
+pypdf>=5.0
+python-docx>=1.1,<2.0
+
+# --- logging ---------------------------------------------------------------
+structlog>=24.1
+
+# NOTE: there is deliberately no passlib/bcrypt here. Password hashing uses
+# hashlib.scrypt from the standard library (see app/core/security.py), which
+# avoids bcrypt's 72-byte input ceiling and its version-coupling problems.

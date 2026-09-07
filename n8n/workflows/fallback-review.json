@@ -1,0 +1,51 @@
+{
+  "name": "AI Helper — fallback review queue",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "schedule",
+      "name": "Hourly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ai-helper:8000/api/v1/solutions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "status", "value": "CANDIDATE" },
+            { "name": "limit", "value": "50" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "list-candidates",
+      "name": "List candidates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Summarise what is waiting for a human. This workflow never promotes\n// anything: promotion runs both gates in the Python service, and doing it\n// from here would skip the reproduction check.\nconst items = $input.all().map(i => i.json).flat();\nif (!items.length) return [];\nconst byReason = {};\nfor (const s of items) {\n  byReason[s.failure_reason || 'UNKNOWN'] = (byReason[s.failure_reason || 'UNKNOWN'] || 0) + 1;\n}\nreturn [{ json: {\n  waiting: items.length,\n  by_failure_reason: byReason,\n  review_url: 'http://localhost:8000/admin/solutions?status=CANDIDATE',\n  oldest: items[items.length - 1]?.created_at ?? null\n} }];"
+      },
+      "id": "summarise",
+      "name": "Summarise the queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Hourly": { "main": [[{ "node": "List candidates", "type": "main", "index": 0 }]] },
+    "List candidates": { "main": [[{ "node": "Summarise the queue", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["ai-helper"]
+}

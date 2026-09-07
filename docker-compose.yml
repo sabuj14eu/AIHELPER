@@ -1,0 +1,138 @@
+# AI Helper — full stack.
+#
+#   cp .env.example .env      # then edit it
+#   docker compose up -d
+#   docker compose exec ollama ollama pull llama3.2:3b
+#   docker compose exec ollama ollama pull nomic-embed-text
+#   docker compose exec ai-helper python -m app.cli create-client myapp
+#
+# Every stateful service has a named volume. Nothing that matters — models,
+# database, vectors, n8n workflows — lives in a container's writable layer, so
+# `docker compose down` does not destroy it. (`down -v` does; that is the point
+# of the -v.)
+
+name: ai-helper
+
+services:
+  ai-helper:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: [.env]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aihelper}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-aihelper}
+      QDRANT_URL: http://qdrant:6333
+      OLLAMA_URL: http://ollama:11434
+      N8N_URL: http://n8n:5678
+    ports:
+      - "127.0.0.1:8000:8000"     # bound to loopback; put a TLS proxy in front
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_started
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --proxy-headers"
+    volumes:
+      - ai_helper_uploads:/app/data
+    networks: [ai-helper]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aihelper}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aihelper}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aihelper} -d ${POSTGRES_DB:-aihelper}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks: [ai-helper]
+    # No published port: nothing outside this network needs the database.
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks: [ai-helper]
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 5m
+      OLLAMA_MAX_LOADED_MODELS: 2
+    volumes:
+      - ollama_models:/root/.ollama        # models are large; never lose them
+    networks: [ai-helper]
+    # For an NVIDIA GPU, uncomment:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?set N8N_ENCRYPTION_KEY in .env}
+      N8N_HOST: localhost
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      GENERIC_TIMEZONE: ${TZ:-Europe/Warsaw}
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_RUNNERS_ENABLED: "true"
+      # n8n orchestrates workflows around the Gateway. It is never the
+      # decision authority: routing, validation, budgets and privacy live in
+      # the Python service, where they are tested.
+      AI_HELPER_URL: http://ai-helper:8000
+    ports:
+      - "127.0.0.1:5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    networks: [ai-helper]
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    environment:
+      # Open WebUI talks to Ollama directly for interactive chat and model
+      # testing. Application integrations go through the Gateway instead —
+      # this surface has no budget, no privacy gate and no learning.
+      OLLAMA_BASE_URL: http://ollama:11434
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set WEBUI_SECRET_KEY in .env}
+      WEBUI_AUTH: "true"
+      ENABLE_SIGNUP: "false"
+    ports:
+      - "127.0.0.1:3000:8080"
+    depends_on: [ollama]
+    volumes:
+      - open_webui_data:/app/backend/data
+    networks: [ai-helper]
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  ollama_models:
+  n8n_data:
+  open_webui_data:
+  ai_helper_uploads:
+
+networks:
+  ai-helper:
+    driver: bridge

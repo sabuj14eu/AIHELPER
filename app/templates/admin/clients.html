@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block title %}Clients — AI Helper{% endblock %}
+{% block content %}
+<h1>Clients</h1>
+{% if new_key %}
+<div class="keybox">
+  <strong>API key for {{ new_client }}</strong>
+  <p><code>{{ new_key }}</code></p>
+  <p class="muted">This is shown once. It is stored only as a SHA-256 digest and cannot be
+  recovered — copy it now. Reload this page and it is gone.</p>
+</div>
+{% endif %}
+<div class="panel scroll"><table>
+<tr><th>Client</th><th>Name</th><th>Enabled</th><th>Admin</th><th>May escalate</th>
+    <th>Default class</th><th>External ceiling</th><th>Daily budget</th><th>Created</th></tr>
+{% for c in clients %}
+<tr><td><code>{{ c.client_id }}</code></td><td>{{ c.name }}</td>
+    <td class="{{ 'ok' if c.enabled else 'bad' }}">{{ 'yes' if c.enabled else 'revoked' }}</td>
+    <td>{{ 'yes' if c.is_admin else '' }}</td>
+    <td class="{{ 'warn' if c.may_escalate else 'muted' }}">{{ 'yes' if c.may_escalate else 'no' }}</td>
+    <td>{{ c.default_classification }}</td>
+    <td>{{ c.max_external_classification }}</td>
+    <td>{{ '$%.2f'|format(c.daily_budget_usd) if c.daily_budget_usd else '—' }}</td>
+    <td>{{ c.created_at[:19] if c.created_at }}</td></tr>
+{% endfor %}
+</table></div>
+
+<h2>Add a client</h2>
+<form method="post" action="/admin/clients" class="panel" style="padding:1rem;max-width:520px">
+  <p><label>Client id<br><input type="text" name="client_id" pattern="[a-z0-9_\-]{2,64}" required></label></p>
+  <p><label>Name<br><input type="text" name="name"></label></p>
+  <p><label><input type="checkbox" name="may_escalate" value="true"> may use paid providers</label></p>
+  <p><button type="submit">Create and issue a key</button></p>
+</form>
+<p class="note">A new client starts with the default tool set, an INTERNAL classification floor
+and an INTERNAL external ceiling. Use the admin API to narrow tools or set a per-client budget.</p>
+{% endblock %}

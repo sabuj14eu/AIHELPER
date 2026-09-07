@@ -1,0 +1,38 @@
+# Development overlay.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Adds live reload, a mounted source tree, console logs, and published ports on
+# the database and Qdrant so a local psql or the Qdrant dashboard can reach
+# them. Do not use this file in production: it exposes services and it turns on
+# debug output.
+
+services:
+  ai-helper:
+    build:
+      target: runtime
+    environment:
+      ENVIRONMENT: development
+      DEBUG: "true"
+      LOG_FORMAT: console
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./app:/app/app:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:create_app --factory --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  qdrant:
+    ports:
+      - "127.0.0.1:6333:6333"
+
+  ollama:
+    ports:
+      - "127.0.0.1:11434:11434"

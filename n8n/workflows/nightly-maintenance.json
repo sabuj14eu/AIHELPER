@@ -1,0 +1,42 @@
+{
+  "name": "AI Helper — nightly maintenance",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 3 * * *" }] }
+      },
+      "id": "schedule",
+      "name": "03:00 daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ai-helper:8000/health",
+        "options": {}
+      },
+      "id": "health",
+      "name": "Component health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Report every component that is not OK or deliberately DISABLED.\n// 'DEGRADED' matters: it is how the gateway says it fell back to the lexical\n// embedder or the database vector store, which is easy to run for months\n// without noticing.\nconst h = $input.first().json;\nconst problems = (h.components || []).filter(c => !['OK', 'DISABLED'].includes(c.status));\nreturn [{ json: {\n  overall: h.status,\n  problems,\n  needs_attention: problems.length > 0 || h.status !== 'ok'\n} }];"
+      },
+      "id": "assess",
+      "name": "Assess",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "03:00 daily": { "main": [[{ "node": "Component health", "type": "main", "index": 0 }]] },
+    "Component health": { "main": [[{ "node": "Assess", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["ai-helper"]
+}

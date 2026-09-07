@@ -1,0 +1,90 @@
+{
+  "name": "AI Helper — budget watch",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "schedule",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://ai-helper:8000/api/v1/costs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "read-costs",
+      "name": "Read spend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Report only; the cost tracker is what actually stops spending.\nconst c = $input.first().json;\nconst dayUsed = c.daily_budget ? c.spent_today / c.daily_budget : 0;\nconst monthUsed = c.monthly_budget ? c.spent_this_month / c.monthly_budget : 0;\nconst worst = Math.max(dayUsed, monthUsed);\nlet level = 'ok';\nif (c.paid_disabled_by_budget) level = 'exhausted';\nelse if (worst >= 0.8) level = 'warning';\nreturn [{ json: { level, dayUsed, monthUsed, ...c } }];"
+      },
+      "id": "assess",
+      "name": "Assess",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.level }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "needs-attention",
+      "name": "Needs attention?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Connect this to email, Slack or whatever you use.\nconst d = $input.first().json;\nconst message = d.level === 'exhausted'\n  ? `AI Helper: PAID API DISABLED. $${d.spent_today.toFixed(4)} today, $${d.spent_this_month.toFixed(4)} this month. The system is still answering locally.`\n  : `AI Helper: paid spend at ${(Math.max(d.dayUsed, d.monthUsed) * 100).toFixed(0)}% of a budget.`;\nreturn [{ json: { message, ...d } }];"
+      },
+      "id": "notify",
+      "name": "Compose alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 240]
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": { "main": [[{ "node": "Read spend", "type": "main", "index": 0 }]] },
+    "Read spend": { "main": [[{ "node": "Assess", "type": "main", "index": 0 }]] },
+    "Assess": { "main": [[{ "node": "Needs attention?", "type": "main", "index": 0 }]] },
+    "Needs attention?": { "main": [[{ "node": "Compose alert", "type": "main", "index": 0 }], []] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["ai-helper"]
+}

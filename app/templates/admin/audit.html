@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block title %}Audit — AI Helper{% endblock %}
+{% block content %}
+<h1>Audit trail</h1>
+<p class="note">Append-only: the table refuses UPDATE and DELETE at the ORM level. Detail records
+metadata — never a prompt, an answer or a document's contents.</p>
+<form class="filters" method="get">
+  <input type="text" name="actor" placeholder="actor" value="{{ filters.actor }}">
+  <input type="text" name="action" placeholder="action" value="{{ filters.action }}">
+  <input type="text" name="request_id" placeholder="request id" value="{{ filters.request_id }}">
+  <button type="submit">Search</button>
+  <a href="/admin/audit">Clear</a>
+</form>
+<div class="panel scroll"><table>
+<tr><th>When</th><th>Actor</th><th>Action</th><th>Resource</th><th>Result</th><th>Request</th><th>Detail</th></tr>
+{% for e in events %}
+<tr><td>{{ e.created_at.strftime('%Y-%m-%d %H:%M:%S') if e.created_at }}</td>
+    <td>{{ e.actor }}<span class="muted"> · {{ e.actor_type }}</span></td>
+    <td>{{ e.action }}</td>
+    <td>{{ e.resource_type or '' }}{% if e.resource_id %} <code>{{ e.resource_id }}</code>{% endif %}</td>
+    <td class="{{ 'ok' if e.result=='ok' else 'bad' }}">{{ e.result }}</td>
+    <td class="muted">{{ e.request_id or '' }}</td>
+    <td class="wrap muted">{{ e.detail }}</td></tr>
+{% else %}<tr><td colspan="7" class="muted">No audit events.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

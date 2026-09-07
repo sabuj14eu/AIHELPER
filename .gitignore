@@ -1,0 +1,23 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# local data
+*.db
+*.sqlite3
+data/
+backups/

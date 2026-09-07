@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+{% block title %}Overview — AI Helper{% endblock %}
+{% block content %}
+{% set u = data.usage %}{% set s = data.spend %}
+<h1>Overview <span class="muted" style="font-weight:400;font-size:.8rem">last {{ days }} days · v{{ data.version }} · {{ data.environment }}</span></h1>
+
+<div class="cards">
+  <div class="card"><div class="label">AI requests</div><div class="value">{{ u.total_requests }}</div></div>
+  <div class="card"><div class="label">Local</div><div class="value">{{ u.local_requests + u.tool_requests + u.memory_requests }}</div>
+    <div class="sub">{{ u.tool_requests }} tool · {{ u.local_requests }} model</div></div>
+  <div class="card"><div class="label">API fallback</div><div class="value">{{ u.api_fallback_requests }}</div>
+    <div class="sub">{{ u.fallback_percentage }}% of requests</div></div>
+  <div class="card"><div class="label">Local success rate</div>
+    <div class="value {% if u.local_success_rate >= 90 %}ok{% elif u.local_success_rate >= 70 %}warn{% else %}bad{% endif %}">{{ u.local_success_rate }}%</div>
+    <div class="sub">{{ u.answered_locally }} answered without paying</div></div>
+  <div class="card"><div class="label">Memory hits</div><div class="value">{{ u.memory_hits }}</div></div>
+  <div class="card"><div class="label">Promoted solutions</div><div class="value">{{ u.promoted_solutions }}</div>
+    <div class="sub">{{ u.candidate_solutions }} candidate · {{ u.rejected_solutions }} rejected</div></div>
+  <div class="card"><div class="label">API cost today</div><div class="value">${{ '%.4f'|format(s.spent_today) }}</div>
+    <div class="sub">of ${{ '%.2f'|format(s.daily_budget) }}</div></div>
+  <div class="card"><div class="label">API cost this month</div><div class="value">${{ '%.4f'|format(s.spent_this_month) }}</div>
+    <div class="sub">of ${{ '%.2f'|format(s.monthly_budget) }}</div></div>
+  <div class="card"><div class="label">Estimated saved</div>
+    <div class="value">${{ '%.2f'|format(u.estimated_money_saved_usd) }}</div>
+    <div class="sub" title="{{ u.estimate_basis }}">counterfactual estimate</div></div>
+  <div class="card"><div class="label">Failed requests</div>
+    <div class="value {% if u.failed_requests %}warn{% endif %}">{{ u.failed_requests }}</div></div>
+</div>
+
+{% if s.paid_disabled_by_budget %}
+<p class="note bad">PAID API DISABLED — a budget is exhausted. The system is still answering locally.</p>
+{% endif %}
+
+<h2>Providers</h2>
+<div class="panel scroll"><table>
+<tr><th>Provider</th><th>Kind</th><th>Status</th><th>Detail</th><th>Models</th></tr>
+{% for p in data.providers %}
+<tr><td>{{ p.name }}</td><td>{{ p.kind }}</td>
+  <td class="{% if p.status=='OK' %}ok{% elif p.status=='DISABLED' %}muted{% else %}bad{% endif %}">{{ p.status }}</td>
+  <td class="wrap">{{ p.detail }}</td><td>{{ p.models|join(', ') }}</td></tr>
+{% endfor %}
+</table></div>
+
+<h2>Runtime</h2>
+<div class="panel scroll"><table>
+<tr><th>Embedder</th><th>Semantic</th><th>Vector backend</th><th>Reuse threshold</th><th>Tools</th></tr>
+<tr><td>{{ data.runtime.embedder }}</td>
+    <td class="{% if data.runtime.embedder_semantic %}ok{% else %}warn{% endif %}">
+      {{ 'yes' if data.runtime.embedder_semantic else 'no — lexical fallback' }}</td>
+    <td>{{ data.runtime.vector_backend }}</td>
+    <td>{{ data.runtime.thresholds.solution_reuse }}</td>
+    <td class="wrap">{{ data.runtime.tools|join(', ') }}</td></tr>
+</table></div>
+
+<h2>Why we are paying for AI</h2>
+<div class="panel scroll"><table>
+<tr><th>Escalation reason</th><th>Requests</th><th>Calls</th><th>Cost</th></tr>
+{% set costs = {} %}{% for r in data.by_reason %}{% set _ = costs.update({r.reason: r}) %}{% endfor %}
+{% for r in u.escalation_reasons %}
+<tr><td>{{ r.reason }}</td><td>{{ r.count }}</td>
+  <td>{{ costs.get(r.reason, {}).get('calls', 0) }}</td>
+  <td>${{ '%.4f'|format(costs.get(r.reason, {}).get('cost_usd', 0)) }}</td></tr>
+{% else %}<tr><td colspan="4" class="muted">No escalations in this window.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Spend by provider and model</h2>
+<div class="panel scroll"><table>
+<tr><th>Provider</th><th>Model</th><th>Calls</th><th>Input tokens</th><th>Output tokens</th><th>Cost</th></tr>
+{% for r in data.by_provider %}
+<tr><td>{{ r.provider }}</td><td>{{ r.model }}</td><td>{{ r.calls }}</td>
+    <td>{{ r.input_tokens }}</td><td>{{ r.output_tokens }}</td><td>${{ '%.4f'|format(r.cost_usd) }}</td></tr>
+{% else %}<tr><td colspan="6" class="muted">No paid calls recorded.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Fallbacks — why local AI failed and what happened next</h2>
+<div class="panel scroll"><table>
+<tr><th>When</th><th>Question</th><th>Local failure</th><th>Solved by</th><th>Status</th><th>Reused</th></tr>
+{% for f in data.fallbacks %}
+<tr><td>{{ f.created_at[:19] if f.created_at }}</td>
+    <td class="wrap">{{ f.question }}</td>
+    <td>{{ f.failure_reason or '—' }}</td>
+    <td>{{ f.provider }}</td>
+    <td class="{% if f.status=='PROMOTED' %}ok{% elif f.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ f.status }}</td>
+    <td>{{ f.reuse_count }}</td></tr>
+{% else %}<tr><td colspan="6" class="muted">No fallbacks recorded.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Recent requests</h2>
+<div class="panel scroll"><table>
+<tr><th>When</th><th>Client</th><th>Route</th><th>Task</th><th>Provider</th><th>Confidence</th><th>Memory</th><th>Cost</th><th>OK</th></tr>
+{% for r in data.recent %}
+<tr><td>{{ r.created_at[:19] if r.created_at }}</td><td>{{ r.client_id }}</td>
+    <td><span class="pill">{{ r.route }}</span></td><td>{{ r.task_type }}</td>
+    <td>{{ r.provider or '—' }}</td>
+    <td>{{ '%.2f'|format(r.confidence) if r.confidence is not none else '—' }}</td>
+    <td>{{ 'yes' if r.memory_hit else '' }}</td>
+    <td>{{ '$%.4f'|format(r.cost_usd) if r.cost_usd else '' }}</td>
+    <td class="{{ 'ok' if r.success else 'bad' }}">{{ 'yes' if r.success else 'no' }}</td></tr>
+{% else %}<tr><td colspan="9" class="muted">No requests yet.</td></tr>{% endfor %}
+</table></div>
+
+<p class="note">Estimated saved is a counterfactual: {{ u.estimate_basis }}.</p>
+{% endblock %}

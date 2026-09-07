@@ -1,0 +1,55 @@
+{
+  "name": "AI Helper — document ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-helper/ingest",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Incoming document",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ai-helper:8000/api/v1/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "contentType": "multipart-form-data",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "data" },
+            { "name": "namespace", "value": "={{ $json.namespace || 'default' }}" },
+            { "name": "classification", "value": "CONFIDENTIAL" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "upload",
+      "name": "Upload to AI Helper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// The gateway reports FAILED rather than READY when a document's vectors\n// did not land. Treat that as an error here too: a document that looks\n// present in the listing and answers nothing is the failure mode worth\n// catching.\nconst r = $input.first().json;\nreturn [{ json: {\n  ok: r.status === 'ready',\n  document_id: r.document_id,\n  filename: r.filename,\n  chunks: r.chunks,\n  indexed: r.indexed,\n  duplicate: r.duplicate,\n  note: r.status === 'ready' ? 'indexed and searchable'\n        : r.duplicate ? 'already ingested; nothing to do'\n        : 'INGESTION INCOMPLETE — this document is not searchable'\n} }];"
+      },
+      "id": "verify",
+      "name": "Verify it is searchable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Incoming document": { "main": [[{ "node": "Upload to AI Helper", "type": "main", "index": 0 }]] },
+    "Upload to AI Helper": { "main": [[{ "node": "Verify it is searchable", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["ai-helper"]
+}
