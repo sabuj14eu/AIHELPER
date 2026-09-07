@@ -164,6 +164,7 @@ matters most: a question is paid for once and answered locally thereafter.
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Releases and migration notes |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | What this does not do, and what it costs you |
 | [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) | Independent verification, findings, and the production verdict |
+| [`docs/HANDOVER_TO_FABLE.md`](docs/HANDOVER_TO_FABLE.md) | Brief for the next auditor: state, the one blocker, and what deserves a second opinion |
 
 Read `docs/LIMITATIONS.md` before you rely on any of this in production. It is
 short, and it is the honest half of this README.
