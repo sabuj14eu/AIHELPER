@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.logging import get_logger
-from app.database.enums import MemoryStatus, SolutionStatus, TaskType
+from app.database.enums import Classification, MemoryStatus, SolutionStatus, TaskType
 from app.database.models import DocumentChunk, MemoryItem, SolutionCandidate
 from app.learning.similarity import fingerprint, jaccard
 from app.local_ai.prompts import ContextItem
@@ -68,6 +68,37 @@ class RetrievalResult:
 
     def context_texts(self) -> list[str]:
         return [item.content for item in self.items]
+
+    def effective_classification(
+        self, base: Classification
+    ) -> tuple[Classification, dict[str, int]]:
+        """The sensitivity of everything that would leave with the question.
+
+        A request's classification used to be judged from the user's message
+        alone, while the prompt that actually went to a paid provider also
+        carried every retrieved document chunk, memory item and learned
+        solution — each with its own stored classification that nobody read.
+        A RESTRICTED memory item retrieved for an INTERNAL question therefore
+        left the system. This returns the highest classification across the
+        message and every retrieved item, and counts, per source, the items
+        that raised it, so the refusal can say why without quoting anything.
+        """
+        highest = base
+        raised_by: dict[str, int] = {}
+        for item in self.items:
+            if not item.classification:
+                continue
+            try:
+                level = Classification(str(item.classification).upper())
+            except ValueError:
+                # An unknown label is not a licence to send. Treat it as the
+                # most sensitive class rather than guess downwards.
+                level = Classification.RESTRICTED
+            if level.rank > base.rank:
+                raised_by[item.source] = raised_by.get(item.source, 0) + 1
+            if level.rank > highest.rank:
+                highest = level
+        return highest, raised_by
 
     def as_dict(self) -> dict:
         return {
@@ -265,6 +296,7 @@ class Retriever:
                         content=exact.answer,
                         score=1.0,
                         note="exact match on a previously validated answer",
+                        classification=exact.classification,
                     )
                 )
                 counts["solutions"] += 1
@@ -304,6 +336,7 @@ class Retriever:
                         content=solution.answer,
                         score=score,
                         note=f"similar question, score {score:.2f}",
+                        classification=solution.classification,
                     )
                 )
                 counts["solutions"] += 1
@@ -332,6 +365,7 @@ class Retriever:
                         content=item.content,
                         score=hit.score,
                         note=f"{item.kind} from {item.source}",
+                        classification=item.sensitivity,
                     )
                 )
                 counts["memory"] += 1
@@ -358,6 +392,13 @@ class Retriever:
                         content=chunk.content,
                         score=hit.score,
                         note=f"document chunk, score {hit.score:.2f}",
+                        # A chunk inherits its document's classification. A
+                        # chunk whose document is gone has no owner to vouch
+                        # for it, and None is later treated as "unknown" — the
+                        # gate reads unknown as RESTRICTED, never as safe.
+                        classification=(
+                            chunk.document.classification if chunk.document is not None else "UNKNOWN"
+                        ),
                     )
                 )
                 counts["chunks"] += 1

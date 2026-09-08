@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 from app.agents.base import AgentSpec, narrowed_tools
 from app.core.audit import CHAT_REQUEST, EXTERNAL_BLOCKED, PRIVACY_BLOCK, record
 from app.core.config import Settings
-from app.core.errors import ProviderTimeoutError, ProviderUnavailableError
+from app.core.errors import NotFoundError, ProviderTimeoutError, ProviderUnavailableError
 from app.core.ids import new_request_id
 from app.core.logging import client_id_var, get_logger, request_id_var
 from app.cost.tracker import CostTracker
@@ -179,7 +179,13 @@ class GatewayRouter:
 
         response = self._handle(request, request_id)
         response.latency_ms = int((time.perf_counter() - started) * 1000)
-        self._log_request(request, response)
+        # Writing the request log runs last, after any paid call has been
+        # billed. A failure here must not raise: it would roll the session
+        # back and discard the CostRecord for a call that really happened.
+        try:
+            self._log_request(request, response)
+        except Exception as exc:
+            log.error("request_logging_failed", error=type(exc).__name__)
         return response
 
     # =============================================================== private
@@ -238,9 +244,15 @@ class GatewayRouter:
         short_term = ShortTermMemory(self.session, client.client_id)
         conversation = None
         if request.store_conversation:
-            conversation = short_term.get_or_create(
-                request.conversation_id, user_ref=request.user_ref
-            )
+            try:
+                conversation = short_term.get_or_create(
+                    request.conversation_id, user_ref=request.user_ref
+                )
+            except PermissionError as exc:
+                # The conversation id belongs to another client. Answer with a
+                # clean not-found — the same reply an unknown id gets — rather
+                # than a 500, and without revealing that the id exists at all.
+                raise NotFoundError("conversation not found") from exc
             base.conversation_id = conversation.id
             short_term.append(conversation, "user", message, request_id=request_id)
 
@@ -279,6 +291,22 @@ class GatewayRouter:
         base.sources = [
             {"source": i.source, "ref": i.ref, "score": round(i.score, 4)} for i in retrieval.items
         ]
+
+        # ---- the sensitivity of what would actually leave -----------------
+        # The prompt that reaches a paid provider carries the retrieved
+        # context as well as the question, so the classification that gates
+        # escalation must be the highest across all of it. Judging the message
+        # alone let a RESTRICTED memory item, or a CONFIDENTIAL document chunk,
+        # leave with an INTERNAL question. Nothing here can lower a class.
+        outgoing, raised_by = retrieval.effective_classification(classification)
+        if outgoing is not classification:
+            base.notes.append(
+                f"classification raised from {classification.value} to {outgoing.value} by "
+                "retrieved context: "
+                + ", ".join(f"{source} ({count})" for source, count in sorted(raised_by.items()))
+            )
+            classification = outgoing
+            base.classification = outgoing
 
         # ============================================ LEVEL 2: local model
         local_result = self._run_local(
@@ -377,6 +405,9 @@ class GatewayRouter:
                     else None,
                     "detail": permission.detail,
                     "classification": classification.value,
+                    # Which retrieved sources raised the classification above
+                    # the message's own, as counts. Never the content.
+                    "raised_by_context": raised_by,
                     "task_type": task_type.value,
                     "escalation_reason": intent.reason.value if intent.reason else None,
                 },
@@ -432,16 +463,27 @@ class GatewayRouter:
             )
 
         # ------------------------------------------ learn from the fallback
-        self._learn(
-            base,
-            question=message,
-            local_attempt=(local_result.response.text if local_result.response else None),
-            paid_validation=paid_validation,
-            retrieval=retrieval,
-            client=client,
-            request_id=request_id,
-            injection_suspected=input_safety.injection_suspected,
-        )
+        # The paid call already happened and its cost is recorded on this
+        # session. Capturing the solution and remembering the turn are
+        # bookkeeping that happens AFTER the money was spent, so a bug in
+        # either must never raise out of the request: an escaping exception
+        # rolls the whole session back, and the CostRecord for a call that
+        # really was made and billed would vanish with it. Both steps are
+        # therefore guarded — the charge and the answer stand regardless.
+        try:
+            self._learn(
+                base,
+                question=message,
+                local_attempt=(local_result.response.text if local_result.response else None),
+                paid_validation=paid_validation,
+                retrieval=retrieval,
+                client=client,
+                request_id=request_id,
+                injection_suspected=input_safety.injection_suspected,
+            )
+        except Exception as exc:
+            log.error("solution_capture_failed", error=type(exc).__name__)
+            base.notes.append("solution capture failed after the paid call; the answer stands")
         self._remember_answer(short_term, conversation, base.answer, request_id, base)
         return base
 
@@ -661,13 +703,19 @@ class GatewayRouter:
     ) -> None:
         if conversation is None or not answer:
             return
-        short_term.append(
-            conversation,
-            "assistant",
-            answer,
-            request_id=request_id,
-            meta={"route": response.route.value, "provider": response.provider},
-        )
+        # Storing the turn is a convenience, not the answer. It runs after a
+        # paid call may already have been billed, so a failure here must not
+        # raise and roll back the recorded charge.
+        try:
+            short_term.append(
+                conversation,
+                "assistant",
+                answer,
+                request_id=request_id,
+                meta={"route": response.route.value, "provider": response.provider},
+            )
+        except Exception as exc:
+            log.warning("remember_answer_failed", error=type(exc).__name__)
 
     def _client_has_documents(self, client_id: str) -> bool:
         from sqlalchemy import select

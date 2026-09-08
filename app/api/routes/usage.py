@@ -57,14 +57,20 @@ def usage(
 @router.get("/costs", response_model=CostResponse, summary="Spend against the budgets")
 def costs(
     days: int = 30,
-    _client: Client = Depends(current_client),
+    client: Client = Depends(current_client),
     services: SessionServices = Depends(services_dep),
 ) -> CostResponse:
+    # The top-line spend is measured against the DAILY/MONTHLY budgets, which
+    # are a single shared limit every client is subject to, so those figures
+    # are the same for everyone by design. The per-provider and per-reason
+    # breakdowns, however, itemise which models were used and what they cost —
+    # another client's activity — so a non-admin sees only its own.
+    scope = None if client.is_admin else client.client_id
     spend = services.cost.summary().as_dict()
     return CostResponse(
         **spend,
-        by_provider=services.cost.by_provider(days=days),
-        by_escalation_reason=services.cost.by_escalation_reason(days=days),
+        by_provider=services.cost.by_provider(days=days, client_id=scope),
+        by_escalation_reason=services.cost.by_escalation_reason(days=days, client_id=scope),
     )
 
 

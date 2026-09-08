@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents import AgentSpec, build_agent_registry
-from app.core.audit import AUTH_FAILURE, AUTH_SUCCESS, RATE_LIMITED, record
+from app.core.audit import AUTH_FAILURE, AUTH_SUCCESS, RATE_LIMITED, record, record_durable
 from app.core.config import Settings, get_settings
 from app.core.errors import AuthenticationError, PermissionDeniedError, RateLimitedError
 from app.core.logging import client_id_var, get_logger
@@ -72,8 +72,11 @@ def current_client(
 
     key_id = parse_api_key(token)
     if not key_id:
-        record(db, actor="unknown", action=AUTH_FAILURE, result="failed", actor_type="anonymous",
-               detail={"reason": "malformed key"})
+        # Committed in its own transaction: this request is about to be
+        # rejected, and the request session is rolled back on the way out,
+        # which would otherwise erase the record of the refusal.
+        record_durable(actor="unknown", action=AUTH_FAILURE, result="failed", actor_type="anonymous",
+                       detail={"reason": "malformed key"})
         raise AuthenticationError("invalid API key")
 
     client = db.scalars(select(Client).where(Client.api_key_id == key_id)).first()
@@ -83,8 +86,7 @@ def current_client(
         or not client.enabled
         or client.revoked_at is not None
     ):
-        record(
-            db,
+        record_durable(
             actor=key_id,
             action=AUTH_FAILURE,
             result="failed",
@@ -97,8 +99,7 @@ def current_client(
         client.client_id, rate_override=client.rate_limit_per_minute
     )
     if not decision.allowed:
-        record(
-            db,
+        record_durable(
             actor=client.client_id,
             action=RATE_LIMITED,
             result="blocked",

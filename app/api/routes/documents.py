@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from app.api.deps import current_client, services_dep
 from app.api.schemas import DocumentOut, DocumentUploadResponse
 from app.core.errors import ValidationError
+from app.database.enums import Classification
 from app.database.models import Client
 from app.knowledge.extraction import SUPPORTED_EXTENSIONS
 from app.knowledge.retrieval import chunks_for, document_stats
@@ -33,6 +34,15 @@ async def upload_document(
     data = await file.read()
     if not data:
         raise ValidationError("the uploaded file is empty")
+    # A caller-supplied classification is validated here, at the boundary, so a
+    # bad value is a 422 the caller can fix rather than an opaque 500.
+    try:
+        Classification(classification.upper())
+    except ValueError as exc:
+        allowed = ", ".join(c.value for c in Classification)
+        raise ValidationError(
+            f"'{classification}' is not a valid classification; expected one of {allowed}"
+        ) from exc
     result = services.ingestor.ingest(
         data,
         file.filename or "upload",

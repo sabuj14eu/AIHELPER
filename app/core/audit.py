@@ -69,6 +69,27 @@ def record(
     return event
 
 
+def record_durable(**kwargs) -> None:
+    """Append one audit row in its own transaction, committed immediately.
+
+    ``record`` writes into the caller's session, so a refusal audited there is
+    lost when that request is rejected before it commits — an authentication
+    failure and a rate-limit block are both raised out of the dependency layer,
+    and the request session is then rolled back, taking the audit row with it.
+    A refusal that is not recorded is the opposite of what an audit trail is
+    for, so those refusals are written here instead: a fresh session that
+    commits at once and is independent of the request's fate. It never raises —
+    losing the request to a logging failure would be worse than losing the log.
+    """
+    from app.database.session import session_scope
+
+    try:
+        with session_scope() as session:
+            record(session, **kwargs)
+    except Exception:  # pragma: no cover - the audit write must never re-raise
+        log.error("durable_audit_failed", action=kwargs.get("action"))
+
+
 def _safe(detail: dict) -> dict:
     """Audit detail records metadata, not content. Long strings are truncated."""
     out: dict = {}

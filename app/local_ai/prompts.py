@@ -53,6 +53,11 @@ class ContextItem:
     content: str
     score: float = 0.0
     note: str | None = None
+    # The sensitivity the stored item was given when it was written (a
+    # document's classification, a memory item's sensitivity, a solution's
+    # classification). It travels with the evidence so the escalation gate
+    # can judge the whole outgoing prompt, not only the user's question.
+    classification: str | None = None
 
 
 def build_system_prompt(task_type: TaskType | str, response_format: str = "text") -> str:

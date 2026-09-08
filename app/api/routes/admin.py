@@ -57,6 +57,14 @@ def create_client(
     """The plaintext key is returned exactly once, here, and never stored."""
     if db.get(Client, client_id) is not None:
         raise ValidationError(f"client '{client_id}' already exists")
+    # Validate the two classification arguments at the boundary so a bad value
+    # is a 422 the caller can correct, not a 500.
+    try:
+        max_external = Classification(max_external_classification.upper()).value
+        default_class = Classification(default_classification.upper()).value
+    except ValueError as exc:
+        allowed = ", ".join(c.value for c in Classification)
+        raise ValidationError(f"classification must be one of {allowed}") from exc
     key = generate_api_key()
     client = Client(
         client_id=client_id,
@@ -64,8 +72,8 @@ def create_client(
         api_key_id=key.key_id,
         api_key_hash=key.hashed,
         may_escalate=may_escalate,
-        max_external_classification=Classification(max_external_classification.upper()).value,
-        default_classification=Classification(default_classification.upper()).value,
+        max_external_classification=max_external,
+        default_classification=default_class,
         daily_budget_usd=daily_budget_usd,
         is_admin=is_admin,
     )

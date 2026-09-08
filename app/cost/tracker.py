@@ -261,7 +261,7 @@ class CostTracker:
         return record
 
     # ----------------------------------------------------------- reporting
-    def by_provider(self, days: int = 30) -> list[dict]:
+    def by_provider(self, days: int = 30, *, client_id: str | None = None) -> list[dict]:
         start = datetime.now(UTC) - timedelta(days=days)
         stmt = (
             select(
@@ -276,6 +276,8 @@ class CostTracker:
             .group_by(CostRecord.provider, CostRecord.model)
             .order_by(func.sum(CostRecord.estimated_cost).desc())
         )
+        if client_id is not None:
+            stmt = stmt.where(CostRecord.client_id == client_id)
         return [
             {
                 "provider": provider,
@@ -288,7 +290,7 @@ class CostTracker:
             for provider, model, calls, cost, inp, out in self.session.execute(stmt)
         ]
 
-    def by_escalation_reason(self, days: int = 30) -> list[dict]:
+    def by_escalation_reason(self, days: int = 30, *, client_id: str | None = None) -> list[dict]:
         """Answers 'why are we paying for AI?'."""
         start = datetime.now(UTC) - timedelta(days=days)
         stmt = (
@@ -301,6 +303,8 @@ class CostTracker:
             .group_by(CostRecord.reason_for_escalation)
             .order_by(func.sum(CostRecord.estimated_cost).desc())
         )
+        if client_id is not None:
+            stmt = stmt.where(CostRecord.client_id == client_id)
         return [
             {"reason": reason or "UNKNOWN", "calls": int(calls), "cost_usd": round(float(cost), 4)}
             for reason, calls, cost in self.session.execute(stmt)

@@ -1,5 +1,33 @@
 # AI Helper — handover for the next auditor
 
+> **Update — 2026-09-08 final audit (branch `claude/ai-helper-final-audit-uv46bj`).**
+> A second, independent line-by-line audit ran. Full report: `audit/FINAL_AUDIT.md`;
+> results: `audit/RESULTS.txt`. It found and fixed **five** real defects, each with
+> a regression test in `tests/security/test_audit_findings.py`:
+> 1. **Retrieved context bypassed the classification gate** — RESTRICTED memory /
+>    CONFIDENTIAL chunks retrieved for an INTERNAL question were sent to the paid
+>    provider. The request is now raised to the highest classification across the
+>    message and everything retrieved. *(HIGH, privacy.)*
+> 2. Auth-failure and rate-limit refusals left no audit row (rolled back) →
+>    `audit.record_durable`.
+> 3. A billed CostRecord could be discarded by a failure in post-call bookkeeping →
+>    those steps are now guarded.
+> 4. Bad classification / cross-client `conversation_id` returned 500 → now 422 / 404.
+> 5. `/costs` leaked every client's provider/model breakdown → scoped per client.
+>
+> State now: **445/445 tests (3 consecutive runs), 89% coverage, ruff clean**; the six
+> network-free audit suites pass; the Docker build (via the `pip_ca` CA secret) and
+> the **30/30 container-persistence gate** pass on an isolated daemon. The scope rule
+> was honoured absolutely: only this repository was touched.
+>
+> **Production status is still NOT APPROVED, for exactly one reason:** no real model
+> weights are obtainable here (registry.ollama.ai / huggingface.co / ollama.com all
+> 403), so the Real Ollama and calibration gates cannot run. `calibrate` correctly
+> exits 1 on the lexical fallback. Everything below still applies.
+>
+> ---
+
+
 You are taking over an audit of **AI Helper**, a self-hosted local-first AI
 gateway. The previous engineer built it and then audited it, which is the
 weakness this handover exists to correct: the same judgement that made the

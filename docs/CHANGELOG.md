@@ -3,6 +3,43 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## Unreleased — 2026-09-08 (final audit)
+
+An independent line-by-line audit (`audit/FINAL_AUDIT.md`) found and fixed five
+defects. **No schema change, so no migration.** Full suite 445/445 green (435
+prior + 10 new regression tests in `tests/security/test_audit_findings.py`),
+89% coverage, ruff clean; all six network-free audit suites and the 30/30
+container-persistence gate pass on an isolated Docker daemon.
+
+- **Retrieved context bypassed the classification gate (privacy).** The gate
+  judged the user's message only, while the prompt sent to a paid provider also
+  carried retrieved document chunks, memory items and learned solutions — each
+  with its own classification that nothing checked. A RESTRICTED memory item or
+  a CONFIDENTIAL chunk retrieved for an INTERNAL question therefore left the
+  system. The request is now raised to the highest classification across the
+  message and everything retrieved (unknown/missing labels count as
+  RESTRICTED), before the escalation decision.
+- **Refusals raised out of the auth layer left no audit row.** Authentication
+  failures and rate-limit blocks were rolled back with the rejected request, so
+  the trail could not say who was turned away. They are now written in their own
+  committed transaction (`audit.record_durable`).
+- **A recorded charge could be discarded by later bookkeeping.** A failure in
+  solution capture, conversation storage or request logging — all after a paid
+  call was billed — rolled the session back and lost the CostRecord. Those
+  post-payment steps are now guarded; the charge and the answer stand.
+- **Bad input returned 500 instead of a clean 4xx.** An invalid `classification`
+  on upload or admin client-creation now returns 422; re-using another client's
+  `conversation_id` now returns 404 without revealing the id exists.
+- **`/costs` disclosed every client's provider/model breakdown.** The
+  `by_provider` and `by_escalation_reason` breakdowns are now scoped to the
+  calling client for non-admins. The shared budget top-line stays global by
+  design (the budget is a single shared limit).
+
+Production status is unchanged — **NOT APPROVED** — for one reason only: no real
+model weights are obtainable in the audit environment, so the Real Ollama and
+calibration gates cannot be exercised. Every defect that could be found was
+fixed.
+
 ## 1.0.0 — 2026-09-07
 
 First release. The standalone AI Helper: a local-first gateway with paid-API
