@@ -1,0 +1,18 @@
+calibrate exit=0
+/var/run/postgresql:5432 - accepting connections
+qdrant collections: 6
+auth without key: 401
+chat: {'route': 'failed', 'provider': None, 'model': None, 'success': False, 'cost_usd': 0.0, 'latency_ms': 60156} | 
+memory search: embedder ollama-nomic-embed-text:latest semantic True hits 0
+costs: {'daily_budget': 5.0, 'paid_disabled_by_budget': False}
+privacy gate: RESTRICTED CLASSIFICATION_BLOCKED route failed cost 0.0
+paid providers: [('openai', 'DISABLED'), ('anthropic', 'DISABLED')]
+after restart: request log rows for this client 2
+after restart: memory still found False
+admin dashboard login page: 200  admin root without session: 401
+open-webui on 127.0.0.1:3000: 000unreachable (image not obtainable in this sandbox)
+overall       ok   (v1.0.0, development)
+chat: {'route': 'local', 'provider': 'ollama', 'model': 'llama3.2:3b', 'success': True, 'confidence': 0.71, 'cost_usd': 0.0, 'latency_ms': 1936} | Warsaw.
+memory search after restart: 1 hit(s), top score 0.8345 embedder ollama-nomic-embed-text:latest
+RAG chat: local True True 0.925 | The rehearsal printer is on the second floor.
+revoke smoke client (non-admin key expected 403): 403
