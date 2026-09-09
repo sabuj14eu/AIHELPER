@@ -39,8 +39,16 @@ to fail while the model loads.
 
 ## B. Production run — to be completed by the operator
 
-Run `./scripts/deploy_v1.0.0.sh` from the AI Helper checkout on the server and
-paste its output below. It stops rather than guesses at every check.
+Run the script from a copy (it is committed after the approved commit, so
+pinning `080bdf1` removes it from the tree while it runs), from the AI Helper
+checkout on the server, and paste its output below. It stops rather than
+guesses at every check.
+
+    cd /opt/ai-helper
+    git fetch origin claude/pensive-pascal-jgqpx0
+    git checkout origin/claude/pensive-pascal-jgqpx0 -- scripts/deploy_v1.0.0.sh
+    cp scripts/deploy_v1.0.0.sh /tmp/ && git checkout -- scripts
+    AI_HELPER_ADMIN_KEY=<admin key, optional> /tmp/deploy_v1.0.0.sh
 
     Server           :
     Executed by      :

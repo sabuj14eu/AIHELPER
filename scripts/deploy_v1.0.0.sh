@@ -6,8 +6,12 @@
 # lists or touches any other project, container, volume, network or service.
 # It STOPS (exit 1) rather than guess whenever a check fails.
 #
-#   cd /opt/ai-helper            # the AI Helper checkout
-#   ./scripts/deploy_v1.0.0.sh   # run as the user that owns the checkout
+#   cd /opt/ai-helper                                  # the AI Helper checkout
+#   git fetch origin claude/pensive-pascal-jgqpx0 && git checkout origin/claude/pensive-pascal-jgqpx0 -- scripts/deploy_v1.0.0.sh
+#   cp scripts/deploy_v1.0.0.sh /tmp/ && git checkout -- scripts && /tmp/deploy_v1.0.0.sh
+#
+# Run it from a COPY: this script is committed after the approved commit, so
+# pinning 080bdf1 removes it from the working tree while it runs.
 #
 # Optional: SKIP_BACKUP=1 for a first install with no data to back up.
 set -euo pipefail
