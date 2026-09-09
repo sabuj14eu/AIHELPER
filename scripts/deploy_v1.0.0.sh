@@ -44,6 +44,8 @@ step "5. AI Helper resources only"
 "${C[@]}" ps
 docker volume ls --filter "name=${PROJECT}_" --format '{{.Name}}'
 for port in 8000 3000 5678; do
+    # A port published by this project's own containers is ours (re-runs).
+    if "${C[@]}" ps --format '{{.Ports}}' | grep -q ":${port}->"; then continue; fi
     holder=$(ss -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p"$" {print $NF}' | head -1 || true)
     if [ -n "$holder" ] && ! echo "$holder" | grep -qi docker; then
         stop "port $port is held by a non-Docker process ($holder); resolve before deploying"
