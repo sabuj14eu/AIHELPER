@@ -37,29 +37,50 @@ With the documented CPU-host value of 180 the same request answered in 1.9 s.
 Set 180 in the production `.env`, or expect the first request after a restart
 to fail while the model loads.
 
-## B. Production run — to be completed by the operator
+## B. Production run — DONE (2026-09-09)
 
-Run the script from a copy (it is committed after the approved commit, so
-pinning `080bdf1` removes it from the tree while it runs), from the AI Helper
-checkout on the server, and paste its output below. It stops rather than
-guesses at every check.
-
-    cd /opt/ai-helper
-    git fetch origin claude/pensive-pascal-jgqpx0
-    git checkout origin/claude/pensive-pascal-jgqpx0 -- scripts/deploy_v1.0.0.sh
-    cp scripts/deploy_v1.0.0.sh /tmp/ && git checkout -- scripts
-    AI_HELPER_ADMIN_KEY=<admin key, optional> /tmp/deploy_v1.0.0.sh
-
-    Server           :
-    Executed by      :
-    Timestamp (UTC)  :
-    Commit deployed  : 080bdf10cbec7eb961243e436bf184970caa3965
+    Server           : vmi3221804 (shared host; AI Helper checkout ~/ai-helper)
+    Executed by      : shyam, via scripts/deploy_v1.0.0.sh (run from a copy)
+    Timestamp (UTC)  : 2026-09-09T15:15:46Z  (DEPLOYED line of the script)
+    Commit deployed  : 080bdf10cbec7eb961243e436bf184970caa3965  (v1.0.0, first install)
     Services changed : ai-helper, postgres, qdrant, ollama, n8n, open-webui
                        (compose project ai-helper; nothing else)
-    Backup taken     : (path from scripts/backup.sh)
-    Smoke tests      : (paste the script's output)
-    Open WebUI       : reachable on 127.0.0.1:3000 — yes/no; first admin account created — yes/no
-    Other projects   : observed only; all containers still "Up" — yes/no
+    Backup taken     : none — first install, no data existed (SKIP_BACKUP=1)
+    .env             : ENVIRONMENT=production, MEMORY_SIMILARITY_THRESHOLD=0.55,
+                       SOLUTION_REUSE_THRESHOLD=0.80, ANTHROPIC/OPENAI disabled,
+                       LOCAL_TIMEOUT_SECONDS=180, generated secrets, admin hash set
+
+Smoke tests (script output, third run; the first two runs stopped on a
+transient empty search right after the embedding model's cold load, and on
+the script's own port check misreading a port held by AI Helper's container —
+both fixed, nothing else changed):
+
+    health_check.sh          overall ok (v1.0.0, production); gateway, database,
+                             qdrant, ollama (nomic-embed-text, llama3.2:3b), n8n,
+                             embedder all OK; openai/anthropic DISABLED
+    PostgreSQL               accepting connections
+    authentication           no key → 401
+    local inference          route local, ollama, llama3.2:3b, "Warsaw.", cost 0,
+                             25.1 s (cold load on CPU)
+    memory / RAG             semantic, nomic-embed-text, top score 0.785
+    privacy gate             RESTRICTED → CLASSIFICATION_BLOCKED, cost 0
+    cost tracking            daily budget 5.00, no spend
+    paid providers           DISABLED, DISABLED
+    persistence              memory still found after restarting ai-helper only
+    admin dashboard          /admin/login → 200
+    Open WebUI               127.0.0.1:3000 → 200, container healthy (loopback only)
+    containers               six ai-helper-* containers Up; app healthy
+    other projects           brotherbot (app, db, redis), lokaldowoz (app, db,
+                             redis), balispa — all still Up, observed only
+
+Open items after deployment:
+- Revoke the three test clients from /admin: smoke-1788963729,
+  diag-1788964478, smoke-1788966843.
+- Change the dashboard password (it was typed into a terminal once):
+  hash-password again, escape `$` as `$$` in .env, recreate ai-helper.
+- Push the tag: `git push origin v1.0.0` from the server checkout.
+- Docker Compose interpolates `$` in .env values: any future value containing
+  `$` (the scrypt hash does) must be written with `$$`.
 
 ## C. Rollback
 
