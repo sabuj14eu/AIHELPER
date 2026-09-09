@@ -227,3 +227,55 @@ def test_costs_breakdown_is_scoped_to_the_client_for_a_non_admin(
     body = api.get("/api/v1/costs", headers=auth(other)).json()
     assert body["by_provider"] == []
     assert body["by_escalation_reason"] == []
+
+
+# --------------------------------------------------------------------------
+# F6 (real-model gate) — the request session committed AFTER the response.
+# FastAPI ≥ 0.118 runs a yield dependency's exit code after the response has
+# been sent, so a caller could hold a 200 for a billed call whose rows had not
+# been committed — or, if that commit failed, never would be. The unit tests
+# in tests/unit/test_transaction.py pin the ordering; this pins the outcome
+# through the real app: a commit that fails cannot produce a 200.
+# --------------------------------------------------------------------------
+class TestCommitFailureCannotAnswerSuccess:
+    def test_a_failed_commit_is_a_500_and_nothing_is_recorded(self, api, db, monkeypatch):
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        from app.database.models import RequestLog
+
+        _client, key = make_client(db, "commitfail", may_escalate=False)
+        db.commit()
+        real_commit = Session.commit
+        armed = {"on": False}
+
+        def failing_commit(self):
+            if armed["on"]:
+                raise RuntimeError("database went away at commit time")
+            return real_commit(self)
+
+        monkeypatch.setattr(Session, "commit", failing_commit)
+        armed["on"] = True
+        try:
+            response = api.post("/api/v1/chat", json={"message": "hello there"}, headers=auth(key))
+        finally:
+            armed["on"] = False
+
+        assert response.status_code == 500
+        assert response.json()["code"] == "internal_error"
+        assert "route" not in response.json()
+        # The request was answered by the local fake provider, but because its
+        # log could not be committed the caller was told so — and no row exists.
+        assert db.scalars(select(RequestLog).where(RequestLog.client_id == "commitfail")).all() == []
+
+    def test_a_successful_request_is_visible_to_the_very_next_read(self, api, db):
+        from sqlalchemy import select
+
+        from app.database.models import RequestLog
+
+        _client, key = make_client(db, "commitok", may_escalate=False)
+        db.commit()
+        response = api.post("/api/v1/chat", json={"message": "hello there"}, headers=auth(key))
+        assert response.status_code == 200
+        rows = db.scalars(select(RequestLog).where(RequestLog.client_id == "commitok")).all()
+        assert len(rows) == 1 and rows[0].request_id == response.json()["request_id"]

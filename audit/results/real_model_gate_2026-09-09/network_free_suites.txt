@@ -1,0 +1,6 @@
+demo_e2e exit=0
+prove_cost exit=0
+prove_privacy_and_permissions exit=1
+prove_security exit=0
+prove_learning exit=0
+prove_persistence exit=0

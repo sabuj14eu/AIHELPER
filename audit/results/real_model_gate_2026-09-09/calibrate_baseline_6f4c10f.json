@@ -1,0 +1,30 @@
+{
+  "embedder": "ollama-nomic-embed-text:latest",
+  "semantic": true,
+  "dimensions": 768,
+  "related_pairs": [
+    0.7359,
+    0.8412,
+    0.8475,
+    0.9566,
+    0.9663
+  ],
+  "unrelated_pairs": [
+    0.3315,
+    0.3437,
+    0.3748,
+    0.3757,
+    0.4228
+  ],
+  "worst_related": 0.7359,
+  "best_unrelated": 0.4228,
+  "thresholds": {
+    "embedder": "ollama-nomic-embed-text:latest",
+    "semantic": true,
+    "memory_similarity": 0.72,
+    "solution_reuse": 0.8
+  },
+  "memory_threshold_fits": true,
+  "reuse_threshold_fits": false,
+  "verdict": "thresholds_misplaced"
+}

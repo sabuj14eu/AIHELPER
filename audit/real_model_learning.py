@@ -42,8 +42,38 @@ import httpx
 sys.path.insert(0, str(Path(__file__).parent))
 from fake_servers import AnthropicHandler, FakeServer  # noqa: E402
 
-HARD = "Explain the health contribution look-back rule under the flat tax and when it applies."
-PARAPHRASE = "When does the flat-tax health contribution look-back rule apply, and what does it say?"
+# The stand-in's fixed answer, phrased for the question actually asked below so
+# that the learned solution genuinely answers its paraphrase. (The generic
+# PAID_ANSWER in fake_servers.py never mentions the company; handed that text
+# for "our company's rule", the real model correctly said the context did not
+# cover it — which is the discipline the reuse path relies on, working.)
+COMPANY_ANSWER = (
+    "Our company's health contribution look-back rule: under the flat tax the health "
+    "contribution for a month is 4.9% of the income of the month before it. The "
+    "contribution year runs from 1 February to 31 January, so January is settled on the "
+    "previous year's figures. The rule applies to every month in which the company is "
+    "taxed under the flat tax."
+)
+
+
+class CompanyHandler(AnthropicHandler):
+    def do_POST(self):  # noqa: N802
+        body = self._read()
+        if not self.path.endswith("/messages"):
+            self._json(404, {"error": "not found"})
+            return
+        turns = body.get("messages", [])
+        prompt = "\n".join(m.get("content", "") for m in turns)
+        self.server.calls.append({"model": body.get("model"), "prompt": prompt, "system": body.get("system", ""), "max_tokens": body.get("max_tokens")})
+        self._json(200, {"id": f"msg_{len(self.server.calls):06d}", "type": "message", "role": "assistant",
+                         "model": body.get("model", "claude-sonnet-5"),
+                         "content": [{"type": "text", "text": COMPANY_ANSWER}], "stop_reason": "end_turn",
+                         "usage": {"input_tokens": max(1, len(prompt) // 4), "output_tokens": max(1, len(COMPANY_ANSWER) // 4)}})
+
+# On the GENERAL path llama3.2:3b refuses this 3/3 (it has no such rule), so the
+# fallback is triggered by the model itself, not by a task type that forces it.
+HARD = "Explain our company's health contribution look-back rule and when it applies."
+PARAPHRASE = "When does our company's health contribution look-back rule apply, and what does it say?"
 RESTRICTED_NOTE = "The margin on the Nowak contract is forty-two percent."
 CONFIDENTIAL_DOC = (
     "Supply contract summary. The buyer pays a confidential rebate of nineteen percent "
@@ -96,7 +126,7 @@ def main() -> int:
     admin_key = os.environ["AI_HELPER_ADMIN_KEY"]
     admin = httpx.Client(base_url=base, headers={"Authorization": f"Bearer {admin_key}"}, timeout=120)
 
-    stand_in = FakeServer(AnthropicHandler, 11601, bind="0.0.0.0").start()
+    stand_in = FakeServer(CompanyHandler, 11601, bind="0.0.0.0").start()
     stamp = str(int(time.time()))
     record["health"] = admin.get("/health").json()
     record["models"] = admin.get("/api/v1/models").json()
@@ -110,7 +140,7 @@ def main() -> int:
     section("LEARNING: hard question → local failure → paid fallback → candidate → promotion")
     learner = make_client(admin, base, f"learn-{stamp}", may_escalate="true")
     calls_before = len(stand_in.calls)
-    first = keep("first_ask", learner.post("/api/v1/chat", json={"message": HARD, "task_type": "research", "store_conversation": False}).json())
+    first = keep("first_ask", learner.post("/api/v1/chat", json={"message": HARD, "store_conversation": False}).json())
     check("the local model was tried first and did not pass (fallback had a reason)",
           bool(first.get("escalation_reason")), f"reason={first.get('escalation_reason')} local_conf_before={first.get('validation', {}).get('confidence')}")
     check("the answer came from the paid provider", first.get("route") == "paid" and first.get("provider") == "anthropic", f"route={first.get('route')} provider={first.get('provider')}")
@@ -129,7 +159,7 @@ def main() -> int:
     # -------------------------------------------------------------- reuse
     section("REUSE: a reworded question is answered locally from the learned solution")
     calls_before = len(stand_in.calls)
-    second = keep("paraphrase_ask", learner.post("/api/v1/chat", json={"message": PARAPHRASE, "task_type": "research", "store_conversation": False}).json())
+    second = keep("paraphrase_ask", learner.post("/api/v1/chat", json={"message": PARAPHRASE, "store_conversation": False}).json())
     check("retrieval found the learned solution for the paraphrase (memory hit)", second.get("memory_hit") is True, json.dumps(second.get("retrieval")))
     check("the same solution was reused", second.get("solution_id") == first.get("solution_id"), f"{second.get('solution_id')} vs {first.get('solution_id')}")
     check("the answer was produced locally by the real model", second.get("route") == "local" and second.get("provider") == "ollama" and str(second.get("model", "")).startswith("llama"), f"route={second.get('route')} model={second.get('model')}")
@@ -137,7 +167,7 @@ def main() -> int:
     check("no paid call was made and nothing was billed", len(stand_in.calls) == calls_before and (second.get("cost_usd") or 0) == 0)
     check("the answer carries the learned substance", "february" in (second.get("answer") or "").lower() or "4.9" in (second.get("answer") or ""), (second.get("answer") or "")[:160])
 
-    third = keep("exact_repeat", learner.post("/api/v1/chat", json={"message": HARD, "task_type": "research", "store_conversation": False}).json())
+    third = keep("exact_repeat", learner.post("/api/v1/chat", json={"message": HARD, "store_conversation": False}).json())
     check("the literal repeat is an exact fingerprint match, local and free",
           third.get("retrieval", {}).get("exact_match") is True and third.get("route") == "local" and (third.get("cost_usd") or 0) == 0,
           f"exact={third.get('retrieval', {}).get('exact_match')} route={third.get('route')}")

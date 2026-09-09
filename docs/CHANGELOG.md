@@ -7,7 +7,7 @@ migration note. Deploys follow: **backup → migrate → restart → verify logs
 
 The first run of the system against real model weights (`llama3.2:3b`,
 `nomic-embed-text`; `audit/REAL_MODEL_GATE.md`). **No schema change, so no
-migration.** Two defects found by measurement, each fixed with regression
+migration.** Three defects found by measurement, each fixed with regression
 tests, and one threshold changed on measured evidence (below).
 
 - **A refusal the real model actually writes passed validation as an answer.**
@@ -29,6 +29,19 @@ tests, and one threshold changed on measured evidence (below).
   `app/memory/retrieval.py`. Regression tests in
   `tests/unit/test_infrastructure.py::TestCalibrateReuseGate`.
 
+- **The request session committed AFTER the response had been sent.** FastAPI
+  0.118+ runs a `yield` dependency's exit code after the response, and
+  `db_dep` committed there. A caller could receive a 200 before its rows
+  landed (the privacy audit suite failed once on exactly that read-after-write
+  race), and a commit failing at that point could not change the status code —
+  a billed paid call would have answered 200 with its CostRecord and audit rows
+  rolled back. `app/api/transaction.py` (`CommitBeforeResponse`, outermost
+  middleware) now commits on the first byte of a 2xx/3xx, answers 500 with
+  nothing persisted if that commit fails, and rolls back on 4xx/5xx; the
+  dependency's own commit becomes a no-op. The test client never observes the
+  ordering, so `tests/unit/test_transaction.py` drives the middleware directly
+  and `tests/security/test_audit_findings.py::TestCommitFailureCannotAnswerSuccess`
+  pins the outcome through the real app.
 - **`MEMORY_SIMILARITY_THRESHOLD` 0.72 → 0.55 (semantic pair only).** Measured
   on the real embedder, the document chunk that answers a question scores
   0.47–0.69 against it (median 0.59) and a short memory item 0.66–0.69, while

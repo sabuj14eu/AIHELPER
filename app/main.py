@@ -13,6 +13,7 @@ from app import __version__
 from app.api.jobs import JobRunner
 from app.api.ratelimit import TokenBucketLimiter
 from app.api.routes import admin, chat, documents, health, memory, models, solutions, tasks
+from app.api.transaction import CommitBeforeResponse
 from app.core.config import Settings, get_settings
 from app.core.errors import AIHelperError
 from app.core.ids import new_request_id
@@ -124,6 +125,11 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
         response = await call_next(request)
         response.headers["x-request-id"] = request_id
         return response
+
+    # Outermost: commits the request session before the first byte of a
+    # successful response, or answers 500 with nothing persisted. Added after
+    # request_context so it wraps it (Starlette adds outward).
+    application.add_middleware(CommitBeforeResponse)
 
     # ------------------------------------------------------- error handling
     @application.exception_handler(AIHelperError)

@@ -1,0 +1,56 @@
+
+── Point the containerised app at reachable endpoints and restart it
+   [PASS] the stack came back up 
+
+── Create real data through the containerised API
+   [PASS] a paid fallback happened and was learned solution sol_4628f647220d48b6af19e5ccd8bbdf0f
+   [PASS] and is reused locally, free 
+   app     : {'memory': 1, 'documents': 1, 'solutions': {'CANDIDATE': 0, 'VALIDATED': 0, 'PROMOTED': 3, 'REJECTED': 1, 'EXPIRED': 0}, 'requests': 175, 'spend': 0.0105, 'audit': 500}
+   postgres: {'clients': 14, 'memory_items': 15, 'documents': 5, 'document_chunks': 6, 'solution_candidates': 4, 'request_logs': 175, 'audit_events': 558, 'cost_records': 10}
+   qdrant  : {'knowledge__ollama-nomic-embed-text': 1, 'knowledge__ollama-nomic-embed-text_latest': 5, 'memory__ollama-nomic-embed-text': 1, 'memory__ollama-nomic-embed-text_latest': 14, 'solutions__ollama-nomic-embed-text': 1, 'solutions__ollama-nomic-embed-text_latest': 2}
+   [PASS] PostgreSQL holds the rows 15 memory, 4 solutions
+   [PASS] Qdrant holds vectors {'knowledge__ollama-nomic-embed-text': 1, 'knowledge__ollama-nomic-embed-text_latest': 5, 'memory__ollama-nomic-embed-text': 1, 'memory__ollama-nomic-embed-text_latest': 14, 'solutions__ollama-nomic-embed-text': 1, 'solutions__ollama-nomic-embed-text_latest': 2}
+
+── docker compose down  →  docker compose up
+   [PASS] containers stopped and were removed 
+   [PASS] no container is left running 
+   volumes retained: ['ai-helper_ai_helper_uploads', 'ai-helper_n8n_data', 'ai-helper_ollama_models', 'ai-helper_postgres_data', 'ai-helper_qdrant_data']
+   [PASS] the stack came back up after a full down/up 
+
+── Nothing was lost
+   postgres: {'clients': 14, 'memory_items': 15, 'documents': 5, 'document_chunks': 6, 'solution_candidates': 4, 'request_logs': 175, 'audit_events': 558, 'cost_records': 10}
+   qdrant  : {'knowledge__ollama-nomic-embed-text': 1, 'knowledge__ollama-nomic-embed-text_latest': 5, 'memory__ollama-nomic-embed-text': 1, 'memory__ollama-nomic-embed-text_latest': 14, 'solutions__ollama-nomic-embed-text': 1, 'solutions__ollama-nomic-embed-text_latest': 2}
+   [PASS] PostgreSQL clients: 14 → 14 
+   [PASS] PostgreSQL memory_items: 15 → 15 
+   [PASS] PostgreSQL documents: 5 → 5 
+   [PASS] PostgreSQL document_chunks: 6 → 6 
+   [PASS] PostgreSQL solution_candidates: 4 → 4 
+   [PASS] PostgreSQL cost_records: 10 → 10 
+   [PASS] PostgreSQL audit trail was not truncated 558 → 558
+   [PASS] Qdrant knowledge__ollama-nomic-embed-text: 1 → 1 
+   [PASS] Qdrant knowledge__ollama-nomic-embed-text_latest: 5 → 5 
+   [PASS] Qdrant memory__ollama-nomic-embed-text: 1 → 1 
+   [PASS] Qdrant memory__ollama-nomic-embed-text_latest: 14 → 14 
+   [PASS] Qdrant solutions__ollama-nomic-embed-text: 1 → 1 
+   [PASS] Qdrant solutions__ollama-nomic-embed-text_latest: 2 → 2 
+   [PASS] the same API key still authenticates 
+   [PASS] memory survived 
+   [PASS] documents survived 
+   [PASS] learned solutions survived 
+   [PASS] recorded spend survived 
+
+── The learned answer is still reused, and still free
+   [PASS] memory hit after a container restart 
+   [PASS] answered locally 
+   [PASS] NO paid call paid calls still 1
+   [PASS] semantic search works on the restarted Qdrant 
+
+── Individual service restart
+   [PASS] the app recovers from a database restart 
+   [PASS] data is still there after restarting PostgreSQL alone 
+   [PASS] vectors are still there after restarting Qdrant alone {'knowledge__ollama-nomic-embed-text': 1, 'knowledge__ollama-nomic-embed-text_latest': 5, 'memory__ollama-nomic-embed-text': 1, 'memory__ollama-nomic-embed-text_latest': 14, 'solutions__ollama-nomic-embed-text': 1, 'solutions__ollama-nomic-embed-text_latest': 2}
+
+======================================================================
+CONTAINER PERSISTENCE PROVEN  33/33 checks
+======================================================================
+exit=0

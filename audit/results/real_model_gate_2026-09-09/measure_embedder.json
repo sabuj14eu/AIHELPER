@@ -1,0 +1,266 @@
+{
+  "embedder": "ollama-nomic-embed-text",
+  "dimensions": 768,
+  "populations": [
+    {
+      "population": "related (paraphrase)",
+      "n": 40,
+      "min": 0.5731,
+      "p10": 0.7261,
+      "median": 0.8476,
+      "p90": 0.9569,
+      "max": 0.9693
+    },
+    {
+      "population": "unrelated",
+      "n": 40,
+      "min": 0.2276,
+      "p10": 0.2829,
+      "median": 0.3398,
+      "p90": 0.4023,
+      "max": 0.4385
+    },
+    {
+      "population": "hard negative (one detail swapped)",
+      "n": 40,
+      "min": 0.581,
+      "p10": 0.7032,
+      "median": 0.836,
+      "p90": 0.9419,
+      "max": 0.9867
+    }
+  ],
+  "reuse_gate": [
+    {
+      "threshold": 0.8,
+      "paraphrases_reused": "11/40",
+      "hard_negatives_wrongly_reused": "25/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.78,
+      "paraphrases_reused": "11/40",
+      "hard_negatives_wrongly_reused": "31/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.76,
+      "paraphrases_reused": "11/40",
+      "hard_negatives_wrongly_reused": "31/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.74,
+      "paraphrases_reused": "11/40",
+      "hard_negatives_wrongly_reused": "32/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.72,
+      "paraphrases_reused": "12/40",
+      "hard_negatives_wrongly_reused": "35/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.7,
+      "paraphrases_reused": "12/40",
+      "hard_negatives_wrongly_reused": "37/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.69,
+      "paraphrases_reused": "12/40",
+      "hard_negatives_wrongly_reused": "38/40",
+      "unrelated_wrongly_reused": "0/40"
+    },
+    {
+      "threshold": 0.65,
+      "paraphrases_reused": "12/40",
+      "hard_negatives_wrongly_reused": "39/40",
+      "unrelated_wrongly_reused": "0/40"
+    }
+  ],
+  "memory_gate": [
+    {
+      "threshold": 0.72,
+      "paraphrases_retrieved": "37/40",
+      "unrelated_retrieved": "0/40"
+    },
+    {
+      "threshold": 0.7,
+      "paraphrases_retrieved": "37/40",
+      "unrelated_retrieved": "0/40"
+    },
+    {
+      "threshold": 0.65,
+      "paraphrases_retrieved": "39/40",
+      "unrelated_retrieved": "0/40"
+    },
+    {
+      "threshold": 0.6,
+      "paraphrases_retrieved": "39/40",
+      "unrelated_retrieved": "0/40"
+    },
+    {
+      "threshold": 0.55,
+      "paraphrases_retrieved": "40/40",
+      "unrelated_retrieved": "0/40"
+    }
+  ],
+  "lowest_related": [
+    {
+      "a": "Is the paid provider enabled?",
+      "b": "Are external paid models switched on?",
+      "cos": 0.5731,
+      "jaccard": 0.1
+    },
+    {
+      "a": "How do I check the status of a background task?",
+      "b": "Where can I see whether a queued job finished?",
+      "cos": 0.6643,
+      "jaccard": 0.118
+    },
+    {
+      "a": "How do I promote a learned answer?",
+      "b": "What is the way to move a solution to PROMOTED?",
+      "cos": 0.6831,
+      "jaccard": 0.067
+    },
+    {
+      "a": "How do I add a new user to the system?",
+      "b": "What are the steps to create a user account?",
+      "cos": 0.725,
+      "jaccard": 0.267
+    },
+    {
+      "a": "How do I upload a document for search?",
+      "b": "What is the way to add a file so it can be searched?",
+      "cos": 0.7355,
+      "jaccard": 0.05
+    },
+    {
+      "a": "Who is allowed to approve an expense?",
+      "b": "which people can sign off on expenses",
+      "cos": 0.7359,
+      "jaccard": 0.0
+    },
+    {
+      "a": "How do I rotate the API key?",
+      "b": "What is the procedure to replace the API key with a new one?",
+      "cos": 0.7539,
+      "jaccard": 0.188
+    },
+    {
+      "a": "Where is the audit log stored?",
+      "b": "In which place are audit events kept?",
+      "cos": 0.7586,
+      "jaccard": 0.083
+    }
+  ],
+  "highest_unrelated": [
+    {
+      "a": "How many days are in February 2024?",
+      "b": "Koalas sleep twenty hours a day.",
+      "cos": 0.4385,
+      "jaccard": 0.0
+    },
+    {
+      "a": "How are invoices numbered?",
+      "b": "Chess openings are classified by ECO code.",
+      "cos": 0.4228,
+      "jaccard": 0.1
+    },
+    {
+      "a": "How do I issue a correction invoice?",
+      "b": "Water boils at 100 degrees Celsius at sea level.",
+      "cos": 0.4062,
+      "jaccard": 0.0
+    },
+    {
+      "a": "Why did my request get rate limited?",
+      "b": "Chocolate was once used as currency.",
+      "cos": 0.4035,
+      "jaccard": 0.0
+    },
+    {
+      "a": "What counts as a business expense?",
+      "b": "The Great Wall of China is thousands of kilometres long.",
+      "cos": 0.3913,
+      "jaccard": 0.0
+    }
+  ],
+  "highest_hard_negative": [
+    {
+      "a": "Is VAT registration mandatory above the turnover limit?",
+      "b": "Is VAT registration mandatory below the turnover limit?",
+      "cos": 0.9867,
+      "jaccard": 0.778
+    },
+    {
+      "a": "What is the deadline for the monthly VAT return?",
+      "b": "What is the deadline for the quarterly VAT return?",
+      "cos": 0.9547,
+      "jaccard": 0.778
+    },
+    {
+      "a": "What is the social contribution base for a new business?",
+      "b": "What is the social contribution base for an established business?",
+      "cos": 0.9506,
+      "jaccard": 0.667
+    },
+    {
+      "a": "Does the Fundusz Pracy apply on the preferential ZUS scheme?",
+      "b": "Does the Fundusz Pracy apply on the full ZUS scheme?",
+      "cos": 0.9431,
+      "jaccard": 0.8
+    },
+    {
+      "a": "What is the invoice numbering scheme for sales?",
+      "b": "What is the invoice numbering scheme for purchases?",
+      "cos": 0.9309,
+      "jaccard": 0.778
+    },
+    {
+      "a": "What happens if I pay ZUS late?",
+      "b": "What happens if I pay ZUS early?",
+      "cos": 0.9308,
+      "jaccard": 0.75
+    },
+    {
+      "a": "What is the minimum wage in 2025?",
+      "b": "What is the minimum wage in 2026?",
+      "cos": 0.9165,
+      "jaccard": 0.75
+    },
+    {
+      "a": "How many days are in February 2024?",
+      "b": "How many days are in February 2023?",
+      "cos": 0.9138,
+      "jaccard": 0.75
+    },
+    {
+      "a": "What is the daily budget for API calls?",
+      "b": "What is the monthly budget for API calls?",
+      "cos": 0.9064,
+      "jaccard": 0.778
+    },
+    {
+      "a": "What is the deadline for PIT-36 in 2025?",
+      "b": "What is the deadline for PIT-28 in 2025?",
+      "cos": 0.9047,
+      "jaccard": 0.778
+    },
+    {
+      "a": "How is the health contribution calculated under the flat tax?",
+      "b": "How is the health contribution calculated under the tax scale?",
+      "cos": 0.8865,
+      "jaccard": 0.8
+    },
+    {
+      "a": "What is the maximum request size?",
+      "b": "What is the minimum request size?",
+      "cos": 0.8786,
+      "jaccard": 0.714
+    }
+  ]
+}

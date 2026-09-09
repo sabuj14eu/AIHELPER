@@ -9,13 +9,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agents import AgentSpec, build_agent_registry
+from app.api.transaction import STATE_KEY
 from app.core.audit import AUTH_FAILURE, AUTH_SUCCESS, RATE_LIMITED, record, record_durable
 from app.core.config import Settings, get_settings
 from app.core.errors import AuthenticationError, PermissionDeniedError, RateLimitedError
 from app.core.logging import client_id_var, get_logger
 from app.core.security import parse_api_key, verify_api_key, verify_session_token
 from app.database.models import Client
-from app.database.session import get_db
+from app.database.session import get_session_factory
 from app.runtime import Runtime, SessionServices, get_runtime
 
 log = get_logger("api.deps")
@@ -35,8 +36,24 @@ def settings_dep(request: Request) -> Settings:
     return configured or get_settings()
 
 
-def db_dep() -> Iterator[Session]:
-    yield from get_db()
+def db_dep(request: Request) -> Iterator[Session]:
+    """One session per request, committed by CommitBeforeResponse on the way out.
+
+    The session is exposed on the request state so the middleware can commit
+    it before the first byte of the response leaves (see app/api/transaction.py).
+    The commit/rollback here is the safety net for anything that never reached
+    a response, and a no-op otherwise.
+    """
+    session = get_session_factory()()
+    setattr(request.state, STATE_KEY, session)
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def runtime_dep(request: Request) -> Runtime:

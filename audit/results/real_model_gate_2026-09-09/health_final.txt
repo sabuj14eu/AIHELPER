@@ -1,0 +1,12 @@
+AI HELPER
+---------
+gateway    OK   v1.0.0
+database   OK
+qdrant     OK
+ollama     OK   nomic-embed-text:latest, llama3.2:3b
+openai     DISABLED   disabled
+anthropic  DISABLED   disabled
+n8n        OK
+embedder   OK   ollama-nomic-embed-text:latest
+---------
+overall       ok   (v1.0.0, development)

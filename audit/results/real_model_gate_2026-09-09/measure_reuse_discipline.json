@@ -1,0 +1,421 @@
+{
+  "model": "llama3.2:3b",
+  "summary": {
+    "answer_only": {
+      "n": 20,
+      "guarded_insufficient_or_refused": 0,
+      "answered_from_stored_answer_WRONG": 4,
+      "other": 16,
+      "mean_latency_s": 2.7
+    },
+    "with_question": {
+      "n": 20,
+      "guarded_insufficient_or_refused": 0,
+      "answered_from_stored_answer_WRONG": 1,
+      "other": 19,
+      "mean_latency_s": 2.29
+    }
+  },
+  "cases": [
+    {
+      "stored_question": "What is the standard VAT rate in Poland?",
+      "variant_question": "What is the standard VAT rate in Germany?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the VAT rate in Germany.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 10.54,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "The standard VAT rate in Germany is 19%.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.67,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the minimum wage in Poland in 2025?",
+      "variant_question": "What is the minimum wage in Poland in 2026?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe information provided only mentions the minimum wage in Poland in 2025.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.5,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the minimum wage in Poland for the year 2026.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.54,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the deadline for the monthly VAT return?",
+      "variant_question": "What is the deadline for the quarterly VAT return?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT \nThe context provided only mentions the monthly VAT return deadline.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.02,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the VAT return frequency.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.87,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "Which port does the API listen on?",
+      "variant_question": "Which port does the database listen on?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe information about the database port is missing.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.57,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe information about the API is not relevant to the database.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.55,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the food cost percentage for kebab?",
+      "variant_question": "What is the food cost percentage for pizza?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the food cost percentage for pizza.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.03,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "The food cost percentage for pizza is typically around 25-30%.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.93,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What are the opening hours on Monday?",
+      "variant_question": "What are the opening hours on Sunday?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the opening hours on Monday.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.97,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "On Sunday, the shop is open from 11:00 to 22:00.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.37,
+        "guarded": false,
+        "answered_from_stored": true
+      }
+    },
+    {
+      "stored_question": "How many days are in February 2024?",
+      "variant_question": "How many days are in February 2023?",
+      "answer_only": {
+        "text": "February 2023 does not have 29 days. It has 28 days.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.28,
+        "guarded": false,
+        "answered_from_stored": true
+      },
+      "with_question": {
+        "text": "February 2023 has 28 days.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.58,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the daily budget for API calls?",
+      "variant_question": "What is the monthly budget for API calls?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe daily API budget is missing.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.47,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe provided reference material does not mention a monthly budget for API calls.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.35,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the health contribution rate under the flat tax?",
+      "variant_question": "What is the health contribution rate under ryczałt?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe information about the health contribution rate under ryczałt is missing.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.5,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe information about the health contribution rate under ryczałt is missing.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.65,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "How long must invoices be kept?",
+      "variant_question": "How long must payslips be kept?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe information about invoices is not relevant to the question about payslips.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.47,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "Payslips must be kept for 6 years from the end of the tax year.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.51,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the deadline for PIT-36 in 2025?",
+      "variant_question": "What is the deadline for PIT-28 in 2025?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe deadline for PIT-28 is missing from the provided information.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.25,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT \nThe missing information is the tax year or jurisdiction for PIT-28.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.8,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is 12% of 1200?",
+      "variant_question": "What is 23% of 1200?",
+      "answer_only": {
+        "text": "To find 23% of 1200, multiply 1200 by 0.23.\n\n1200 * 0.23 = 276",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 3.24,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "To find 23% of 1200, multiply 1200 by 0.23.\n1200 * 0.23 = 276.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 3.42,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "Can I deduct a laptop bought for the business?",
+      "variant_question": "Can I deduct a car bought for the business?",
+      "answer_only": {
+        "text": "No, a car is not typically deductible as a business expense in the same way a laptop is, as it is not considered a capital asset with a specific depreciation limit.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 3.78,
+        "guarded": false,
+        "answered_from_stored": true
+      },
+      "with_question": {
+        "text": "No, a car bought for the business is not a deductible cost.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.0,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "Who is allowed to approve an expense?",
+      "variant_question": "Who is allowed to reject an expense?",
+      "answer_only": {
+        "text": "According to the provided information, the finance manager or the owner is the only one mentioned as having the authority to approve or reject expenses.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.74,
+        "guarded": false,
+        "answered_from_stored": true
+      },
+      "with_question": {
+        "text": "According to the provided information, the person who is allowed to reject an expense is not explicitly stated.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.28,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the reduced VAT rate for food?",
+      "variant_question": "What is the reduced VAT rate for books?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT \nThe reduced VAT rate for books is not specified in the provided reference material.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.25,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the VAT rate for books in the promoted_solution:sol_x.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.62,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "Does the Fundusz Pracy apply on the preferential ZUS scheme?",
+      "variant_question": "Does the Fundusz Pracy apply on the full ZUS scheme?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is what the Fundusz Pracy is and how it relates to the ZUS scheme.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 3.17,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe missing information is the details of the full ZUS scheme.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.71,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the social contribution base for a new business?",
+      "variant_question": "What is the social contribution base for an established business?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe social contribution base for an established business is missing from the provided information.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.69,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "For an established business, the social contribution base is typically 25% of the minimum wage.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.41,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "How much stock of chicken is left?",
+      "variant_question": "How much stock of beef is left?",
+      "answer_only": {
+        "text": "INSUFFICIENT CONTEXT\nThe information provided only mentions the amount of chicken left in stock.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.05,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT\nThe provided reference material only contains information about chicken stock.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.02,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "What is the maximum request size?",
+      "variant_question": "What is the minimum request size?",
+      "answer_only": {
+        "text": "The minimum request size is 32000 characters.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.28,
+        "guarded": false,
+        "answered_from_stored": true
+      },
+      "with_question": {
+        "text": "INSUFFICIENT CONTEXT \nThe minimum request size is not specified in the provided information.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 2.16,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    },
+    {
+      "stored_question": "Is the paid provider enabled?",
+      "variant_question": "Is the paid provider disabled?",
+      "answer_only": {
+        "text": "Yes, the paid provider is disabled.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.11,
+        "guarded": false,
+        "answered_from_stored": false
+      },
+      "with_question": {
+        "text": "Yes, the paid provider is disabled.",
+        "declared_insufficient": false,
+        "refused": false,
+        "latency_s": 1.34,
+        "guarded": false,
+        "answered_from_stored": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+   [PASS] the gateway reports a real, semantic embedder [('ollama', 'OK', 'nomic-embed-text:latest, llama3.2:3b'), ('anthropic', 'OK', 'configured (not probed)'), ('embedder', 'OK', 'ollama-nomic-embed-text:latest')]
+   [PASS] the anthropic provider is enabled (pointing at the stand-in) 
+
+── LEARNING: hard question → local failure → paid fallback → candidate → promotion
+   [PASS] the local model was tried first and did not pass (fallback had a reason) reason=VALIDATION_FAILURE local_conf_before=0.74
+   [PASS] the answer came from the paid provider route=paid provider=anthropic
+   [PASS] the paid call was billed cost=0.001347
+   [PASS] the stand-in received exactly one call 
+   [PASS] the paid answer passed validation conf=0.74
+   [PASS] it was captured as a solution sol_1b77db290ad94c38a1f0b3798dcb0385
+   [PASS] the reproduction gate was run by the REAL local model {"attempted": true, "passed": true, "confidence": 0.94, "model": "llama3.2:3b", "failure": null}
+   [PASS] the solution reached PROMOTED status=PROMOTED reason=validated and reproducible by the local model
+
+── REUSE: a reworded question is answered locally from the learned solution
+   [PASS] retrieval found the learned solution for the paraphrase (memory hit) {"memory_hit": true, "exact_match": false, "top_score": 0.9733, "solution_id": "sol_1b77db290ad94c38a1f0b3798dcb0385", "solution_score": 0.9733, "near_miss_score": 0.0, "reuse_threshold": 0.8, "counts": {"solutions": 1, "memory": 0, "chunks": 0}, "sources": [{"source": "promoted_solution", "ref": "sol_1b77db290ad94c38a1f0b3798dcb0385", "score": 0.9733}]}
+   [PASS] the same solution was reused sol_1b77db290ad94c38a1f0b3798dcb0385 vs sol_1b77db290ad94c38a1f0b3798dcb0385
+   [PASS] the answer was produced locally by the real model route=local model=llama3.2:3b
+   [PASS] it passed validation conf=0.935 vetoes=[]
+   [PASS] no paid call was made and nothing was billed 
+   [PASS] the answer carries the learned substance The company's health contribution look-back rule applies to every month in which the company is taxed under the flat tax. 
+
+The rule states that the health cont
+   [PASS] the literal repeat is an exact fingerprint match, local and free exact=True route=local
+   [PASS] usage shows one fallback and at least two memory hits for this client {"total_requests": 3, "local_requests": 2, "api_fallback_requests": 1, "memory_hits": 2, "promoted_solutions": 1, "estimated_money_saved_usd": 0.0027}
+
+── PRIVACY: what retrieval puts in front of the model may not leave
+   [PASS] the CONFIDENTIAL document is indexed {"status": "ready", "chunk_count": null, "classification": null}
+   [PASS] RESTRICTED memory: 'forty-two' never reached the stand-in 
+   [PASS] RESTRICTED memory: the request was judged RESTRICTED once the context was retrieved classification=RESTRICTED notes=['classification raised from INTERNAL to RESTRICTED by retrieved context: document (1), memory (1)', 'escalation blocked: RESTRICTED data may never be sent to an external provider', 'returned the local answer, which did not pass validation — treat it as unverified']
+   [PASS] RESTRICTED memory: escalation was refused on classification blocked=CLASSIFICATION_BLOCKED
+   [PASS] RESTRICTED memory: the stand-in was not called 
+   [PASS] RESTRICTED memory: the external gate was actually exercised 
+   [PASS] CONFIDENTIAL document: 'nineteen percent' never reached the stand-in 
+   [PASS] CONFIDENTIAL document: the request was judged CONFIDENTIAL once the context was retrieved classification=CONFIDENTIAL notes=['classification raised from INTERNAL to CONFIDENTIAL by retrieved context: document (1)', 'escalation blocked: CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)', 'returned the local answer, which did not pass validation — treat it as unverified']
+   [PASS] CONFIDENTIAL document: escalation was refused on classification blocked=CLASSIFICATION_BLOCKED
+   [PASS] CONFIDENTIAL document: the stand-in was not called 
+   [PASS] CONFIDENTIAL document: the external gate was actually exercised 
+   [PASS] a client whose data is CONFIDENTIAL by default is classified so without any pattern classification=CONFIDENTIAL
+   [PASS] …and its request was not sent out route=local blocked=CLASSIFICATION_BLOCKED
+   [PASS] INTERNAL context still escalates (the gate is not a blanket block) route=paid class=INTERNAL blocked=None
+   [PASS] every privacy refusal left an audit row 3 rows for this run
+
+LEARNING, REUSE AND PRIVACY PROVEN: 33/33
+exit=0

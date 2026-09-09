@@ -1,0 +1,30 @@
+HTTP Request: GET http://ollama:11434/api/tags "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+{"embedder": "ollama-nomic-embed-text:latest", "semantic": true, "event": "embedder_selected", "level": "info", "timestamp": "2026-09-09T11:27:07.195095Z"}
+/app/app/runtime.py:73: UserWarning: Api key is used with an insecure connection.
+  client = QdrantClient(
+HTTP Request: GET http://qdrant:6333/collections "HTTP/1.1 200 OK"
+{"url": "http://qdrant:6333", "event": "qdrant_connected", "level": "info", "timestamp": "2026-09-09T11:27:07.890918Z"}
+HTTP Request: GET http://qdrant:6333 "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+HTTP Request: POST http://ollama:11434/api/embed "HTTP/1.1 200 OK"
+
+THE THRESHOLDS DO NOT FIT THIS EMBEDDER.
+  Paraphrases of the same question score as low as 0.736.
+  Unrelated text scores as high as 0.423.
+  A retrieval threshold must sit strictly between those; it is 0.720.
+  A reuse threshold must be at or below 0.736; it is 0.800.
+
+Left as is, learned solutions will not be reused for a reworded
+question, and every paraphrase will escalate to a paid provider.
+
+Set MEMORY_SIMILARITY_THRESHOLD / SOLUTION_REUSE_THRESHOLD to values inside the measured gap
+(for example 0.58 and 0.69) and re-run this command.

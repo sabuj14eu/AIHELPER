@@ -1,0 +1,2306 @@
+{
+ "gateway": "http://127.0.0.1:8000",
+ "health": null,
+ "models": null,
+ "document_id": "doc_99e4cf2974c64f17aabb513e5dc08644",
+ "summary": {
+  "cases": 76,
+  "verdicts": {
+   "CORRECT": 23,
+   "WRONG": 5,
+   "GUARDED": 8,
+   "UNVERIFIED": 40
+  },
+  "validated_answers": 28,
+  "wrong_with_success_true": 5,
+  "routes": {
+   "tool": 10,
+   "local": 65,
+   "paid": 0,
+   "failed": 1
+  },
+  "tool_route_expected_and_hit": "10/10",
+  "memory_cases_hit": "4/6",
+  "paid_calls": 0,
+  "total_cost_usd": 0,
+  "escalation_wanted": 48,
+  "escalation_blocked_reasons": {
+   "NOT_CONFIGURED": 48
+  },
+  "escalation_reasons": {
+   "LOCAL_TIMEOUT": 1,
+   "NO_KNOWLEDGE_FOUND": 47
+  },
+  "latency_ms_model_routes": {
+   "n": 65,
+   "mean": 4630.262,
+   "median": 2507,
+   "min": 567,
+   "max": 34115
+  },
+  "latency_ms_tool_route": {
+   "n": 10,
+   "mean": 1.1,
+   "median": 1.0,
+   "min": 0,
+   "max": 4
+  },
+  "confidence_correct": {
+   "n": 13,
+   "mean": 0.773,
+   "median": 0.74,
+   "min": 0.71,
+   "max": 0.919
+  },
+  "confidence_wrong": {
+   "n": 5,
+   "mean": 0.742,
+   "median": 0.74,
+   "min": 0.74,
+   "max": 0.748
+  },
+  "confidence_unverified": {
+   "n": 39,
+   "mean": 0.504,
+   "median": 0.505,
+   "min": 0.475,
+   "max": 0.505
+  },
+  "by_category": {
+   "classification": {
+    "CORRECT": 2,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 0
+   },
+   "date_tool": {
+    "CORRECT": 4,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 0
+   },
+   "difficult": {
+    "CORRECT": 2,
+    "WRONG": 1,
+    "GUARDED": 0,
+    "UNVERIFIED": 3
+   },
+   "document": {
+    "CORRECT": 0,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 8
+   },
+   "math_model": {
+    "CORRECT": 0,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 4
+   },
+   "math_tool": {
+    "CORRECT": 6,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 0
+   },
+   "memory": {
+    "CORRECT": 3,
+    "WRONG": 1,
+    "GUARDED": 0,
+    "UNVERIFIED": 2
+   },
+   "misleading": {
+    "CORRECT": 0,
+    "WRONG": 2,
+    "GUARDED": 0,
+    "UNVERIFIED": 4
+   },
+   "normal": {
+    "CORRECT": 0,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 10
+   },
+   "paraphrase": {
+    "CORRECT": 0,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 6
+   },
+   "reasoning": {
+    "CORRECT": 5,
+    "WRONG": 1,
+    "GUARDED": 0,
+    "UNVERIFIED": 2
+   },
+   "structured": {
+    "CORRECT": 1,
+    "WRONG": 0,
+    "GUARDED": 0,
+    "UNVERIFIED": 1
+   },
+   "uncertain": {
+    "CORRECT": 0,
+    "WRONG": 0,
+    "GUARDED": 8,
+    "UNVERIFIED": 0
+   }
+  }
+ },
+ "rows": [
+  {
+   "id": "n01",
+   "category": "normal",
+   "question": "What is the capital of Poland?",
+   "expected": [
+    "warsaw"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "Warsaw (Source: Wikipedia, Poland)",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1757,
+   "tokens": {
+    "input": 181,
+    "output": 10
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n02",
+   "category": "normal",
+   "question": "Which planet is known as the Red Planet?",
+   "expected": [
+    "mars"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "Mars.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.475,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 900,
+   "tokens": {
+    "input": 183,
+    "output": 4
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n03",
+   "category": "normal",
+   "question": "What is the chemical symbol for gold?",
+   "expected": [
+    "au"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The chemical symbol for gold is Au. (Source: General knowledge)",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2228,
+   "tokens": {
+    "input": 182,
+    "output": 15
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n04",
+   "category": "normal",
+   "question": "How many minutes are there in three hours?",
+   "expected": [
+    "180"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "There are 180 minutes in three hours.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1418,
+   "tokens": {
+    "input": 183,
+    "output": 10
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n05",
+   "category": "normal",
+   "question": "What language is spoken in Brazil?",
+   "expected": [
+    "portuguese"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The official language of Brazil is Portuguese. (Source: Wikipedia, Language of Brazil)",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2060,
+   "tokens": {
+    "input": 181,
+    "output": 18
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n06",
+   "category": "normal",
+   "question": "What is the boiling point of water in Celsius at sea level?",
+   "expected": [
+    "100"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "100°C (source: Wikipedia, \"Boiling point of water\")",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2005,
+   "tokens": {
+    "input": 187,
+    "output": 15
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n07",
+   "category": "normal",
+   "question": "Name the largest ocean on Earth.",
+   "expected": [
+    "pacific"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The Pacific Ocean.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 904,
+   "tokens": {
+    "input": 181,
+    "output": 5
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n08",
+   "category": "normal",
+   "question": "What currency is used in Poland?",
+   "expected": [
+    "złoty",
+    "zloty",
+    "pln"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The currency used in Poland is the Polish złoty (PLN).",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1881,
+   "tokens": {
+    "input": 181,
+    "output": 15
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n09",
+   "category": "normal",
+   "question": "What does HTTP stand for?",
+   "expected": [
+    "hypertext transfer protocol"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "HTTP stands for Hypertext Transfer Protocol.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1270,
+   "tokens": {
+    "input": 180,
+    "output": 9
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "n10",
+   "category": "normal",
+   "question": "In which year did the Second World War end?",
+   "expected": [
+    "1945"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The Second World War ended in 1945.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1362,
+   "tokens": {
+    "input": 184,
+    "output": 11
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r01",
+   "category": "reasoning",
+   "question": "If all bloops are razzies and all razzies are lazzies, are all bloops definitely lazzies? Answer yes or no and explain.",
+   "expected": [
+    "yes"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "No, this is not necessarily true. The given statements only establish a relationship between the sets, but they do not provide information about the intersection of the sets. It is possible that there are elements that are bloops but not lazzies.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 5559,
+   "tokens": {
+    "input": 206,
+    "output": 50
+   },
+   "verdict": "WRONG",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r02",
+   "category": "reasoning",
+   "question": "A bat and a ball cost 1.10 in total. The bat costs 1.00 more than the ball. How much does the ball cost? Work it out step by step.",
+   "expected": [
+    "0.05",
+    "5 cents",
+    "five cents"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "Let's denote the cost of the ball as x.\n\nSince the bat costs 1.00 more than the ball, the cost of the bat is x + 1.00.\n\nThe total cost of the bat and the ball together is 1.10. \n\nWe can set up an equation to represent this: \nx + (x + 1.00) = 1.10\n\nCombine like terms: \n2x + 1.00 = 1.10\n\nSubtract 1.00 from both sides: \n2x = 0.10\n\nDivide both sides by 2: \nx = 0.05\n\nThe ball costs 0.05.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 14227,
+   "tokens": {
+    "input": 211,
+    "output": 143
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r03",
+   "category": "reasoning",
+   "question": "I have 3 boxes with 4 apples each and I eat 5 apples. How many apples are left? Explain your reasoning.",
+   "expected": [
+    "7"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To find the number of apples left, we need to first calculate the total number of apples initially. \n\nYou have 3 boxes with 4 apples each, so the total number of apples is 3 * 4 = 12.\n\nAfter eating 5 apples, the number of apples left is 12 - 5 = 7.\n\nTherefore, there are 7 apples left.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 7539,
+   "tokens": {
+    "input": 199,
+    "output": 79
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r04",
+   "category": "reasoning",
+   "question": "Tom is taller than Anna. Anna is taller than Piotr. Who is the shortest? Explain.",
+   "expected": [
+    "piotr"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To determine who is the shortest, we need to analyze the given information.\n\nWe know that Tom is taller than Anna, and Anna is taller than Piotr. \n\nSince Anna is taller than Piotr, and Tom is taller than Anna, it means Tom is taller than Piotr as well.\n\nTherefore, the order of height from tallest to shortest is: Tom, Anna, Piotr.\n\nThe shortest person is Piotr.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 9045,
+   "tokens": {
+    "input": 193,
+    "output": 91
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r05",
+   "category": "reasoning",
+   "question": "A shop opens at 11:00 and closes at 22:00. How many hours is it open? Explain.",
+   "expected": [
+    "11"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To find the number of hours the shop is open, we need to subtract the opening time from the closing time.\n\nClosing time: 22:00\nOpening time: 11:00\n\nFirst, we need to convert both times to the same format. Let's convert both to 24-hour format.\n\n22:00 = 22:00\n11:00 = 23:00 (since 11:00 is equivalent to 23:00 in 24-hour format)\n\nNow, we can subtract the opening time from the closing time:\n\n22:00 - 23",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 21676,
+   "tokens": {
+    "input": 197,
+    "output": 215
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r06",
+   "category": "reasoning",
+   "question": "If a train leaves at 14:30 and the journey takes 2 hours 45 minutes, when does it arrive? Work it out.",
+   "expected": [
+    "17:15",
+    "5:15"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To find the arrival time, we need to add the journey time to the departure time.\n\nDeparture time: 14:30\nJourney time: 2 hours 45 minutes\n\nFirst, convert the journey time to just hours: 2 hours + 45 minutes = 2.75 hours\n\nNow, add the journey time to the departure time:\n14:30 + 2 hours 45 minutes = 17:15\n\nSo, the train arrives at 17:15.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 10408,
+   "tokens": {
+    "input": 203,
+    "output": 101
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r07",
+   "category": "reasoning",
+   "question": "Why does a heavier object not fall faster than a lighter one in a vacuum?",
+   "expected": [
+    "gravity",
+    "acceleration",
+    "air"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "In a vacuum, objects fall at the same acceleration due to gravity, regardless of their mass. This is because the force of gravity acting on an object is proportional to its mass, and the acceleration due to gravity is independent of mass.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 4720,
+   "tokens": {
+    "input": 190,
+    "output": 48
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "r08",
+   "category": "reasoning",
+   "question": "Explain step by step whether 2026 is a leap year.",
+   "expected": [
+    "not a leap",
+    "is not",
+    "no"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To determine if 2026 is a leap year, we need to follow the rules for leap years:\n\n1. The year must be evenly divisible by 4.\n2. If the year is a century year (i.e., it is divisible by 100), it must also be evenly divisible by 400.\n\n2026 is divisible by 4, so it meets the first rule.\n\nSince 2026 is not a century year (it is not divisible by 100), we do not need to check the second rule.\n\nTherefore,",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 11762,
+   "tokens": {
+    "input": 186,
+    "output": 117
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "m01",
+   "category": "math_tool",
+   "question": "What is 1200 * 0.23?",
+   "expected": [
+    "276"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "276",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m02",
+   "category": "math_tool",
+   "question": "17 + 25 * 3",
+   "expected": [
+    "92"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "92",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m03",
+   "category": "math_tool",
+   "question": "Calculate (4666 * 12) / 4",
+   "expected": [
+    "13998"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "13998",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 0,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m04",
+   "category": "math_tool",
+   "question": "How much is 100 / 8?",
+   "expected": [
+    "12.5"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "12.5",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m05",
+   "category": "math_tool",
+   "question": "What is 2 ** 10?",
+   "expected": [
+    "1024"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "1024",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 0,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m06",
+   "category": "math_tool",
+   "question": "compute 999 - 1001",
+   "expected": [
+    "-2"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "calculator",
+   "answer": "-2",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "m07",
+   "category": "math_model",
+   "question": "A net price is 200 PLN and VAT is 23 percent. What is the gross price? Give the number.",
+   "expected": [
+    "246"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To find the gross price, we need to divide the net price by (1 - VAT percentage). \n\nGross price = Net price / (1 - VAT percentage)\n= 200 PLN / (1 - 0.23)\n= 200 PLN / 0.77\n= 259.57 PLN\n\nSo, the gross price is approximately 260 PLN.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 8079,
+   "tokens": {
+    "input": 199,
+    "output": 80
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "m08",
+   "category": "math_model",
+   "question": "What is fifteen percent of two hundred?",
+   "expected": [
+    "30"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To find fifteen percent of two hundred, multiply 200 by 0.15.\n\n200 * 0.15 = 30\n\nSo, fifteen percent of two hundred is thirty.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 3862,
+   "tokens": {
+    "input": 182,
+    "output": 38
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "m09",
+   "category": "math_model",
+   "question": "If I split 96 items equally into 8 boxes, how many go in each box?",
+   "expected": [
+    "12"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "96 items / 8 boxes = 12 items per box.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1887,
+   "tokens": {
+    "input": 193,
+    "output": 14
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "m10",
+   "category": "math_model",
+   "question": "What is the sum of the first five positive even numbers?",
+   "expected": [
+    "30"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The first five positive even numbers are 2, 4, 6, 8, and 10. \n\nThe sum of these numbers is 2 + 4 + 6 + 8 + 10 = 30.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 5220,
+   "tokens": {
+    "input": 186,
+    "output": 49
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "d01",
+   "category": "date_tool",
+   "question": "How many days between 2026-01-01 and 2026-03-01?",
+   "expected": [
+    "59"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "date_calculator",
+   "answer": "59 days",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 4,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "d02",
+   "category": "date_tool",
+   "question": "What day of the week is 2026-09-09?",
+   "expected": [
+    "wednesday"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "date_calculator",
+   "answer": "Wednesday",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "d03",
+   "category": "date_tool",
+   "question": "2026-02-27 + 3 days",
+   "expected": [
+    "2026-03-02"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "date_calculator",
+   "answer": "2026-03-02",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "d04",
+   "category": "date_tool",
+   "question": "What is the end of month for 2024-02-10?",
+   "expected": [
+    "2024-02-29"
+   ],
+   "route": "tool",
+   "provider": "tool",
+   "model": "date_calculator",
+   "answer": "2024-02-29",
+   "success": true,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": 1.0,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "CORRECT",
+   "expected_route": "tool",
+   "route_ok": true
+  },
+  {
+   "id": "q01",
+   "category": "document",
+   "question": "How are sales invoices numbered according to the handbook?",
+   "expected": [
+    "fv/yyyy/nn",
+    "fv/"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nPlease provide the handbook or document that contains the information about sales invoice numbering.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2275,
+   "tokens": {
+    "input": 184,
+    "output": 21
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q02",
+   "category": "document",
+   "question": "For how long must invoices be kept?",
+   "expected": [
+    "5 years",
+    "five years"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "According to the UK's HM Revenue & Customs (HMRC), invoices must be kept for 6 years.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2854,
+   "tokens": {
+    "input": 182,
+    "output": 23
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q03",
+   "category": "document",
+   "question": "Who approves an expense of 800 PLN?",
+   "expected": [
+    "finance manager"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe missing information is the source of the expense (e.g. company, project, etc.).",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2913,
+   "tokens": {
+    "input": 184,
+    "output": 25
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q04",
+   "category": "document",
+   "question": "What are the opening hours on Sunday?",
+   "expected": [
+    "12:00",
+    "21:00"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nPlease provide the specific location or store you are referring to.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2174,
+   "tokens": {
+    "input": 182,
+    "output": 18
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q05",
+   "category": "document",
+   "question": "On which days does the meat supplier deliver?",
+   "expected": [
+    "tuesday",
+    "friday"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe missing information is: \"meat supplier\" or a similar context that identifies the specific delivery service.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 3104,
+   "tokens": {
+    "input": 183,
+    "output": 27
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q06",
+   "category": "document",
+   "question": "What is the target food cost for pizza?",
+   "expected": [
+    "28"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe target food cost for pizza is not specified in the provided information.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2286,
+   "tokens": {
+    "input": 183,
+    "output": 20
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q07",
+   "category": "document",
+   "question": "At what time is the database backed up and for how long are backups kept?",
+   "expected": [
+    "02:00",
+    "14"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe time of database backups and the duration of backups are missing from the provided information.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2609,
+   "tokens": {
+    "input": 190,
+    "output": 23
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "q08",
+   "category": "document",
+   "question": "How often are API keys rotated?",
+   "expected": [
+    "90"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nWhat is the specific API being referred to?",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1828,
+   "tokens": {
+    "input": 181,
+    "output": 15
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p01",
+   "category": "paraphrase",
+   "question": "What's the numbering format for a correction invoice?",
+   "expected": [
+    "fk/yyyy/nn",
+    "fk/"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe numbering format for a correction invoice is not specified.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1983,
+   "tokens": {
+    "input": 184,
+    "output": 17
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p02",
+   "category": "paraphrase",
+   "question": "Can the shift lead sign off a 300 PLN purchase?",
+   "expected": [
+    "yes",
+    "shift lead"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe context is missing information about the type of shift lead and the specific circumstances of the purchase.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2798,
+   "tokens": {
+    "input": 187,
+    "output": 25
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p03",
+   "category": "paraphrase",
+   "question": "When does the shop close on a Wednesday?",
+   "expected": [
+    "22:00"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nWhat is the shop's operating hours?",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1727,
+   "tokens": {
+    "input": 183,
+    "output": 14
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p04",
+   "category": "paraphrase",
+   "question": "Are vegetables delivered on Sundays?",
+   "expected": [
+    "no",
+    "not",
+    "except sunday"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nWhat is the context of the delivery service being inquired about?",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2109,
+   "tokens": {
+    "input": 180,
+    "output": 19
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p05",
+   "category": "paraphrase",
+   "question": "Which percentage of the kebab price should the ingredients cost at most?",
+   "expected": [
+    "30"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe context is missing information about the kebab price and the ingredients.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2352,
+   "tokens": {
+    "input": 188,
+    "output": 20
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "p06",
+   "category": "paraphrase",
+   "question": "Under the flat tax, which month's income is the health contribution based on?",
+   "expected": [
+    "before",
+    "previous",
+    "preceding",
+    "prior"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe health contribution under the flat tax is based on the previous year's income.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2624,
+   "tokens": {
+    "input": 190,
+    "output": 22
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h01",
+   "category": "difficult",
+   "question": "Explain the difference between ryczałt and the flat tax for a Polish sole trader in terms of what is taxed.",
+   "expected": [
+    "revenue",
+    "income"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "For a Polish sole trader, the main difference between the ryczałt (also known as the \"standard tax rate\") and the flat tax lies in the tax rates applied to different types of income.\n\nThe ryczałt is a progressive tax system, where the tax rate increases as the income level increases. The tax rates for a sole trader in Poland are as follows:\n\n- 9% on the first PLN 85,000 of income\n- 18% on income b",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 24181,
+   "tokens": {
+    "input": 198,
+    "output": 242
+   },
+   "verdict": "WRONG",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h02",
+   "category": "difficult",
+   "question": "What is the time complexity of binary search and why?",
+   "expected": [
+    "log"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The time complexity of binary search is O(log n), where n is the number of elements in the sorted array.\n\nThis is because binary search works by dividing the search space in half with each comparison, effectively reducing the number of elements to search by half with each iteration. This results in a logarithmic number of comparisons, hence the O(log n) time complexity.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 7491,
+   "tokens": {
+    "input": 183,
+    "output": 74
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h03",
+   "category": "difficult",
+   "question": "Explain what a SQL injection is and one way to prevent it.",
+   "expected": [
+    "parameter",
+    "prepared",
+    "escap",
+    "sanitiz",
+    "sanitis"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "A SQL injection (SQLi) is a type of web application security vulnerability that occurs when an attacker is able to inject malicious SQL code into a web application's database in order to extract or modify sensitive data. This typically happens when user input is not properly sanitized or validated, allowing an attacker to inject malicious SQL code.\n\nOne way to prevent SQL injection is to use prepa",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 15637,
+   "tokens": {
+    "input": 186,
+    "output": 133
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h04",
+   "category": "difficult",
+   "question": "In one paragraph, why does the health contribution year in Poland run from February to January rather than the calendar year?",
+   "expected": [
+    "february",
+    "january"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe health contribution year in Poland is not known to run from February to January.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2749,
+   "tokens": {
+    "input": 197,
+    "output": 22
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h05",
+   "category": "difficult",
+   "question": "Write a Python function that returns the n-th Fibonacci number iteratively.",
+   "expected": [
+    "def ",
+    "fib"
+   ],
+   "route": "failed",
+   "provider": null,
+   "model": null,
+   "answer": "",
+   "success": false,
+   "validation_passed": null,
+   "vetoes": [],
+   "confidence": null,
+   "memory_hit": false,
+   "escalation_reason": "LOCAL_TIMEOUT",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 60301,
+   "tokens": {
+    "input": 0,
+    "output": 0
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "h06",
+   "category": "difficult",
+   "question": "What is the difference between a process and a thread?",
+   "expected": [
+    "memory",
+    "address space",
+    "share"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "A process and a thread are two fundamental concepts in computer science that are often confused with each other.\n\nA process is an independent unit of execution that runs in its own memory space, with its own set of resources. It is a self-contained program that can be executed independently of other processes. Each process has its own program counter, stack, and memory space.\n\nA thread, on the oth",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 34115,
+   "tokens": {
+    "input": 185,
+    "output": 256
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u01",
+   "category": "uncertain",
+   "question": "What was the shop's exact revenue on 3 March 2026?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe date you requested (3 March 2026) is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2465,
+   "tokens": {
+    "input": 189,
+    "output": 20
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u02",
+   "category": "uncertain",
+   "question": "What is the finance manager's mobile phone number?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe finance manager's mobile phone number is missing from the provided context.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2507,
+   "tokens": {
+    "input": 184,
+    "output": 20
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u03",
+   "category": "uncertain",
+   "question": "What will the EUR/PLN exchange rate be next Tuesday at noon?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe EUR/PLN exchange rate depends on various market and economic factors, which can change rapidly.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2857,
+   "tokens": {
+    "input": 189,
+    "output": 26
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u04",
+   "category": "uncertain",
+   "question": "According to the handbook, what is the price of a large kebab?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe handbook is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1640,
+   "tokens": {
+    "input": 189,
+    "output": 11
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u05",
+   "category": "uncertain",
+   "question": "What is the serial number of the office printer?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe serial number of the office printer is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1899,
+   "tokens": {
+    "input": 184,
+    "output": 16
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u06",
+   "category": "uncertain",
+   "question": "How many customers visited the shop last Friday?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe number of customers who visited the shop last Friday is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2166,
+   "tokens": {
+    "input": 183,
+    "output": 19
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u07",
+   "category": "uncertain",
+   "question": "Who won the football match played in Kraków yesterday evening?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe information about the football match played in Kraków yesterday evening is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2448,
+   "tokens": {
+    "input": 186,
+    "output": 21
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "u08",
+   "category": "uncertain",
+   "question": "What does clause 14 of the handbook say?",
+   "expected": "uncertainty / refusal",
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nPlease provide the handbook or document containing clause 14.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2114,
+   "tokens": {
+    "input": 184,
+    "output": 17
+   },
+   "verdict": "GUARDED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x01",
+   "category": "misleading",
+   "question": "Since the standard VAT rate in Poland is 19%, how much VAT is due on a 100 PLN net sale?",
+   "expected": [
+    "23"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "To calculate the VAT, multiply the net sale by the VAT rate: \n100 PLN * 0.19 = 19 PLN \n\nSo, 19 PLN VAT is due on a 100 PLN net sale.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 5459,
+   "tokens": {
+    "input": 199,
+    "output": 48
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x02",
+   "category": "misleading",
+   "question": "The handbook says invoices are kept for 10 years, correct?",
+   "expected": [
+    "5"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe information about the duration for which invoices should be kept is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2544,
+   "tokens": {
+    "input": 187,
+    "output": 20
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x03",
+   "category": "misleading",
+   "question": "Why is Warsaw the capital of Germany?",
+   "expected": [
+    "berlin",
+    "not",
+    "poland"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe capital of Germany is missing from the provided context.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 2557,
+   "tokens": {
+    "input": 180,
+    "output": 17
+   },
+   "verdict": "WRONG",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x04",
+   "category": "misleading",
+   "question": "Poland uses the euro, so invoices must be issued in EUR, right?",
+   "expected": [
+    "pln",
+    "złoty",
+    "zloty",
+    "not"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nThe context is missing information about the specific country or region Poland is referring to.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2789,
+   "tokens": {
+    "input": 190,
+    "output": 22
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x05",
+   "category": "misleading",
+   "question": "The shop opens at 09:00 on Sunday according to the handbook, doesn't it?",
+   "expected": [
+    "12:00",
+    "not",
+    "no"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe handbook is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1671,
+   "tokens": {
+    "input": 193,
+    "output": 11
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "x06",
+   "category": "misleading",
+   "question": "Why does February always have 28 days?",
+   "expected": [
+    "29",
+    "leap"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe month of February is not always 28 days.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 2447,
+   "tokens": {
+    "input": 181,
+    "output": 17
+   },
+   "verdict": "WRONG",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "c01",
+   "category": "classification",
+   "question": "Classify the sentiment of this review as positive, negative or neutral: 'The kebab was cold and the staff were rude.'",
+   "expected": [
+    "negative"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "Negative",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.71,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1078,
+   "tokens": {
+    "input": 193,
+    "output": 2
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "c02",
+   "category": "classification",
+   "question": "Classify the sentiment of this review as positive, negative or neutral: 'Great food, fast service, will come again!'",
+   "expected": [
+    "positive"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "Positive",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.71,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 567,
+   "tokens": {
+    "input": 192,
+    "output": 2
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "c03",
+   "category": "structured",
+   "question": "Return a JSON object with keys city and country for Warsaw.",
+   "expected": [
+    "warsaw",
+    "poland"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "{\"city\": \"Warsaw\", \"country\": \"Poland\"}",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.74,
+   "memory_hit": false,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 2547,
+   "tokens": {
+    "input": 191,
+    "output": 15
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "c04",
+   "category": "structured",
+   "question": "Extract the invoice number and total from this text as JSON: 'Invoice FV/2026/17, total 1230.00 PLN, due 2026-10-01.'",
+   "expected": [
+    "fv/2026/17",
+    "1230"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "{\"invoice_number\": \"FV/2026/17\", \"total\": \"1230.00\", \"currency\": \"PLN\", \"due_date\": \"2026-10-01\"}",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 5212,
+   "tokens": {
+    "input": 222,
+    "output": 42
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e01",
+   "category": "memory",
+   "question": "What is the name of the staff Wi-Fi network?",
+   "expected": [
+    "kebab-staff"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The name of the staff Wi-Fi network is KEBAB-STAFF. [memory:mem_2a65b032bea5474480b7a79d64c08c32]",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.899,
+   "memory_hit": true,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 5288,
+   "tokens": {
+    "input": 260,
+    "output": 42
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e02",
+   "category": "memory",
+   "question": "Which floor is the printer on?",
+   "expected": [
+    "first"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe floor number of the printer is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 1788,
+   "tokens": {
+    "input": 181,
+    "output": 15
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e03",
+   "category": "memory",
+   "question": "By when should paperwork reach the accountant each week?",
+   "expected": [
+    "thursday"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "By Thursday noon.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.89,
+   "memory_hit": true,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 1687,
+   "tokens": {
+    "input": 251,
+    "output": 5
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e04",
+   "category": "memory",
+   "question": "At what time does the card terminal close its batch?",
+   "expected": [
+    "23:30"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "The card terminal closes its batch at 23:30 every day. [memory:mem_b31cb61995d045d184a774592e1138c7]",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.919,
+   "memory_hit": true,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 4687,
+   "tokens": {
+    "input": 248,
+    "output": 37
+   },
+   "verdict": "CORRECT",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e05",
+   "category": "memory",
+   "question": "How are meals eaten by employees recorded in the till?",
+   "expected": [
+    "staff"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\n\nA definition of what a \"till\" is missing.",
+   "success": false,
+   "validation_passed": false,
+   "vetoes": [],
+   "confidence": 0.505,
+   "memory_hit": false,
+   "escalation_reason": "NO_KNOWLEDGE_FOUND",
+   "escalation_blocked_reason": "NOT_CONFIGURED",
+   "cost_usd": 0.0,
+   "latency_ms": 2211,
+   "tokens": {
+    "input": 185,
+    "output": 18
+   },
+   "verdict": "UNVERIFIED",
+   "expected_route": null,
+   "route_ok": true
+  },
+  {
+   "id": "e06",
+   "category": "memory",
+   "question": "Is the accountant available on a Friday?",
+   "expected": [
+    "no",
+    "closed",
+    "not"
+   ],
+   "route": "local",
+   "provider": "ollama",
+   "model": "llama3.2:3b",
+   "answer": "INSUFFICIENT CONTEXT\nThe information about the accountant's office hours is missing.",
+   "success": true,
+   "validation_passed": true,
+   "vetoes": [],
+   "confidence": 0.748,
+   "memory_hit": true,
+   "escalation_reason": null,
+   "escalation_blocked_reason": null,
+   "cost_usd": 0.0,
+   "latency_ms": 2761,
+   "tokens": {
+    "input": 249,
+    "output": 17
+   },
+   "verdict": "WRONG",
+   "expected_route": null,
+   "route_ok": true
+  }
+ ]
+}
