@@ -96,6 +96,27 @@ CALIBRATION_UNRELATED = [
     ("Explain the look-back rule and when it applies.", "Photosynthesis converts light to energy."),
     ("Who is allowed to approve an expense?", "The capital of France is Paris."),
 ]
+# The same question with ONE answer-changing detail swapped. A reuse gate that
+# admits one of these serves a confident wrong answer, for free. Measured on a
+# real embedding model (nomic-embed-text, 40 pairs, audit/measure_embedder.py)
+# these score in the SAME range as paraphrases: no cosine threshold separates
+# them, and lowering the reuse threshold admits more of them for almost no
+# paraphrase gained. They are measured here so that admission is printed on
+# every run rather than discovered in production.
+CALIBRATION_HARD_NEGATIVE = [
+    ("What is the VAT rate in Poland?", "What is the VAT rate in Germany?"),
+    ("What is the deadline for the monthly VAT return?",
+     "What is the deadline for the quarterly VAT return?"),
+    ("What is the minimum wage in 2025?", "What is the minimum wage in 2026?"),
+    ("What happens if I pay ZUS late?", "What happens if I pay ZUS early?"),
+    ("Which port does the API listen on?", "Which port does the database listen on?"),
+    ("Can I deduct a laptop bought for the business?", "Can I deduct a car bought for the business?"),
+    ("What is the daily budget for API calls?", "What is the monthly budget for API calls?"),
+    ("How many days are in February 2024?", "How many days are in February 2023?"),
+    ("Is VAT registration mandatory above the turnover limit?",
+     "Is VAT registration mandatory below the turnover limit?"),
+    ("What is the maximum request size?", "What is the minimum request size?"),
+]
 
 
 def cmd_calibrate(args) -> int:
@@ -104,11 +125,26 @@ def cmd_calibrate(args) -> int:
     Why this exists: the thresholds are chosen from which *class* of embedder
     is running (semantic or lexical), never from a measurement of the model
     actually installed. If a deployment's embedding model scores on a different
-    scale than the defaults assume, solution reuse silently stops working and
-    every paraphrase re-escalates and pays. That failure is invisible without
-    a measurement, so here is the measurement.
+    scale than the defaults assume, retrieval silently stops finding
+    paraphrases and every reworded question re-escalates and pays. That failure
+    is invisible without a measurement, so here is the measurement.
+
+    What it refuses, and what it deliberately does not:
+
+    * It refuses an embedder that cannot separate related from unrelated text
+      at all, and a retrieval threshold that sits outside the measured gap.
+    * It refuses a reuse threshold looser than the retrieval threshold: a
+      learned solution is offered as THE answer, memory only as evidence.
+    * It does NOT demand that every paraphrase clears the reuse threshold.
+      Measured on a real embedder, the only way to satisfy that was to lower
+      the threshold into the range where one-detail variants of a learned
+      question score, trading a confident wrong answer for each paraphrase
+      gained. Instead it measures and prints how many such variants the
+      reuse gate admits, so nobody lowers the bar to buy recall.
     """
+    from app.learning.similarity import jaccard
     from app.memory.embeddings import cosine
+    from app.memory.retrieval import LEXICAL_WITNESS
     from app.memory.thresholds import for_embedder
     from app.runtime import Runtime
 
@@ -121,23 +157,32 @@ def cmd_calibrate(args) -> int:
         out = []
         for first, second in pairs:
             a, b = embedder.embed([first, second])
-            out.append(cosine(a, b))
-        return sorted(out)
+            out.append((cosine(a, b), jaccard(first, second)))
+        return out
 
     try:
         related = scores(CALIBRATION_RELATED)
         unrelated = scores(CALIBRATION_UNRELATED)
+        hard = scores(CALIBRATION_HARD_NEGATIVE)
     except Exception as exc:
         print(f"could not embed: {type(exc).__name__}: {exc}", file=sys.stderr)
         runtime.close()
         return 1
-    finally:
-        pass
 
-    worst_related = min(related)
-    best_unrelated = max(unrelated)
+    related_cos = sorted(c for c, _ in related)
+    unrelated_cos = sorted(c for c, _ in unrelated)
+    hard_cos = sorted(c for c, _ in hard)
+    worst_related = min(related_cos)
+    best_unrelated = max(unrelated_cos)
     memory_ok = best_unrelated < thresholds.memory < worst_related
-    reuse_ok = thresholds.solution_reuse <= worst_related
+    reuse_ok = thresholds.solution_reuse >= thresholds.memory
+
+    def clears_reuse(cos_value: float, lexical: float) -> bool:
+        # Both witnesses, exactly as app/memory/retrieval.py applies them.
+        return cos_value >= thresholds.solution_reuse and lexical >= LEXICAL_WITNESS
+
+    paraphrases_reusable = sum(1 for c, lex in related if clears_reuse(c, lex))
+    hard_admitted = sum(1 for c, lex in hard if clears_reuse(c, lex))
 
     # Decide the verdict BEFORE printing, so the JSON a machine consumes
     # actually carries it.
@@ -152,11 +197,18 @@ def cmd_calibrate(args) -> int:
         "embedder": embedder.id,
         "semantic": embedder.semantic,
         "dimensions": embedder.dim,
-        "related_pairs": [round(s, 4) for s in related],
-        "unrelated_pairs": [round(s, 4) for s in unrelated],
+        "related_pairs": [round(s, 4) for s in related_cos],
+        "unrelated_pairs": [round(s, 4) for s in unrelated_cos],
+        "hard_negative_pairs": [round(s, 4) for s in hard_cos],
         "worst_related": round(worst_related, 4),
         "best_unrelated": round(best_unrelated, 4),
         "thresholds": thresholds.as_dict(),
+        "reuse_gate": {
+            "threshold": thresholds.solution_reuse,
+            "lexical_witness": LEXICAL_WITNESS,
+            "paraphrases_reusable": f"{paraphrases_reusable}/{len(related)}",
+            "hard_negatives_admitted": f"{hard_admitted}/{len(hard)}",
+        },
         "memory_threshold_fits": memory_ok,
         "reuse_threshold_fits": reuse_ok,
         "verdict": verdict,
@@ -172,9 +224,16 @@ def cmd_calibrate(args) -> int:
         f"  Paraphrases of the same question score as low as {worst_related:.3f}.\n"
         f"  Unrelated text scores as high as {best_unrelated:.3f}.\n"
     )
-    consequence = (
-        "\nLeft as is, learned solutions will not be reused for a reworded\n"
-        "question, and every paraphrase will escalate to a paid provider.\n"
+    hard_note = (
+        f"\nNOTE: {hard_admitted} of {len(hard)} one-detail variants of a learned question clear\n"
+        f"the reuse gate at {thresholds.solution_reuse:.2f} (cosine, plus the lexical witness).\n"
+        "No cosine threshold separates such a variant from a paraphrase on this\n"
+        "embedder, and lowering the reuse threshold admits MORE of them — do NOT\n"
+        "lower SOLUTION_REUSE_THRESHOLD to gain paraphrase recall. For these the\n"
+        "local model's context discipline is the guard; measure it with\n"
+        "audit/measure_reuse_discipline.py.\n"
+        if hard_admitted
+        else ""
     )
 
     if verdict == "no_separation":
@@ -186,8 +245,9 @@ def cmd_calibrate(args) -> int:
             + measurement
             + "  Those ranges overlap, so no threshold exists that admits the\n"
             "  first and rejects the second. This is not a tuning problem.\n"
-            + consequence
-            + "\nInstall a real embedding model and re-run:\n"
+            "\nLeft as is, learned solutions will not be reused for a reworded\n"
+            "question, and every paraphrase will escalate to a paid provider.\n"
+            "\nInstall a real embedding model and re-run:\n"
             "  ollama pull nomic-embed-text\n"
             "  python -m app.cli calibrate",
             file=sys.stderr,
@@ -196,17 +256,34 @@ def cmd_calibrate(args) -> int:
         return 1
 
     if verdict == "thresholds_misplaced":
+        problems = ""
+        if not memory_ok:
+            problems += (
+                f"  A retrieval threshold must sit strictly between those; it is "
+                f"{thresholds.memory:.3f}.\n"
+            )
+        if not reuse_ok:
+            problems += (
+                f"  A reuse threshold must be at or above the retrieval threshold "
+                f"({thresholds.memory:.3f}); it is {thresholds.solution_reuse:.3f}.\n"
+            )
+        suggested_memory = (
+            (best_unrelated + worst_related) / 2 if not memory_ok else thresholds.memory
+        )
         print(
             "\nTHE THRESHOLDS DO NOT FIT THIS EMBEDDER.\n"
             + measurement
-            + f"  A retrieval threshold must sit strictly between those; it is "
-            f"{thresholds.memory:.3f}.\n"
-            f"  A reuse threshold must be at or below {worst_related:.3f}; it is "
-            f"{thresholds.solution_reuse:.3f}.\n"
-            + consequence
-            + f"\nSet {names} to values inside the measured gap\n"
-            f"(for example {(best_unrelated + worst_related) / 2:.2f} and "
-            f"{max(best_unrelated + 0.01, worst_related - 0.05):.2f}) and re-run this command.",
+            + problems
+            + "\nLeft as is, retrieval either misses paraphrases (and every reworded\n"
+            "question escalates and pays) or admits noise, and a reuse gate looser\n"
+            "than retrieval serves answers it would not even have offered as evidence.\n"
+            f"\nSet {names} so that the first lies inside the measured gap\n"
+            f"(for example {suggested_memory:.2f}) and the second is at or above it\n"
+            f"(for example {max(suggested_memory, thresholds.solution_reuse):.2f}), then re-run.\n"
+            "Never lower the reuse threshold to admit more paraphrases: the same\n"
+            "range admits one-detail variants of a learned question, which are\n"
+            "confident wrong answers."
+            + hard_note,
             file=sys.stderr,
         )
         runtime.close()
@@ -214,7 +291,7 @@ def cmd_calibrate(args) -> int:
 
     print(
         f"\nThresholds fit the measured distribution "
-        f"(gap {best_unrelated:.3f} … {worst_related:.3f}).",
+        f"(gap {best_unrelated:.3f} … {worst_related:.3f})." + hard_note,
         file=sys.stderr,
     )
     runtime.close()

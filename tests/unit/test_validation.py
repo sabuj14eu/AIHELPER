@@ -24,6 +24,41 @@ class TestOutputChecks:
         assert check_output("INSUFFICIENT_CONTEXT — I lack the rules.").usable is False
 
     @pytest.mark.parametrize(
+        "text",
+        [
+            # What llama3.2:3b actually writes when the prompt asks for the
+            # marker: a space instead of the underscore (15 of 20 refusals in
+            # audit/measure_reuse_discipline.py). Before the fix this passed
+            # validation as an answer with confidence ~0.85.
+            "INSUFFICIENT CONTEXT The missing information is the VAT rate in Germany.",
+            "Insufficient context: the deadline for PIT-28 is not in the reference material.",
+            "INSUFFICIENT-CONTEXT — nothing relevant here.",
+            "INSUFFICIENT_CONTEXT — the canonical spelling still counts.",
+        ],
+    )
+    def test_the_marker_is_caught_however_the_model_spells_it(self, text):
+        check = check_output(text)
+        assert check.declared_insufficient is True
+        assert check.usable is False
+
+    def test_a_spaced_marker_is_still_a_veto_with_good_context_scores(self):
+        # The exact scenario measured against the real model: a learned answer
+        # is in the context, retrieval scored it high, and the model declines
+        # with a spaced marker. That must veto, not score 0.85 and pass.
+        report = validate_answer(
+            "INSUFFICIENT CONTEXT The missing information is the VAT rate in Germany.",
+            question="What is the VAT rate in Germany?",
+            task_type="general",
+            context_texts=["The standard VAT rate in Poland is 23%."],
+            retrieval_score=0.9,
+        )
+        assert "model_declared_insufficient_context" in report.vetoes
+        assert report.passed is False and report.confidence <= 0.25
+
+    def test_ordinary_prose_about_context_is_not_a_refusal(self):
+        assert check_output("The context is sufficient to answer: the rate is 23%.").declared_insufficient is False
+
+    @pytest.mark.parametrize(
         "refusal",
         [
             "I cannot help with that request.",

@@ -105,7 +105,24 @@ class Settings(BaseSettings):
     # different scales — a real embedding model scores unrelated text around
     # 0.3-0.5, a hashed bag-of-words scores it near 0.0 — so one number cannot
     # serve both. The pair in use is chosen from the embedder that is active.
-    MEMORY_SIMILARITY_THRESHOLD: float = 0.72
+    #
+    # Measured on nomic-embed-text (2026-09-09, audit/REAL_MODEL_GATE.md):
+    # a question scores its own paraphrase 0.57-0.97 (median 0.85), but the
+    # DOCUMENT CHUNK that answers it only 0.47-0.69 (median 0.59) — a short
+    # question against a long multi-fact passage is asymmetric retrieval and
+    # sits lower than question-to-question. Unrelated text reaches 0.44
+    # question-to-question and 0.57 (p90 0.49) against an unrelated chunk. At
+    # the former default of 0.72 no handbook chunk was ever retrieved (0/10)
+    # and memory items were missed (4/6), so document QA could not work at
+    # all. 0.55 retrieves 8/10 chunks and every measured paraphrase, admits
+    # 2/56 unrelated chunks — and an admitted wrong chunk is evidence the model
+    # declines (a veto, then escalation), never an answer served.
+    MEMORY_SIMILARITY_THRESHOLD: float = 0.55
+    # Reuse serves a learned answer AS the answer, so it stays far stricter.
+    # It cannot be validated as a separator on cosine alone — a one-detail
+    # variant of a learned question scores like a paraphrase — and lowering it
+    # admits more of those for almost no paraphrase gained; `calibrate` reports
+    # that admission on every run. Do not lower it to buy recall.
     SOLUTION_REUSE_THRESHOLD: float = 0.80
     # Measured on the hashing embedder over a sample of question/passage
     # pairs: genuinely related pairs score 0.18-0.40, unrelated pairs 0.00-0.11.

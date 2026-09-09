@@ -343,3 +343,97 @@ class TestNearMissVisibility:
     def test_the_threshold_in_force_is_always_reported(self, runtime, db, client_row):
         result = runtime.retriever(db, client_row.client_id).retrieve("anything")
         assert result.reuse_threshold == runtime.thresholds.solution_reuse
+
+
+class TestSemanticThresholdMatchesTheMeasuredScale:
+    """The semantic retrieval threshold, pinned to the real-model measurement.
+
+    Measured on nomic-embed-text (audit/REAL_MODEL_GATE.md, 2026-09-09): the
+    document chunk that answers a question scores 0.47-0.69 against it
+    (median 0.59), a short memory item that answers it 0.66-0.69, unrelated
+    question-to-question text at most 0.44 and an unrelated long chunk 0.57
+    at the very top (p90 0.49). At the former default of 0.72 document QA
+    retrieved nothing, ever (0/10). This test encodes those numbers with an
+    exact-cosine embedder so a change to the threshold that would re-open the
+    gap fails here, with the measurement in the message.
+    """
+
+    QUESTION = "How often are API keys rotated?"
+    # text → cosine against the question, each a measured population point.
+    SCORES = {
+        "Integration API keys are rotated every 90 days.": 0.59,      # median right chunk
+        "The printer is on the first floor of the office.": 0.66,     # a short memory item
+        "Chess openings are classified by ECO code.": 0.44,           # max unrelated, q-to-q
+        "Feed the sourdough starter every twelve hours at room temperature.": 0.49,  # p90 unrelated chunk
+    }
+
+    def _embedder(self):
+        import math
+
+        from app.memory.embeddings import Embedder
+
+        scores = self.SCORES
+        question = self.QUESTION
+
+        class Exact(Embedder):
+            semantic = True
+
+            def __init__(self):
+                self.dim = 8
+                self.id = "exact-cosine"
+
+            def embed(self, texts):
+                out = []
+                for text in texts:
+                    if text.strip() == question:
+                        out.append([1.0] + [0.0] * 7)
+                        continue
+                    key = next((k for k in scores if k in text), None)
+                    if key is None:
+                        out.append([0.0] * 7 + [1.0])
+                        continue
+                    c = scores[key]
+                    axis = 1 + list(scores).index(key)
+                    v = [0.0] * 8
+                    v[0], v[axis] = c, math.sqrt(1 - c * c)
+                    out.append(v)
+                return out
+
+        return Exact()
+
+    def test_the_default_sits_between_measured_noise_and_the_median_right_chunk(self, settings):
+        threshold = settings.MEMORY_SIMILARITY_THRESHOLD
+        assert 0.44 < threshold <= 0.59, (
+            f"MEMORY_SIMILARITY_THRESHOLD={threshold}: unrelated question-to-question text "
+            "reaches 0.44 on nomic-embed-text and the median answering chunk scores 0.59; "
+            "outside that range the real embedder either admits noise or never finds a "
+            "document chunk (audit/REAL_MODEL_GATE.md)"
+        )
+
+    def test_an_answering_chunk_and_a_memory_item_are_retrieved_and_noise_is_not(
+        self, runtime, db, client_row
+    ):
+        from sqlalchemy import select
+
+        from app.database.models import MemoryItem
+        from app.memory.long_term import LongTermMemory
+        from app.memory.thresholds import for_embedder
+
+        runtime.embedder = self._embedder()
+        runtime.thresholds = for_embedder(runtime.embedder, runtime.settings)
+        services = runtime.for_session(db, client_row.client_id)
+
+        for text in self.SCORES:
+            if "printer" in text:
+                LongTermMemory(db, client_row.client_id).write(text, source="t", confidence=0.9)
+                db.flush()
+                services.retriever.index_memory(db.scalars(select(MemoryItem)).first())
+            else:
+                services.ingestor.ingest(text.encode(), f"{abs(hash(text))}.txt")
+        db.flush()
+
+        hits = services.retriever.retrieve(self.QUESTION, task_type="document_qa")
+        found = " ".join(item.content for item in hits.items)
+        assert "rotated every 90 days" in found, "the answering chunk (0.59) must be retrieved"
+        assert "first floor" in found, "the answering memory item (0.66) must be retrieved"
+        assert "Chess" not in found and "sourdough" not in found, "noise must stay out"

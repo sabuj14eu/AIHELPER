@@ -3,6 +3,50 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## Unreleased — 2026-09-09 (real-model gate)
+
+The first run of the system against real model weights (`llama3.2:3b`,
+`nomic-embed-text`; `audit/REAL_MODEL_GATE.md`). **No schema change, so no
+migration.** Two defects found by measurement, each fixed with regression
+tests, and one threshold changed on measured evidence (below).
+
+- **A refusal the real model actually writes passed validation as an answer.**
+  The prompt asks for the literal `INSUFFICIENT_CONTEXT`; llama3.2:3b writes
+  `INSUFFICIENT CONTEXT` (a space) in 15 of 20 refusals, the output checker
+  matched the exact string only, and such a refusal then scored ~0.85 and was
+  returned as a validated answer. The marker is now matched as the two words
+  with any separator, case-insensitively (`app/validation/output.py`).
+  Regression tests in `tests/unit/test_validation.py`.
+- **`calibrate` would have advised lowering the reuse threshold into the range
+  where one-detail variants of a learned question score.** Its reuse criterion
+  demanded that every paraphrase clear `SOLUTION_REUSE_THRESHOLD`; on the real
+  embedder that is only satisfiable at ≤0.74, where false reuse of a variant
+  rises from 25/40 to 32–38/40 for one paraphrase gained. The criterion is
+  replaced: the reuse threshold must be at or above the retrieval threshold, it
+  is never required to admit every paraphrase, the command measures ten
+  hard-negative pairs and prints how many the gate admits on every run, and its
+  advice never proposes lowering. `LEXICAL_WITNESS` is now a named constant in
+  `app/memory/retrieval.py`. Regression tests in
+  `tests/unit/test_infrastructure.py::TestCalibrateReuseGate`.
+
+- **`MEMORY_SIMILARITY_THRESHOLD` 0.72 → 0.55 (semantic pair only).** Measured
+  on the real embedder, the document chunk that answers a question scores
+  0.47–0.69 against it (median 0.59) and a short memory item 0.66–0.69, while
+  unrelated text reaches 0.44 question-to-question and 0.57 (p90 0.49) against
+  an unrelated long chunk. At 0.72 no handbook chunk was ever retrieved (0/10
+  document questions) and memory items were missed (4/6): document QA could
+  not function. 0.55 retrieves 8/10 chunks and 40/40 paraphrases, admits 2/56
+  unrelated chunks — and an admitted wrong chunk is evidence the model
+  declines, never an answer served. The lexical pair is untouched. Regression
+  test: `tests/memory/test_memory.py::TestSemanticThresholdMatchesTheMeasuredScale`.
+  Existing deployments: set the new value in `.env` (no reindex needed — the
+  vectors are unchanged, only the floor applied to them).
+
+Unchanged by explicit decision, with the measurement recorded in
+`audit/REAL_MODEL_GATE.md`: `CONFIDENCE_THRESHOLD` 0.62, the five confidence
+weights, `SOLUTION_REUSE_THRESHOLD` 0.80, `SOLUTION_TTL_DAYS` 180, the
+dispatcher's false-negative policy.
+
 ## Unreleased — 2026-09-08 (final audit)
 
 An independent line-by-line audit (`audit/FINAL_AUDIT.md`) found and fixed five

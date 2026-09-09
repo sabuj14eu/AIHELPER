@@ -12,6 +12,16 @@ from dataclasses import dataclass, field
 
 from app.local_ai.prompts import INSUFFICIENT_MARKER
 
+# The prompt asks for the literal INSUFFICIENT_MARKER, but a real small model
+# does not reproduce it byte for byte: measured against llama3.2:3b it wrote
+# "INSUFFICIENT CONTEXT" (a space, not an underscore) in 15 of 20 refusals, and
+# an exact-string match let every one of those pass as an answer. Matching the
+# two words with any separator, case-insensitively, catches the refusal the
+# model actually emits; the marker's meaning does not depend on its spelling.
+_INSUFFICIENT = re.compile(
+    r"(?i)\b" + r"[\s_\-]*".join(re.escape(part) for part in INSUFFICIENT_MARKER.split("_")) + r"\b"
+)
+
 # Phrases a model emits when it is declining rather than answering.
 REFUSAL_PATTERNS = [
     re.compile(r"(?i)\bI (?:can(?:no|')t|am unable to|cannot) (?:help|assist|answer|provide)"),
@@ -125,7 +135,7 @@ def check_output(
         result.failures.append("empty_output")
         return result
 
-    if INSUFFICIENT_MARKER in stripped:
+    if _INSUFFICIENT.search(stripped):
         result.declared_insufficient = True
         result.failures.append("model_declared_insufficient_context")
 

@@ -35,6 +35,48 @@ This is reported — `/health` shows the embedder as `DEGRADED`, `/api/v1/models
 reports `embedder_semantic: false`, the dashboard says so — but it is easy to
 run for months without looking. Install `nomic-embed-text`.
 
+## Paraphrase reuse cannot tell a variant from a paraphrase
+
+Measured on the real embedder (`nomic-embed-text`, 40 pairs of each kind,
+`audit/measure_embedder.py`): a paraphrase of a learned question scores a
+median 0.85 against it; the *same question with one answer-changing detail
+swapped* ("VAT in Poland" → "VAT in Germany", "monthly" → "quarterly",
+"2025" → "2026") scores a median 0.84, up to 0.99. The two populations
+overlap. No cosine threshold separates them, and the lexical witness makes it
+worse rather than better: a one-detail variant shares most of its words with
+the original, a genuine paraphrase often shares none.
+
+**Consequence:** `SOLUTION_REUSE_THRESHOLD` (0.80) is a scale check, not a
+safety boundary. It keeps unrelated text out (0/40) and admits few paraphrases
+(11/40) — and it admits most one-detail variants (25/40). Lowering it to gain
+recall admits more variants for almost no paraphrase gained (38/40 at 0.69 for
++1 paraphrase), which is why `calibrate` refuses to advise that. The guard
+that actually holds for a variant is the local model's context discipline: it
+is handed the stored answer as evidence and must say `INSUFFICIENT_CONTEXT`
+rather than answer the variant from it. Measured with llama3.2:3b
+(`audit/measure_reuse_discipline.py`) it did so in 14 of 20 cases and carried
+a wrong detail over in 1–2. That residual is real. Keep `AUTO_PROMOTE=false`
+until the promoted set is small and reviewed, and read `solution_id` on
+answers that matter.
+
+Exact-fingerprint reuse (the literally repeated question) has none of this
+problem and is where the saving actually comes from today.
+
+## Retrieval thresholds are measured for one embedder
+
+The semantic pair (`MEMORY_SIMILARITY_THRESHOLD` 0.55, `SOLUTION_REUSE_THRESHOLD`
+0.80) was measured on `nomic-embed-text`. A different embedding model scores
+on a different scale; run `python -m app.cli calibrate` after changing
+`EMBEDDING_MODEL` and read its output rather than trusting the numbers. Even
+on nomic, a question against a long multi-fact chunk scores lower than
+against a paraphrase (median 0.59 vs 0.85), so two of ten handbook questions
+still miss their chunk at 0.55 — shorter, single-topic documents retrieve
+better than long ones. `nomic-embed-text` also expects the task prefixes
+`search_query:` / `search_document:`, which lift asymmetric scores by roughly
+0.05–0.10; this build does not send them (it would need a configurable,
+model-specific prefix and a reindex) and that is the documented next step
+for retrieval quality.
+
 ## Prompt injection is reduced, not solved
 
 Retrieved text is fenced and marked untrusted, the system prompt forbids

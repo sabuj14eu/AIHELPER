@@ -283,3 +283,129 @@ class TestCalibrateCommand:
             assert report["thresholds"]["solution_reuse"] > 0
         finally:
             reset_settings_cache()
+
+
+class TestCalibrateReuseGate:
+    """The reuse criterion, corrected by measurement against a real embedder.
+
+    The old criterion demanded that every paraphrase clear the reuse threshold.
+    On nomic-embed-text the only way to satisfy it was to lower the threshold
+    to ~0.69 — into the range where one-detail variants of a learned question
+    score (audit/measure_embedder.py: false reuse 25/40 → 38/40 for +1
+    paraphrase). So the command now refuses a reuse threshold looser than the
+    retrieval threshold, never advises lowering it, and prints how many hard
+    negatives the gate admits instead of hiding them.
+    """
+
+    @staticmethod
+    def _semantic_lookup():
+        """A deterministic 'semantic' embedder built from the calibration pairs.
+
+        Paraphrases score 1.0 against their question, unrelated text 0.0, and
+        every hard-negative variant 0.9 against its base question — the shape
+        measured on the real model, made exact so the verdicts are testable.
+        """
+        import math
+
+        from app import cli
+        from app.memory.embeddings import Embedder
+
+        dim = 96
+        table: dict[str, list[float]] = {}
+
+        def one_hot(i):
+            v = [0.0] * dim
+            v[i % dim] = 1.0
+            return v
+
+        for i, (a, b) in enumerate(cli.CALIBRATION_RELATED):
+            table[a] = one_hot(i)
+            table[b] = one_hot(i)
+        for i, (_a, b) in enumerate(cli.CALIBRATION_UNRELATED):
+            table[b] = one_hot(40 + i)
+        for i, (a, b) in enumerate(cli.CALIBRATION_HARD_NEGATIVE):
+            base = table.setdefault(a, one_hot(10 + i))
+            tilt = one_hot(60 + i)
+            table[b] = [0.9 * x + math.sqrt(1 - 0.81) * y for x, y in zip(base, tilt, strict=True)]
+
+        class Lookup(Embedder):
+            semantic = True
+
+            def __init__(self):
+                self.dim = dim
+                self.id = "fake-semantic-lookup"
+
+            def embed(self, texts):
+                return [list(table.get(t) or one_hot(90)) for t in texts]
+
+        return Lookup()
+
+    def _run(self, monkeypatch, capsys, memory: str, reuse: str):
+        import json
+
+        from app import cli
+        from app.core.config import reset_settings_cache
+        from app.runtime import Runtime
+
+        lookup = self._semantic_lookup()
+        monkeypatch.setattr(Runtime, "_build_embedder", lambda self: lookup)
+        monkeypatch.setenv("OLLAMA_ENABLED", "false")
+        monkeypatch.setenv("QDRANT_ENABLED", "false")
+        monkeypatch.setenv("MEMORY_SIMILARITY_THRESHOLD", memory)
+        monkeypatch.setenv("SOLUTION_REUSE_THRESHOLD", reuse)
+        reset_settings_cache()
+        try:
+            code = cli.main(["calibrate"])
+            captured = capsys.readouterr()
+            return code, json.loads(captured.out), captured.err
+        finally:
+            reset_settings_cache()
+
+    def test_defaults_fit_and_hard_negative_admission_is_printed_not_hidden(
+        self, engine, capsys, monkeypatch
+    ):
+        code, report, err = self._run(monkeypatch, capsys, memory="0.72", reuse="0.80")
+        assert code == 0 and report["verdict"] == "ok"
+        assert len(report["hard_negative_pairs"]) == len(__import__("app.cli").cli.CALIBRATION_HARD_NEGATIVE)
+        # Every variant scores 0.9 >= 0.80 and shares most of its words with
+        # the base question, so the gate admits all of them — and says so.
+        assert report["reuse_gate"]["hard_negatives_admitted"] == "10/10"
+        assert "do NOT" in err and "lower SOLUTION_REUSE_THRESHOLD" in err
+        assert "measure_reuse_discipline" in err
+
+    def test_a_reuse_threshold_looser_than_retrieval_is_refused(self, engine, capsys, monkeypatch):
+        code, report, err = self._run(monkeypatch, capsys, memory="0.72", reuse="0.50")
+        assert code == 1 and report["verdict"] == "thresholds_misplaced"
+        assert report["memory_threshold_fits"] is True
+        assert report["reuse_threshold_fits"] is False
+        assert "at or above the retrieval threshold" in err
+
+    def test_advice_never_proposes_a_reuse_value_below_retrieval(self, engine, capsys, monkeypatch):
+        import re
+
+        code, report, err = self._run(monkeypatch, capsys, memory="0.72", reuse="0.50")
+        assert code == 1
+        assert "Never lower the reuse threshold" in err
+        proposed = [float(x) for x in re.findall(r"for example (\d\.\d\d)", err)]
+        assert proposed, err
+        # Whatever it proposes for reuse is at or above the retrieval threshold.
+        assert proposed[-1] >= 0.72 - 1e-9
+
+    def test_a_reuse_threshold_is_not_required_to_admit_every_paraphrase(
+        self, engine, capsys, monkeypatch
+    ):
+        # A very strict reuse threshold that admits no paraphrase is still a
+        # fitting configuration: it costs recall, not correctness. The old
+        # criterion would have failed this and advised lowering the bar.
+        code, report, _err = self._run(monkeypatch, capsys, memory="0.72", reuse="0.99")
+        assert code == 0 and report["verdict"] == "ok"
+        assert report["reuse_gate"]["hard_negatives_admitted"] == "0/10"
+
+    def test_a_misplaced_retrieval_threshold_is_still_refused(self, engine, capsys, monkeypatch):
+        # Paraphrases score exactly 1.0 here, so a retrieval threshold of 1.0 is
+        # not strictly inside the gap; the reuse threshold (1.0) still fits.
+        code, report, err = self._run(monkeypatch, capsys, memory="1.0", reuse="1.0")
+        assert code == 1 and report["verdict"] == "thresholds_misplaced"
+        assert report["memory_threshold_fits"] is False
+        assert report["reuse_threshold_fits"] is True
+        assert "strictly between" in err

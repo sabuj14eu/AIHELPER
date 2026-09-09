@@ -40,6 +40,11 @@ REF_SOLUTION = "solution"
 REF_MEMORY = "memory"
 REF_CHUNK = "chunk"
 
+# A vector hit on a learned solution is trusted only when the question also
+# shares this much vocabulary with the stored one. `python -m app.cli
+# calibrate` measures the reuse gate with the same witness.
+LEXICAL_WITNESS = 0.25
+
 
 def collection_name(kind: str, embedder: Embedder) -> str:
     """Vectors from different embedders are never mixed."""
@@ -318,7 +323,7 @@ class Retriever:
                 # one witness, and one witness is how you get a confident
                 # answer to a question nobody asked.
                 lexical = jaccard(question, solution.question)
-                if lexical < 0.25:
+                if lexical < LEXICAL_WITNESS:
                     log.info(
                         "solution_similarity_uncorroborated",
                         vector_score=round(score, 3),

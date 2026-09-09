@@ -24,3 +24,4 @@ backups/
 
 # audit-environment override, not part of the product
 docker-compose.audit.yml
+docker-compose.audit-paid.yml
