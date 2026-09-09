@@ -1,3 +1,48 @@
+########## REAL-MODEL GATE RESULTS ##########
+date:   2026-09-09
+base:   6f4c10f (+ this gate's four fixes and one measured threshold)
+branch: claude/pensive-pascal-jgqpx0   tag: v1.0.0
+report: audit/REAL_MODEL_GATE.md   evidence: audit/results/real_model_gate_2026-09-09/
+
+### MODEL ###
+Ollama 0.33.3; llama3.2:3b (Llama 3.2 3B Instruct, Q4_K_M, sha256 91651317…) and
+nomic-embed-text (v1.5 F16, sha256 f7af6f66…) — real weights, digests verified.
+
+### TEST SUITE (three consecutive full runs, final commit) ###
+470 passed, 0 failed, 0 skipped   (445 baseline + 25 regression tests)
+470 passed
+470 passed
+coverage: 89% of app/
+ruff check: clean (app/, tests/, audit/)
+
+### LIVE AUDIT SUITES (network-free, final commit) ###
+demo_e2e                           DEMONSTRATION PASSED             27/27
+prove_cost                         COST PROTECTION PROVEN           25/25
+prove_privacy_and_permissions      PRIVACY AND PERMISSIONS PROVEN   54/54  (x3)
+prove_security                     SECURITY SURFACE PROVEN          51/51
+prove_learning                     LEARNING SYSTEM PROVEN           29/29
+prove_persistence                  PERSISTENCE PROVEN               35/35
+
+### REAL-MODEL GATES (Docker stack, isolated daemon) ###
+calibrate (in container):          exit 0, verdict ok  (memory 0.55, reuse 0.80)
+evaluation, 76 cases x3:           35 correct / 2 wrong-validated / 8 guarded / 31 unverified (final image)
+learning -> promotion -> reuse:    33/33  (reproduction by llama3.2:3b, paid = 0 on the reworded question)
+privacy with real embedder:        RESTRICTED / CONFIDENTIAL / categorical never left; audited
+container persistence:             33/33
+docker clean build (--no-cache):   PASS (pip_ca secret)
+
+### FIXES (each with a regression test) ###
+1  spaced "INSUFFICIENT CONTEXT" refusal passed validation as an answer          FIXED
+2  calibrate's reuse criterion advised lowering into the hard-negative range      FIXED
+3  MEMORY_SIMILARITY_THRESHOLD 0.72 made document QA impossible (0/10)           0.55 by measurement
+4  request session committed after the response was sent (cost/audit integrity)  FIXED
+
+### OPERATOR DECISIONS BEFORE ENABLING A PAID PROVIDER ###
+A  a client with any document classifies every open-ended question as document_qa
+B  a paid answer to a context task with no retrieved context is never learned
+
+PRODUCTION STATUS: APPROVED FOR DEPLOYMENT (deployment by the operator, per the runbook)
+
 ########## FINAL AUDIT RESULTS ##########
 date:   2026-09-08
 base:   b36ac85 (+ this audit's five fixes)

@@ -1,0 +1,810 @@
+{
+  "steps": [
+    {
+      "name": "first_ask",
+      "request_id": "req_e4e37f7b04f245fd89e1a4937a6c477b",
+      "answer": "Our company's health contribution look-back rule: under the flat tax the health contribution for a month is 4.9% of the income of the month before it. The contribution year runs from 1 February to 31 January, so January is settled on the previous year's figures. The rule applies to every month in which the company is taxed under the flat tax.",
+      "route": "paid",
+      "task_type": "reasoning",
+      "classification": "INTERNAL",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "agent": null,
+      "confidence": 0.74,
+      "memory_hit": false,
+      "tool_used": null,
+      "escalation_reason": "VALIDATION_FAILURE",
+      "escalation_blocked_reason": null,
+      "cost_usd": 0.001347,
+      "latency_ms": 20916,
+      "tokens": {
+        "input": 19,
+        "output": 86
+      },
+      "conversation_id": null,
+      "solution_id": "sol_562d130b581547e3ba321bd8d793b3ee",
+      "success": true,
+      "sources": [],
+      "notes": [
+        "stored as a CANDIDATE solution for review",
+        "promotion pipeline: PROMOTED — promoted"
+      ],
+      "validation": {
+        "passed": true,
+        "confidence": 0.74,
+        "vetoes": []
+      },
+      "retrieval": {
+        "memory_hit": false,
+        "exact_match": false,
+        "top_score": 0.0,
+        "solution_id": null,
+        "solution_score": 0.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 0,
+          "memory": 0,
+          "chunks": 0
+        },
+        "sources": []
+      }
+    },
+    {
+      "name": "paraphrase_ask",
+      "request_id": "req_a2b07074818440e6bc17eb70e633fbee",
+      "answer": "The health contribution look-back rule applies to every month in which the company is taxed under the flat tax. According to the rule, the health contribution for a month is 4.9% of the income of the month before it.",
+      "route": "local",
+      "task_type": "general",
+      "classification": "INTERNAL",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "agent": null,
+      "confidence": 0.935,
+      "memory_hit": true,
+      "tool_used": null,
+      "escalation_reason": null,
+      "escalation_blocked_reason": null,
+      "cost_usd": 0.0,
+      "latency_ms": 6268,
+      "tokens": {
+        "input": 305,
+        "output": 48
+      },
+      "conversation_id": null,
+      "solution_id": "sol_562d130b581547e3ba321bd8d793b3ee",
+      "success": true,
+      "sources": [
+        {
+          "source": "promoted_solution",
+          "ref": "sol_562d130b581547e3ba321bd8d793b3ee",
+          "score": 0.9733
+        }
+      ],
+      "notes": [
+        "answered locally using a previously learned solution; no paid call"
+      ],
+      "validation": {
+        "passed": true,
+        "confidence": 0.935,
+        "vetoes": []
+      },
+      "retrieval": {
+        "memory_hit": true,
+        "exact_match": false,
+        "top_score": 0.9733,
+        "solution_id": "sol_562d130b581547e3ba321bd8d793b3ee",
+        "solution_score": 0.9733,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 1,
+          "memory": 0,
+          "chunks": 0
+        },
+        "sources": [
+          {
+            "source": "promoted_solution",
+            "ref": "sol_562d130b581547e3ba321bd8d793b3ee",
+            "score": 0.9733
+          }
+        ]
+      }
+    },
+    {
+      "name": "exact_repeat",
+      "request_id": "req_3645564e58ea4dfea0f3e8fd5c17599f",
+      "answer": "Our company's health contribution look-back rule states that the health contribution for a month is 4.9% of the income of the month before it. \n\nThe rule applies to every month in which the company is taxed under the flat tax.",
+      "route": "local",
+      "task_type": "reasoning",
+      "classification": "INTERNAL",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "agent": null,
+      "confidence": 0.94,
+      "memory_hit": true,
+      "tool_used": null,
+      "escalation_reason": null,
+      "escalation_blocked_reason": null,
+      "cost_usd": 0.0,
+      "latency_ms": 6646,
+      "tokens": {
+        "input": 316,
+        "output": 50
+      },
+      "conversation_id": null,
+      "solution_id": "sol_562d130b581547e3ba321bd8d793b3ee",
+      "success": true,
+      "sources": [
+        {
+          "source": "promoted_solution",
+          "ref": "sol_562d130b581547e3ba321bd8d793b3ee",
+          "score": 1.0
+        }
+      ],
+      "notes": [
+        "answered locally using a previously learned solution; no paid call"
+      ],
+      "validation": {
+        "passed": true,
+        "confidence": 0.94,
+        "vetoes": []
+      },
+      "retrieval": {
+        "memory_hit": true,
+        "exact_match": true,
+        "top_score": 1.0,
+        "solution_id": "sol_562d130b581547e3ba321bd8d793b3ee",
+        "solution_score": 1.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 1,
+          "memory": 0,
+          "chunks": 0
+        },
+        "sources": [
+          {
+            "source": "promoted_solution",
+            "ref": "sol_562d130b581547e3ba321bd8d793b3ee",
+            "score": 1.0
+          }
+        ]
+      }
+    },
+    {
+      "name": "RESTRICTED memory",
+      "request_id": "req_9bae507cf9274883ac4c1b0eb74be779",
+      "answer": "INSUFFICIENT CONTEXT\nThe information about the Nowak contract margin is missing the details about who negotiated it and when it was signed.",
+      "route": "local",
+      "task_type": "research",
+      "classification": "RESTRICTED",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "agent": null,
+      "confidence": 0.25,
+      "memory_hit": true,
+      "tool_used": null,
+      "escalation_reason": "VALIDATION_FAILURE",
+      "escalation_blocked_reason": "CLASSIFICATION_BLOCKED",
+      "cost_usd": 0.0,
+      "latency_ms": 4399,
+      "tokens": {
+        "input": 315,
+        "output": 28
+      },
+      "conversation_id": null,
+      "solution_id": null,
+      "success": false,
+      "sources": [
+        {
+          "source": "memory",
+          "ref": "mem_f9ae33b2e68d43adbadd24331ee739bc",
+          "score": 0.8227
+        },
+        {
+          "source": "document",
+          "ref": "doc_5c6e3073e36a4a48a561f0014c8336b5#0",
+          "score": 0.5918
+        }
+      ],
+      "notes": [
+        "classification raised from INTERNAL to RESTRICTED by retrieved context: document (1), memory (1)",
+        "escalation blocked: RESTRICTED data may never be sent to an external provider",
+        "returned the local answer, which did not pass validation — treat it as unverified"
+      ],
+      "validation": {
+        "passed": false,
+        "confidence": 0.25,
+        "vetoes": [
+          "model_declared_insufficient_context"
+        ]
+      },
+      "retrieval": {
+        "memory_hit": true,
+        "exact_match": false,
+        "top_score": 0.8227,
+        "solution_id": null,
+        "solution_score": 0.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 0,
+          "memory": 1,
+          "chunks": 1
+        },
+        "sources": [
+          {
+            "source": "memory",
+            "ref": "mem_f9ae33b2e68d43adbadd24331ee739bc",
+            "score": 0.8227
+          },
+          {
+            "source": "document",
+            "ref": "doc_5c6e3073e36a4a48a561f0014c8336b5#0",
+            "score": 0.5918
+          }
+        ]
+      }
+    },
+    {
+      "name": "CONFIDENTIAL document",
+      "request_id": "req_4e868e290dc547d4b5dd1ebd95d9deae",
+      "answer": "INSUFFICIENT CONTEXT\nThe missing information is the specific penalty clause related to late payment of the rebate under the Zieliński supply contract.",
+      "route": "local",
+      "task_type": "research",
+      "classification": "CONFIDENTIAL",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "agent": null,
+      "confidence": 0.25,
+      "memory_hit": false,
+      "tool_used": null,
+      "escalation_reason": "VALIDATION_FAILURE",
+      "escalation_blocked_reason": "CLASSIFICATION_BLOCKED",
+      "cost_usd": 0.0,
+      "latency_ms": 4028,
+      "tokens": {
+        "input": 276,
+        "output": 30
+      },
+      "conversation_id": null,
+      "solution_id": null,
+      "success": false,
+      "sources": [
+        {
+          "source": "document",
+          "ref": "doc_5c6e3073e36a4a48a561f0014c8336b5#0",
+          "score": 0.746
+        }
+      ],
+      "notes": [
+        "classification raised from INTERNAL to CONFIDENTIAL by retrieved context: document (1)",
+        "escalation blocked: CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)",
+        "returned the local answer, which did not pass validation — treat it as unverified"
+      ],
+      "validation": {
+        "passed": false,
+        "confidence": 0.25,
+        "vetoes": [
+          "model_declared_insufficient_context"
+        ]
+      },
+      "retrieval": {
+        "memory_hit": false,
+        "exact_match": false,
+        "top_score": 0.746,
+        "solution_id": null,
+        "solution_score": 0.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 0,
+          "memory": 0,
+          "chunks": 1
+        },
+        "sources": [
+          {
+            "source": "document",
+            "ref": "doc_5c6e3073e36a4a48a561f0014c8336b5#0",
+            "score": 0.746
+          }
+        ]
+      }
+    },
+    {
+      "name": "confidential_by_default",
+      "request_id": "req_0995ec2500e8457a8b700a6cd4de0b8a",
+      "answer": "INSUFFICIENT CONTEXT\n\nThe context is missing information about the shop, such as its location, size, and type of business.",
+      "route": "local",
+      "task_type": "research",
+      "classification": "CONFIDENTIAL",
+      "provider": "ollama",
+      "model": "llama3.2:3b",
+      "agent": null,
+      "confidence": 0.25,
+      "memory_hit": false,
+      "tool_used": null,
+      "escalation_reason": "NO_KNOWLEDGE_FOUND",
+      "escalation_blocked_reason": "CLASSIFICATION_BLOCKED",
+      "cost_usd": 0.0,
+      "latency_ms": 2973,
+      "tokens": {
+        "input": 185,
+        "output": 27
+      },
+      "conversation_id": null,
+      "solution_id": null,
+      "success": false,
+      "sources": [],
+      "notes": [
+        "escalation blocked: CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)",
+        "returned the local answer, which did not pass validation — treat it as unverified"
+      ],
+      "validation": {
+        "passed": false,
+        "confidence": 0.25,
+        "vetoes": [
+          "model_declared_insufficient_context"
+        ]
+      },
+      "retrieval": {
+        "memory_hit": false,
+        "exact_match": false,
+        "top_score": 0.0,
+        "solution_id": null,
+        "solution_score": 0.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 0,
+          "memory": 0,
+          "chunks": 0
+        },
+        "sources": []
+      }
+    },
+    {
+      "name": "internal_control",
+      "request_id": "req_8ff58f6ab69a45b0b7ea4e5016b30cab",
+      "answer": "Our company's health contribution look-back rule: under the flat tax the health contribution for a month is 4.9% of the income of the month before it. The contribution year runs from 1 February to 31 January, so January is settled on the previous year's figures. The rule applies to every month in which the company is taxed under the flat tax.",
+      "route": "paid",
+      "task_type": "research",
+      "classification": "INTERNAL",
+      "provider": "anthropic",
+      "model": "claude-sonnet-5",
+      "agent": null,
+      "confidence": 0.59,
+      "memory_hit": true,
+      "tool_used": null,
+      "escalation_reason": "VALIDATION_FAILURE",
+      "escalation_blocked_reason": null,
+      "cost_usd": 0.001524,
+      "latency_ms": 4039,
+      "tokens": {
+        "input": 78,
+        "output": 86
+      },
+      "conversation_id": null,
+      "solution_id": null,
+      "success": true,
+      "sources": [
+        {
+          "source": "memory",
+          "ref": "mem_e574fbc2eb1e4316aaca3e2d7d3515a0",
+          "score": 0.7516
+        }
+      ],
+      "notes": [
+        "the paid answer also failed validation: low_confidence",
+        "not captured as a solution: the paid answer failed validation"
+      ],
+      "validation": {
+        "passed": false,
+        "confidence": 0.59,
+        "vetoes": []
+      },
+      "retrieval": {
+        "memory_hit": true,
+        "exact_match": false,
+        "top_score": 0.7516,
+        "solution_id": null,
+        "solution_score": 0.0,
+        "near_miss_score": 0.0,
+        "reuse_threshold": 0.8,
+        "counts": {
+          "solutions": 0,
+          "memory": 1,
+          "chunks": 0
+        },
+        "sources": [
+          {
+            "source": "memory",
+            "ref": "mem_e574fbc2eb1e4316aaca3e2d7d3515a0",
+            "score": 0.7516
+          }
+        ]
+      }
+    }
+  ],
+  "health": {
+    "status": "ok",
+    "version": "1.0.0",
+    "environment": "development",
+    "components": [
+      {
+        "name": "gateway",
+        "status": "OK",
+        "detail": "v1.0.0"
+      },
+      {
+        "name": "database",
+        "status": "OK",
+        "detail": ""
+      },
+      {
+        "name": "qdrant",
+        "status": "OK",
+        "detail": ""
+      },
+      {
+        "name": "ollama",
+        "status": "OK",
+        "detail": "nomic-embed-text:latest, llama3.2:3b"
+      },
+      {
+        "name": "openai",
+        "status": "DISABLED",
+        "detail": "disabled"
+      },
+      {
+        "name": "anthropic",
+        "status": "OK",
+        "detail": "configured (not probed)"
+      },
+      {
+        "name": "n8n",
+        "status": "OK",
+        "detail": ""
+      },
+      {
+        "name": "embedder",
+        "status": "OK",
+        "detail": "ollama-nomic-embed-text:latest"
+      }
+    ],
+    "checked_at": "2026-09-09T12:20:10.125710Z"
+  },
+  "models": {
+    "local_available": true,
+    "models": [
+      {
+        "name": "llama3.2:1b",
+        "installed": false,
+        "resolved_to": "llama3.2:3b",
+        "role": "small"
+      },
+      {
+        "name": "llama3.2:3b",
+        "installed": true,
+        "resolved_to": "llama3.2:3b",
+        "role": "default"
+      },
+      {
+        "name": "qwen2.5:7b",
+        "installed": false,
+        "resolved_to": null,
+        "role": "strong"
+      },
+      {
+        "name": "nomic-embed-text",
+        "installed": false,
+        "resolved_to": "nomic-embed-text:latest",
+        "role": "embedding"
+      },
+      {
+        "name": "nomic-embed-text:latest",
+        "installed": true,
+        "resolved_to": "nomic-embed-text:latest",
+        "role": "other"
+      }
+    ],
+    "embedder": "ollama-nomic-embed-text:latest",
+    "embedder_semantic": true,
+    "providers": [
+      {
+        "name": "ollama",
+        "kind": "local",
+        "enabled": true,
+        "available": true,
+        "status": "OK",
+        "detail": "",
+        "models": [
+          "nomic-embed-text:latest",
+          "llama3.2:3b"
+        ]
+      },
+      {
+        "name": "openai",
+        "kind": "paid",
+        "enabled": false,
+        "available": false,
+        "status": "DISABLED",
+        "detail": "disabled",
+        "models": []
+      },
+      {
+        "name": "anthropic",
+        "kind": "paid",
+        "enabled": true,
+        "available": true,
+        "status": "OK",
+        "detail": "configured (not probed)",
+        "models": [
+          "claude-sonnet-5"
+        ]
+      }
+    ]
+  },
+  "solution": {
+    "id": "sol_562d130b581547e3ba321bd8d793b3ee",
+    "status": "PROMOTED",
+    "status_reason": "validated and reproducible by the local model",
+    "reproduction": {
+      "attempted": true,
+      "passed": true,
+      "confidence": 0.94,
+      "model": "llama3.2:3b",
+      "failure": null
+    },
+    "question": "Explain our company's health contribution look-back rule and when it applies.",
+    "task_type": "reasoning"
+  },
+  "usage": {
+    "window_days": 30,
+    "total_requests": 3,
+    "local_requests": 2,
+    "tool_requests": 0,
+    "memory_requests": 0,
+    "api_fallback_requests": 1,
+    "failed_requests": 0,
+    "fallback_percentage": 33.33,
+    "local_success_rate": 66.67,
+    "answered_locally": 2,
+    "memory_hits": 2,
+    "promoted_solutions": 1,
+    "rejected_solutions": 0,
+    "candidate_solutions": 0,
+    "escalation_reasons": [
+      {
+        "reason": "VALIDATION_FAILURE",
+        "count": 1
+      }
+    ],
+    "escalations_blocked": [],
+    "escalations_blocked_total": 0,
+    "escalations_blocked_by_budget": 0,
+    "estimated_money_saved_usd": 0.0027,
+    "api_cost_today": 0.0118,
+    "api_cost_month": 0.0118
+  },
+  "audit_privacy_rows": [
+    {
+      "actor": "confidential-1788956410",
+      "action": "privacy.escalation_blocked",
+      "result": "blocked",
+      "detail": {
+        "blocked_reason": "CLASSIFICATION_BLOCKED",
+        "detail": "CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)",
+        "classification": "CONFIDENTIAL",
+        "raised_by_context": {},
+        "task_type": "research",
+        "escalation_reason": "NO_KNOWLEDGE_FOUND"
+      }
+    },
+    {
+      "actor": "privacy-1788956410",
+      "action": "privacy.escalation_blocked",
+      "result": "blocked",
+      "detail": {
+        "blocked_reason": "CLASSIFICATION_BLOCKED",
+        "detail": "CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)",
+        "classification": "CONFIDENTIAL",
+        "raised_by_context": {
+          "document": 1
+        },
+        "task_type": "research",
+        "escalation_reason": "VALIDATION_FAILURE"
+      }
+    },
+    {
+      "actor": "privacy-1788956410",
+      "action": "privacy.escalation_blocked",
+      "result": "blocked",
+      "detail": {
+        "blocked_reason": "CLASSIFICATION_BLOCKED",
+        "detail": "RESTRICTED data may never be sent to an external provider",
+        "classification": "RESTRICTED",
+        "raised_by_context": {
+          "memory": 1,
+          "document": 1
+        },
+        "task_type": "research",
+        "escalation_reason": "VALIDATION_FAILURE"
+      }
+    }
+  ],
+  "checks": [
+    {
+      "label": "the gateway reports a real, semantic embedder",
+      "ok": true,
+      "detail": "[('ollama', 'OK', 'nomic-embed-text:latest, llama3.2:3b'), ('anthropic', 'OK', 'configured (not probed)'), ('embedder', 'OK', 'ollama-nomic-embed-text:latest')]"
+    },
+    {
+      "label": "the anthropic provider is enabled (pointing at the stand-in)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "the local model was tried first and did not pass (fallback had a reason)",
+      "ok": true,
+      "detail": "reason=VALIDATION_FAILURE local_conf_before=0.74"
+    },
+    {
+      "label": "the answer came from the paid provider",
+      "ok": true,
+      "detail": "route=paid provider=anthropic"
+    },
+    {
+      "label": "the paid call was billed",
+      "ok": true,
+      "detail": "cost=0.001347"
+    },
+    {
+      "label": "the stand-in received exactly one call",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "the paid answer passed validation",
+      "ok": true,
+      "detail": "conf=0.74"
+    },
+    {
+      "label": "it was captured as a solution",
+      "ok": true,
+      "detail": "sol_562d130b581547e3ba321bd8d793b3ee"
+    },
+    {
+      "label": "the reproduction gate was run by the REAL local model",
+      "ok": true,
+      "detail": "{\"attempted\": true, \"passed\": true, \"confidence\": 0.94, \"model\": \"llama3.2:3b\", \"failure\": null}"
+    },
+    {
+      "label": "the solution reached PROMOTED",
+      "ok": true,
+      "detail": "status=PROMOTED reason=validated and reproducible by the local model"
+    },
+    {
+      "label": "retrieval found the learned solution for the paraphrase (memory hit)",
+      "ok": true,
+      "detail": "{\"memory_hit\": true, \"exact_match\": false, \"top_score\": 0.9733, \"solution_id\": \"sol_562d130b581547e3ba321bd8d793b3ee\", \"solution_score\": 0.9733, \"near_miss_score\": 0.0, \"reuse_threshold\": 0.8, \"counts\": {\"solutions\": 1, \"memory\": 0, \"chunks\": 0}, \"sources\": [{\"source\": \"promoted_solution\", \"ref\": \"sol_562d130b581547e3ba321bd8d793b3ee\", \"score\": 0.9733}]}"
+    },
+    {
+      "label": "the same solution was reused",
+      "ok": true,
+      "detail": "sol_562d130b581547e3ba321bd8d793b3ee vs sol_562d130b581547e3ba321bd8d793b3ee"
+    },
+    {
+      "label": "the answer was produced locally by the real model",
+      "ok": true,
+      "detail": "route=local model=llama3.2:3b"
+    },
+    {
+      "label": "it passed validation",
+      "ok": true,
+      "detail": "conf=0.935 vetoes=[]"
+    },
+    {
+      "label": "no paid call was made and nothing was billed",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "the answer carries the learned substance",
+      "ok": true,
+      "detail": "The health contribution look-back rule applies to every month in which the company is taxed under the flat tax. According to the rule, the health contribution f"
+    },
+    {
+      "label": "the literal repeat is an exact fingerprint match, local and free",
+      "ok": true,
+      "detail": "exact=True route=local"
+    },
+    {
+      "label": "usage shows one fallback and at least two memory hits for this client",
+      "ok": true,
+      "detail": "{\"total_requests\": 3, \"local_requests\": 2, \"api_fallback_requests\": 1, \"memory_hits\": 2, \"promoted_solutions\": 1, \"estimated_money_saved_usd\": 0.0027}"
+    },
+    {
+      "label": "the CONFIDENTIAL document is indexed",
+      "ok": true,
+      "detail": "{\"status\": \"ready\", \"chunk_count\": null, \"classification\": null}"
+    },
+    {
+      "label": "RESTRICTED memory: 'forty-two' never reached the stand-in",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "RESTRICTED memory: the request was judged RESTRICTED once the context was retrieved",
+      "ok": true,
+      "detail": "classification=RESTRICTED notes=['classification raised from INTERNAL to RESTRICTED by retrieved context: document (1), memory (1)', 'escalation blocked: RESTRICTED data may never be sent to an external provider', 'returned the local answer, which did not pass validation — treat it as unverified']"
+    },
+    {
+      "label": "RESTRICTED memory: escalation was refused on classification",
+      "ok": true,
+      "detail": "blocked=CLASSIFICATION_BLOCKED"
+    },
+    {
+      "label": "RESTRICTED memory: the stand-in was not called",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "RESTRICTED memory: the external gate was actually exercised",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "CONFIDENTIAL document: 'nineteen percent' never reached the stand-in",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "CONFIDENTIAL document: the request was judged CONFIDENTIAL once the context was retrieved",
+      "ok": true,
+      "detail": "classification=CONFIDENTIAL notes=['classification raised from INTERNAL to CONFIDENTIAL by retrieved context: document (1)', 'escalation blocked: CONFIDENTIAL is not in the externally-allowed set (INTERNAL, PUBLIC)', 'returned the local answer, which did not pass validation — treat it as unverified']"
+    },
+    {
+      "label": "CONFIDENTIAL document: escalation was refused on classification",
+      "ok": true,
+      "detail": "blocked=CLASSIFICATION_BLOCKED"
+    },
+    {
+      "label": "CONFIDENTIAL document: the stand-in was not called",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "CONFIDENTIAL document: the external gate was actually exercised",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "label": "a client whose data is CONFIDENTIAL by default is classified so without any pattern",
+      "ok": true,
+      "detail": "classification=CONFIDENTIAL"
+    },
+    {
+      "label": "…and its request was not sent out",
+      "ok": true,
+      "detail": "route=local blocked=CLASSIFICATION_BLOCKED"
+    },
+    {
+      "label": "INTERNAL context still escalates (the gate is not a blanket block)",
+      "ok": true,
+      "detail": "route=paid class=INTERNAL blocked=None"
+    },
+    {
+      "label": "every privacy refusal left an audit row",
+      "ok": true,
+      "detail": "3 rows for this run"
+    }
+  ],
+  "summary": {
+    "checks": 33,
+    "passed": 33,
+    "failed": 0,
+    "stand_in_calls": 2
+  }
+}

@@ -164,17 +164,21 @@ matters most: a question is paid for once and answered locally thereafter.
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Releases and migration notes |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | What this does not do, and what it costs you |
 | [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) | Independent verification, findings, and the production verdict |
+| [`audit/REAL_MODEL_GATE.md`](audit/REAL_MODEL_GATE.md) | The real-model gate: model provenance, calibration, evaluation, learning and privacy against real weights, the final decision and the runbook |
 | [`docs/HANDOVER_TO_FABLE.md`](docs/HANDOVER_TO_FABLE.md) | Brief for the next auditor: state, the one blocker, and what deserves a second opinion |
 
 Read `docs/LIMITATIONS.md` before you rely on any of this in production. It is
 short, and it is the honest half of this README.
 
-**Production status: NOT APPROVED.** The image builds, the full stack runs,
-and data survives a container restart — all verified. What remains is that no
-real language model has ever run against this system, because no model weights
-were obtainable in the build environment. Until `ai-helper calibrate` exits 0
-against a real embedding model, learned solutions will not be reused for a
-reworded question. `audit/AUDIT_REPORT.md` has the detail and the steps.
+**Production status: APPROVED FOR DEPLOYMENT (v1.0.0).** The real-model gate
+ran on 2026-09-09 with `llama3.2:3b` and `nomic-embed-text` (real weights,
+digests verified): `ai-helper calibrate` exits 0, a 76-question evaluation, the
+learning → promotion → free-reuse cycle and the privacy gate all hold against
+the real model, and the full suite is green (470 tests). Four defects that only
+a real model could expose were fixed on the way, and two operator decisions are
+recorded for before any paid provider is enabled. `audit/REAL_MODEL_GATE.md`
+has the evidence, the residual risks and the deployment runbook. Deployment
+itself is done by the operator on the production host, per that runbook.
 
 ## Future integration
 

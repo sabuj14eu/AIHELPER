@@ -1,9 +1,9 @@
-pytest_fixed_run1.txt:458 passed, 1 warning in 12.33s
-pytest_fixed_run1.txt:exit=0
-pytest_fixed_run2.txt:458 passed, 1 warning in 12.78s
-pytest_fixed_run2.txt:exit=0
-pytest_fixed_run3.txt:458 passed, 1 warning in 13.14s
-pytest_fixed_run3.txt:exit=0
-TOTAL                                  5053    569    89%
+470 passed, 1 warning in 13.60s
+exit=0
+470 passed, 1 warning in 14.25s
+exit=0
+470 passed, 1 warning in 13.64s
+exit=0
+TOTAL                                  5099    575    89%
 All checks passed!
 ruff exit=0

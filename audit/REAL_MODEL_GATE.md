@@ -70,8 +70,10 @@ real model → validation → result), 76 requests per evaluation run, three run
 every one answering `provider: ollama`, `model: llama3.2:3b`, with prompt and
 generation token counts from Ollama and no stand-in anywhere on the local
 path. Final smoke test on the restored production-default stack
-(`results/…/smoke_final.json`): route local, ollama, llama3.2:3b, 185 in / 9
-out, cost 0.
+(`results/…/smoke_final.json`): "What is the capital of Poland?" → route local,
+ollama, llama3.2:3b, "Warsaw", cost 0 — and `success: false` at 0.505, because
+the smoke client holds the evaluation handbook and finding A classifies its
+question as document QA. The answer is right; the flag is the finding.
 
 ## 3. Calibration (Step 4)
 
@@ -103,34 +105,37 @@ uncertainty-is-correct 8, deliberately misleading 6, classification/structured
 validation, confidence, memory hit, escalation reason (the fallback decision),
 blocked reason, cost, latency and tokens (`results/…/eval_*.md|json`).
 
-    Run                        baseline 6f4c10f      final code
-    CORRECT (validated, right)          23                 34
-    WRONG with success=true              5                  1
-    GUARDED (refusal was right)        8/8                8/8
-    UNVERIFIED (answer, flagged)        40                 33
-    tool route expected/hit          10/10              10/10
-    document QA correct               0/8                4/8
-    paraphrased document QA           0/6                3/6
-    memory cases hit                  4/6                6/6
-    paid calls / cost                 0 / 0              0 / 0
-    route failed (timeout)               1                  0
-    latency, model routes (ms)  median 2507, max 34115   median 4001, max 22499
-    confidence, correct answers  mean 0.77 (min 0.71)   mean 0.82 (min 0.68)
-    confidence, wrong answers    mean 0.74 (n=5)        0.70 (n=1)
-    confidence, unverified       mean 0.50              mean 0.38
+    Run                        baseline 6f4c10f   fixed code   final image (v1.0.0)
+    CORRECT (validated, right)          23             34             35
+    WRONG with success=true              5              1              2
+    GUARDED (refusal was right)        8/8            8/8            8/8
+    UNVERIFIED (answer, flagged)        40             33             31
+    tool route expected/hit          10/10          10/10          10/10
+    document QA correct               0/8            4/8            5/8
+    paraphrased document QA           0/6            3/6            3/6
+    memory cases hit                  4/6            6/6            6/6
+    paid calls / cost                 0 / 0          0 / 0          0 / 0
+    route failed (timeout)               1              0              0
+    latency, model routes (ms)  med 2507 max 34115  med 4001 max 22499  med 4441 max 30350
+    confidence, correct answers  mean 0.77 min 0.71  mean 0.82 min 0.68  mean 0.82 min 0.70
+    confidence, wrong answers    mean 0.74 (n=5)     0.70 (n=1)          0.71 (n=2)
+    confidence, unverified       mean 0.50           mean 0.38           —
 
 Of the five wrong-with-success rows at baseline, three were the spaced
 `INSUFFICIENT CONTEXT` refusal passing as an answer at 0.74 (finding 1); after
 the fix they veto at 0.25 and want escalation. The remaining one is a fluent
-false answer to a syllogism ("all bloops are lazzies? No"), scored 0.70 —
-validation checks form and grounding, not truth (`docs/LIMITATIONS.md`, first
+false answer to a syllogism ("all bloops are lazzies? No"), scored 0.70–0.74
+in every run; on the final image a second fluent false answer appeared (the
+ryczałt/flat-tax comparison, 0.68 — the same question the model had refused
+in the previous run: a 3B model at temperature 0.2 is not deterministic).
+Validation checks form and grounding, not truth (`docs/LIMITATIONS.md`, first
 section); a second-model judge is the only remedy and is deliberately not in
 the path. Document QA went from never retrieving a chunk (0/8) to 4/8 correct
 and 4 honest refusals after the retrieval threshold was measured (finding 3).
 
 Verdict: ACCEPTED as evidence that local-first behaviour holds with a real 3B
 model and no paid provider: the dangerous cell (confidently wrong, validated)
-is 1/76 and is the documented limitation, refusals are guarded 8/8, tools and
+is 1–2/76 across three runs and is the documented limitation, refusals are guarded 8/8, tools and
 memory work, nothing was paid. Two economics findings must be decided by the
 operator before a paid provider is enabled (§6, findings A and B).
 
@@ -334,7 +339,7 @@ safe direction; worth excluding rendered reference ids from that check later.
                                 prove_persistence 35/35
     Docker clean build          --no-cache with the pip_ca CA secret: PASS
     Container persistence       prove_container_persistence 33/33 on the final
-                                image (compose down/up; PostgreSQL rows and
+                                image, twice (compose down/up; PostgreSQL rows and
                                 Qdrant vectors identical before/after; the
                                 learned answer still reused locally and free)
 
@@ -343,7 +348,7 @@ safe direction; worth excluding rendered reference ids from that check later.
     Real Ollama model              PASS   llama3.2:3b + nomic-embed-text, digests verified
     End-to-end real inference      PASS   3 × 76 requests + smoke test, all ollama/llama3.2:3b
     Calibration                    PASS   exit 0 inside the container, criterion corrected by evidence
-    50–100 evaluation              ACCEPTED   76 cases × 3 runs; 1/76 confidently wrong (documented limit)
+    50–100 evaluation              ACCEPTED   76 cases × 3 runs; 1–2/76 confidently wrong (documented limit)
     Learning / reuse               PASS   33/33 with the real model; paid = 0 on the reworded question
     Privacy                        PASS   RESTRICTED / CONFIDENTIAL / categorical never left; audited
     Security                       PASS   51/51 + regression
@@ -363,7 +368,7 @@ safe direction; worth excluding rendered reference ids from that check later.
                             the same weights from registry.ollama.ai
     Model version         : Ollama 0.33.3; GGUF v3; nomic-embed-text-v1.5 F16
     Calibration result    : exit 0, verdict ok (memory 0.55, reuse 0.80)
-    Evaluation result     : 34 correct / 1 wrong-validated / 8 guarded / 33 unverified of 76
+    Evaluation result     : 35 correct / 2 wrong-validated / 8 guarded / 31 unverified of 76 (final image)
     Test count            : 470
     Docker result         : clean build PASS
     Persistence result    : 33/33

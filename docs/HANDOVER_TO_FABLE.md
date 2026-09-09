@@ -1,5 +1,23 @@
 # AI Helper — handover for the next auditor
 
+> **Update — 2026-09-09 real-model gate (branch `claude/pensive-pascal-jgqpx0`, tag `v1.0.0`).**
+> The one blocker is closed: real weights (`llama3.2:3b` Q4_K_M, `nomic-embed-text`
+> F16, digests verified) ran against the whole system. Report:
+> `audit/REAL_MODEL_GATE.md`; evidence: `audit/results/real_model_gate_2026-09-09/`.
+> Four defects found only by the real model, each fixed with regression tests
+> (spaced `INSUFFICIENT CONTEXT` refusals passing validation; `calibrate`
+> advising a harmful reuse threshold; a retrieval threshold that made document
+> QA impossible — `MEMORY_SIMILARITY_THRESHOLD` 0.72→0.55 by measurement; the
+> request session committing after the response was sent). `calibrate` exits 0.
+> 76-question evaluation ×3, learning→promotion→free reuse 33/33, privacy with
+> the real embedder, container persistence 33/33, 470/470 tests ×3, 89%, ruff
+> clean. **PRODUCTION STATUS: APPROVED FOR DEPLOYMENT**, deployment to be done
+> by the operator per the runbook, and two decisions (findings A and B in the
+> report) to take before enabling a paid provider. §5's "argue with these" list
+> now has measurements for the confidence threshold, the reuse threshold and
+> the promotion gate — read the report before re-opening any of them.
+>
+
 > **Update — 2026-09-08 final audit (branch `claude/ai-helper-final-audit-uv46bj`).**
 > A second, independent line-by-line audit ran. Full report: `audit/FINAL_AUDIT.md`;
 > results: `audit/RESULTS.txt`. It found and fixed **five** real defects, each with

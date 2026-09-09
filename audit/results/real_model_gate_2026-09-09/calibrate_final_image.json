@@ -1,0 +1,48 @@
+{
+  "embedder": "ollama-nomic-embed-text:latest",
+  "semantic": true,
+  "dimensions": 768,
+  "related_pairs": [
+    0.7359,
+    0.8412,
+    0.8475,
+    0.9566,
+    0.9663
+  ],
+  "unrelated_pairs": [
+    0.3315,
+    0.3437,
+    0.3748,
+    0.3757,
+    0.4228
+  ],
+  "hard_negative_pairs": [
+    0.8114,
+    0.8351,
+    0.8414,
+    0.8786,
+    0.9064,
+    0.9138,
+    0.9165,
+    0.9308,
+    0.9547,
+    0.9867
+  ],
+  "worst_related": 0.7359,
+  "best_unrelated": 0.4228,
+  "thresholds": {
+    "embedder": "ollama-nomic-embed-text:latest",
+    "semantic": true,
+    "memory_similarity": 0.55,
+    "solution_reuse": 0.8
+  },
+  "reuse_gate": {
+    "threshold": 0.8,
+    "lexical_witness": 0.25,
+    "paraphrases_reusable": "3/5",
+    "hard_negatives_admitted": "10/10"
+  },
+  "memory_threshold_fits": true,
+  "reuse_threshold_fits": true,
+  "verdict": "ok"
+}
