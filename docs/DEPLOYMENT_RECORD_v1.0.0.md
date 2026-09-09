@@ -73,7 +73,7 @@ both fixed, nothing else changed):
     other projects           brotherbot (app, db, redis), lokaldowoz (app, db,
                              redis), balispa — all still Up, observed only
 
-Open items after deployment:
+Open items after deployment (still pending):
 - Revoke the three test clients from /admin: smoke-1788963729,
   diag-1788964478, smoke-1788966843.
 - Change the dashboard password (it was typed into a terminal once):
@@ -81,6 +81,37 @@ Open items after deployment:
 - Push the tag: `git push origin v1.0.0` from the server checkout.
 - Docker Compose interpolates `$` in .env values: any future value containing
   `$` (the scrypt hash does) must be written with `$$`.
+
+## B2. Public routing — DONE (2026-09-09)
+
+One hostname per application, one nginx server block per hostname, no path
+sharing: Open WebUI serves its own backend under `/api/...`, so sharing a
+hostname with AI Helper's `/api/v1` would have shadowed one of them.
+
+    https://ai.signalmesh.dev/        → 127.0.0.1:8000  AI Helper: API /api/v1/*,
+                                        /docs, /health, dashboard /admin
+    https://chat.signalmesh.dev/      → 127.0.0.1:3000  Open WebUI (own login,
+                                        signup disabled; talks to Ollama directly —
+                                        v1.1 will route it through the gateway)
+    not proxied, loopback only        Ollama 11434, PostgreSQL, Qdrant 6333, n8n 5678
+
+    DNS               A records ai/chat.signalmesh.dev → 62.171.164.19 (DNS only)
+    nginx (shared)    inspected first: no conflicting server_name; two NEW files
+                      sites-available/{ai,chat}.signalmesh.dev, symlinked, nginx -t,
+                      reload (never restart). app.signalmesh.dev untouched.
+    TLS               certbot --nginx, one certificate covering both names
+                      (/etc/letsencrypt/live/ai.signalmesh.dev, expires 2026-12-08,
+                      auto-renew scheduled), HTTP → HTTPS redirect.
+    incident          certbot ran before the chat vhost existed and cloned the
+                      shared `default` static server for chat.signalmesh.dev; the
+                      two added blocks were removed (file backed up first as
+                      ~/nginx-default.bak-*), the pre-existing lokalnydowoz.pl
+                      entries in that file were not touched, and the chat vhost was
+                      written with the issued certificate directly.
+    verification      GET https://ai.signalmesh.dev/health → "status":"ok"
+                      /admin/login reachable · /api/v1/usage without key → 401
+                      https://chat.signalmesh.dev/ → 200 · http → 301
+                      ports 8000, 3000, 11434, 5432, 6333, 5678 closed on 62.171.164.19
 
 ## C. Rollback
 
