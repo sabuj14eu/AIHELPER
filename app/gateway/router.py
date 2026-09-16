@@ -48,6 +48,7 @@ from app.gateway import task_classifier
 from app.gateway.escalation import may_escalate, why_escalate
 from app.gateway.provider_manager import PaidProviderManager
 from app.learning.fallback_capture import capture
+from app.learning.origin import SELF_PROVIDER
 from app.learning.promotion import PromotionPipeline
 from app.learning.similarity import fingerprint
 from app.local_ai.prompts import build_system_prompt, build_user_prompt
@@ -409,6 +410,16 @@ class GatewayRouter:
                     base.notes.append(
                         "answered locally using a previously learned solution; no paid call"
                     )
+                else:
+                    self._keep_own_answer(
+                        base,
+                        question=message,
+                        validation=validation,
+                        retrieval=retrieval,
+                        client=client,
+                        request_id=request_id,
+                        injection_suspected=input_safety.injection_suspected,
+                    )
                 self._remember_answer(short_term, conversation, base.answer, request_id, base)
                 return base
 
@@ -727,6 +738,71 @@ class GatewayRouter:
         )
         outcome = pipeline.process(decision.solution)
         response.notes.append(f"promotion pipeline: {outcome.status.value} — {outcome.reason}")
+
+    def _keep_own_answer(
+        self,
+        response: GatewayResponse,
+        *,
+        question: str,
+        validation: ValidationReport,
+        retrieval: RetrievalResult,
+        client: Client,
+        request_id: str,
+        injection_suspected: bool,
+    ) -> None:
+        """Keep a verified local answer as a candidate the owner can confirm.
+
+        The learning loop shipped in 1.0 captures only paid answers. With paid
+        providers off -- the owner's standing decision -- that means the system
+        could not learn anything from being used, however many questions it got
+        right. Everything in the store was hand-written. This is the other
+        source, and it costs nothing: the answer has already been produced and
+        already passed validation.
+
+        Two things it deliberately does NOT do.
+
+        It does not promote. The promotion gate asks whether the local model
+        can restate an answer with that answer in front of it, and a local
+        answer passes its own gate by construction -- so promotion here would
+        be a rubber stamp, and Brother would serve its own mistakes back for
+        SOLUTION_TTL_DAYS. The row is left as a CANDIDATE for the owner to
+        confirm, which is a click rather than an essay.
+
+        It does not keep an answer that had no evidence behind it. A correct
+        reply about the capital of France is not something this system needs
+        to remember, and memorising ungrounded general knowledge is how a
+        memory fills with things no one can check.
+        """
+        if not self.settings.SELF_LEARNING_ENABLED:
+            return
+        if not retrieval.has_context:
+            return  # nothing was consulted; there is nothing to be right *about*
+        if validation.confidence < self.settings.SELF_LEARNING_MIN_CONFIDENCE:
+            return
+        decision = capture(
+            self.session,
+            client.client_id,
+            question=question,
+            answer=response.answer,
+            task_type=response.task_type.value,
+            provider=SELF_PROVIDER,
+            model=response.model or "local",
+            failure_reason=None,
+            local_attempt=None,
+            validation=validation.as_dict(),
+            confidence=validation.confidence,
+            classification=response.classification,
+            context={"texts": retrieval.context_texts()[:3], "sources": response.sources},
+            request_id=request_id,
+            ttl_days=self.settings.SOLUTION_TTL_DAYS,
+            injection_suspected=injection_suspected,
+        )
+        if decision.captured and decision.solution is not None:
+            response.solution_id = decision.solution.id
+            response.notes.append(
+                "kept as a candidate to confirm — Brother answered this one itself "
+                "and it passed validation; it is not reused until you confirm it"
+            )
 
     def _mark_solution_used(self, retrieval: RetrievalResult, client_id: str) -> None:
         from app.learning.solution_store import SolutionStore

@@ -137,6 +137,32 @@ class SolutionStore:
             counts[status] = int(count)
         return counts
 
+    def counts_by_origin(self, *, all_clients: bool = False) -> dict[str, dict[str, int]]:
+        """Counts split by where a solution came from, not only how far it got.
+
+        Status alone made 229 hand-written pack seeds read as 229 things the
+        system had learned. Both numbers are needed, and the one that matters
+        most is usually the zero.
+        """
+        from app.learning.origin import SolutionOrigin, origin_of
+
+        stmt = select(SolutionCandidate.provider, SolutionCandidate.status, func.count(
+            SolutionCandidate.id
+        ))
+        if not all_clients:
+            stmt = stmt.where(SolutionCandidate.client_id == self.client_id)
+        stmt = stmt.group_by(SolutionCandidate.provider, SolutionCandidate.status)
+
+        out: dict[str, dict[str, int]] = {
+            origin.value: {status.value: 0 for status in SolutionStatus}
+            for origin in SolutionOrigin
+        }
+        for provider, status, count in self.session.execute(stmt):
+            out[origin_of(provider).value][status] += int(count)
+        for by_status in out.values():
+            by_status["total"] = sum(v for k, v in by_status.items() if k != "total")
+        return out
+
     # ------------------------------------------------------------ lifecycle
     def expire_due(self, *, all_clients: bool = False) -> list[SolutionCandidate]:
         now = datetime.now(UTC)

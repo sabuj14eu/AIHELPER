@@ -3,6 +3,61 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.7.0 — 2026-09-16
+
+Phase 6, the part that answers "should it not learn by itself?". It should,
+and until now it could not.
+
+**Migration:** none. `SolutionOrigin` is derived from the `provider` column
+every row has carried since 1.0, so it reads correctly for rows written long
+before it existed.
+
+### Added
+
+- **Origin, beside status** (`app/learning/origin.py`). The dashboard read
+  "229 learned solutions" and every one of them was hand-written into
+  `knowledge/` by a session. That is authoring, not learning, and counting it
+  as learning made the system look like it improved with use when it had never
+  learned anything from being used. Four origins — **SEEDED · TAUGHT · SELF ·
+  PAID** — now sit beside the four statuses, in `knowledge-status` and the
+  admin summary. Every origin is shown including the empty ones, because
+  `self: 0` was the number that needed saying.
+
+- **Brother keeps its own verified answers** (`_keep_own_answer`). The 1.0
+  learning loop captures paid answers only; with paid providers off by the
+  owner's standing decision, nothing could ever be learned. A local answer
+  that **passed validation, was grounded in retrieved evidence, and was not
+  already a memory hit** is now captured as a CANDIDATE.
+
+  It is deliberately **not promoted**. The promotion gate asks whether the
+  local model can restate an answer with that answer in front of it, and a
+  local answer passes its own gate by construction — so promoting here would
+  be a rubber stamp and Brother would serve its own mistakes back for
+  `SOLUTION_TTL_DAYS`. The row waits for the owner to confirm, which is a
+  click rather than an essay. `SELF_LEARNING_MIN_CONFIDENCE` (0.75) sits above
+  `CONFIDENCE_THRESHOLD` (0.62) on purpose: merely passing is not enough to be
+  worth remembering. `SELF_LEARNING_ENABLED=false` turns it off.
+
+  Ungrounded answers are never kept. Being right about the capital of France
+  is not worth remembering, and memorising general knowledge is how a store
+  fills with things nobody can check.
+
+### Fixed
+
+- **Teach could swallow something that was not an answer.** The two gates
+  check usability, not truth — and the reproduction gate can restate two words
+  perfectly, so a reply cut short by a timeout pasted into the form would pass
+  both and then be served from memory for months. `teach()` now refuses, with
+  a reason the form displays:
+  - a fragment under six words ("an answer cut short by a timeout looks exactly
+    like this"),
+  - Brother's own *"I don't have enough information"* — that is a gap to fill
+    by supplying the evidence, not to teach away,
+  - a degenerate loop.
+
+  It still does not judge whether the answer is *right*. That is the owner's
+  call and the entire point of the form.
+
 ## 1.6.0 — 2026-09-16
 
 The budget, sized from a measurement taken at a realistic prompt size rather

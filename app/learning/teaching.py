@@ -27,10 +27,42 @@ from app.core.logging import get_logger
 from app.database.enums import Classification, SolutionStatus
 from app.learning.promotion import PromotionOutcome, PromotionPipeline
 from app.learning.solution_store import SolutionStore
+from app.validation.output import check_output
 
 log = get_logger("teaching")
 
 TAUGHT_PROVIDER = "owner"
+
+# Roughly the length of a sentence that actually says something. Below this an
+# answer is a fragment, and a fragment is what a timed-out reply looks like.
+MIN_TAUGHT_WORDS = 6
+
+
+def _unteachable(answer: str) -> str | None:
+    """Why this answer must not be learned, or None if it may be.
+
+    This is deliberately narrow. It rejects text that is not an answer at all;
+    it does not judge whether the answer is *right*, because that is the
+    owner's call and the whole point of the form.
+    """
+    checked = check_output(answer)
+    if checked.declared_insufficient or checked.lacks_evidence or checked.refused:
+        return (
+            "that is Brother saying it does not know, not an answer to remember. "
+            "If the evidence really is missing, the fix is to supply it "
+            "(configure the connector, post the outlook, add a pack document) "
+            "rather than to teach the gap away."
+        )
+    if checked.repetitive:
+        return "that answer repeats itself; it looks like a degenerate loop rather than an answer"
+    if len(answer.split()) < MIN_TAUGHT_WORDS:
+        return (
+            f"that is {len(answer.split())} words. An answer cut short by a timeout looks "
+            "exactly like this, and teaching one would store the stutter and serve it back "
+            "for months. Write out what Brother should have said."
+        )
+    return None
+
 
 
 @dataclass
@@ -67,6 +99,16 @@ def teach(
     answer = (answer or "").strip()
     if len(question) < 3 or len(answer) < 3:
         raise ValueError("a taught pair needs both a question and an answer")
+
+    # The reproduction gate asks whether the local model can restate the answer
+    # with the answer in front of it. It can restate two words perfectly, so a
+    # truncated reply pasted into this form would sail through both gates and
+    # then be served from memory for SOLUTION_TTL_DAYS. The gates check
+    # usability, not truth -- so the one thing they cannot catch is checked
+    # here, before anything is written.
+    refusal = _unteachable(answer)
+    if refusal:
+        raise ValueError(refusal)
 
     store = SolutionStore(session, client_id)
     pipeline = PromotionPipeline(

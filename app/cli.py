@@ -482,7 +482,14 @@ def cmd_knowledge_status(args) -> int:
             return 2
         services = runtime.for_session(session, client_id)
         loader = KnowledgePackLoader(session, client_id, ingestor=services.ingestor)
-        print(json.dumps(loader.status(_pack_root(args)), indent=2))
+        status = loader.status(_pack_root(args))
+        # Status says how far a solution got; origin says where it started.
+        # Without the second, 229 hand-written pack seeds read as 229 things
+        # the system had learned from being used.
+        from app.learning.solution_store import SolutionStore
+
+        status["solutions_by_origin"] = SolutionStore(session, client_id).counts_by_origin()
+        print(json.dumps(status, indent=2))
     return 0
 
 

@@ -107,6 +107,14 @@ class Settings(BaseSettings):
 
     # ---------------------------------------------------------- escalation
     CONFIDENCE_THRESHOLD: float = 0.62
+    # Keeping Brother's own verified answers is how a deployment with no paid
+    # provider learns anything at all -- but a local answer trivially passes
+    # its own reproduction gate ("can you restate this with it in front of
+    # you?"), so promotion cannot be the judge here and the bar is set higher
+    # than merely passing. Above this, the answer is kept as a CANDIDATE for
+    # the owner to confirm. It is never promoted automatically.
+    SELF_LEARNING_ENABLED: bool = True
+    SELF_LEARNING_MIN_CONFIDENCE: float = 0.75
     ESCALATION_ENABLED: bool = True
     ALLOW_USER_REQUESTED_PREMIUM: bool = False
 

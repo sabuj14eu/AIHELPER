@@ -1,6 +1,6 @@
 [project]
 name = "ai-helper"
-version = "1.6.0"
+version = "1.7.0"
 description = "A self-hosted, local-first AI gateway with paid-API fallback and solution learning"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }

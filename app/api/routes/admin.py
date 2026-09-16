@@ -475,16 +475,23 @@ def _personal_client(db: Session, settings: Settings) -> Client | None:
 def _knowledge_summary(db: Session, runtime: Runtime, client: Client | None) -> dict:
     from app.database.enums import SolutionStatus
     from app.knowledge.pack import KnowledgePackLoader
+    from app.learning.origin import SolutionOrigin
+    from app.learning.solution_store import SolutionStore
 
     empty = {
         "documents": 0,
         "by_domain": {},
         "solutions": {status.value: 0 for status in SolutionStatus},
+        "by_origin": {origin.value: {"total": 0} for origin in SolutionOrigin},
     }
     if client is None:
         return empty
     services = runtime.for_session(db, client.client_id)
-    return KnowledgePackLoader(db, client.client_id, ingestor=services.ingestor).status()
+    summary = KnowledgePackLoader(db, client.client_id, ingestor=services.ingestor).status()
+    # Beside the status counts on purpose: "229 promoted" and "229 of them
+    # written by hand" are both true, and only the pair of them is honest.
+    summary["by_origin"] = SolutionStore(db, client.client_id).counts_by_origin()
+    return summary
 
 
 @ui_router.get("/chat", response_class=HTMLResponse)
