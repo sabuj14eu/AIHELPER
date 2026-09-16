@@ -46,6 +46,13 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **Chat page showed "SyntaxError: Unexpected token '<'" on a proxy error.**
+  When nginx answered with its own HTML (a 504 after its 60 s default
+  `proxy_read_timeout`, or a 502 during a restart) the page tried to parse
+  it as JSON. It now explains the HTTP status in plain words and shows an
+  elapsed-time indicator while the model works. `LOCAL_TIMEOUT_SECONDS`
+  default raised from 60 to 180 to match the proxy guidance in
+  `docs/deployment.md`; a CPU model reading a full context needs it.
 - **Bootstrap was one transaction and seeding was unbounded.** The pack
   documents and all 278 seeds committed together at the very end, so the
   chat page said "not loaded" for the whole run and an interrupt rolled

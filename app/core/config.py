@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     STRONG_LOCAL_MODEL: str = "qwen2.5:7b"
     EMBEDDING_MODEL: str = "nomic-embed-text"
     EMBEDDING_DIM: int = 768
-    LOCAL_TIMEOUT_SECONDS: float = 60.0
+    LOCAL_TIMEOUT_SECONDS: float = 180.0
     LOCAL_MAX_TOKENS: int = 1024
 
     # ----------------------------------------------------- paid providers
