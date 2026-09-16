@@ -49,7 +49,19 @@ class Settings(BaseSettings):
     STRONG_LOCAL_MODEL: str = "qwen2.5:7b"
     EMBEDDING_MODEL: str = "nomic-embed-text"
     EMBEDDING_DIM: int = 768
-    LOCAL_TIMEOUT_SECONDS: float = 180.0
+    # Measured on the production box 2026-09-16, at a realistic prompt size:
+    # prompt evaluation runs at 19.8 tok/s and generation at 5.35 tok/s. A real
+    # request is ~1,700 prompt tokens (86 s) plus up to 600 generated (112 s) =
+    # ~198 s warm, ~229 s cold. Nothing fits in 180 s, which is why the first
+    # real answer arrived as the two words "1. The".
+    #
+    # An earlier note here argued against raising this on the grounds that it
+    # collides with nginx's proxy_read_timeout. That still applies to the
+    # SYNCHRONOUS routes (/admin/chat/ask-now, /api/v1/chat) and they remain
+    # capped at whatever the proxy allows. It does not apply to the dashboard
+    # chat, which is a queued job the browser polls, and that is the surface
+    # this number exists for.
+    LOCAL_TIMEOUT_SECONDS: float = 300.0
     # Measured on the production box 2026-09-16: qwen2.5:7b generates at
     # 5.35 tok/s, and a real Brother request carries ~2,320 input tokens
     # (~11 s of prompt eval) before the first output token. Against
@@ -63,7 +75,11 @@ class Settings(BaseSettings):
     # Evidence budget for the LOCAL prompt. Prompt evaluation dominates a CPU
     # model's latency, so this is the single biggest speed knob: 4500 chars
     # is about four chunks plus a live reading. Paid providers keep 8000.
-    LOCAL_CONTEXT_CHARS: int = 4500
+    # The single biggest lever on latency, and it was the one nobody had
+    # measured. At 19.8 tok/s every 1,000 characters of evidence costs ~13 s
+    # before the model says anything. 4,500 put the prompt at 117 s on its own.
+    # 2,000 still carries two or three good chunks and costs ~26 s of that.
+    LOCAL_CONTEXT_CHARS: int = 2000
 
     # ----------------------------------------------------- paid providers
     # Disabled by default. This is a hard requirement, not a preference.

@@ -3,6 +3,57 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.6.0 — 2026-09-16
+
+The budget, sized from a measurement taken at a realistic prompt size rather
+than extrapolated from a 38-token one.
+
+**Migration:** none in the database. **On the box, `.env` sets
+`LOCAL_TIMEOUT_SECONDS=180` explicitly** — change it to `300` there or the old
+budget stays in force. `LOCAL_CONTEXT_CHARS` is not in `.env`, so it picks up
+the new default on its own.
+
+### The measurement
+
+Taken with `num_predict: 1`, which isolates prompt evaluation from generation:
+
+| prompt | chars | evaluated | rate |
+|---|---|---|---|
+| tiny | 24 | 34 tok | 7.9 tok/s |
+| medium | 2,478 | 601 tok | 16.9 tok/s |
+| **real** | **9,188** | **2,141 tok** | **19.8 tok/s** |
+
+`context_length` is 32,768 and `evaluated` scales cleanly with `chars`, so
+**nothing is being truncated** — that hypothesis is ruled out, not outstanding.
+
+**Prompt evaluation runs at 19.8 tok/s, not the 208.6 quoted in 1.5.0.** A real
+request spends **86–117 s reading the prompt before generating anything**. With
+generation at 5.35 tok/s, a 600-token answer needs another 112 s. Nothing fits
+in 180 s, which is why the first real answer arrived as the two words
+`1. The`.
+
+### Changed
+
+- **`LOCAL_CONTEXT_CHARS` 4500 → 2000.** The largest lever, and the one nobody
+  had measured: every 1,000 characters of evidence costs ~13 s before the model
+  says a word. 2,000 still carries two or three good chunks. Retrieval quality
+  under this cap is now the thing to watch (AIH-4).
+- **`LOCAL_TIMEOUT_SECONDS` 180 → 300.** This reverses the note in 1.5.0, which
+  argued against raising it. That argument rested on prompt evaluation costing
+  11 s; it costs 86–117 s, so the conclusion built on it does not survive. The
+  proxy objection still holds for the **synchronous** routes
+  (`/admin/chat/ask-now`, `/api/v1/chat`), which stay capped by nginx's
+  `proxy_read_timeout` and are accepted as such. It never applied to the
+  dashboard chat, which is a queued job the browser polls.
+
+Expected after this: ~198 s warm, ~229 s cold, inside a 300 s budget with
+margin in both cases.
+
+### Note
+
+`LOCAL_MAX_TOKENS=600` and `KEEP_ALIVE=24h` from 1.5.0 are unchanged and remain
+correct — they were simply never the binding constraint.
+
 ## 1.5.1 — 2026-09-16
 
 **Migration:** none.
