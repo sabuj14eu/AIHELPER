@@ -66,7 +66,7 @@ class TestDockerfile:
         assert len(re.findall(r"^FROM ", DOCKERFILE, re.M)) >= 2
         assert "--from=builder" in DOCKERFILE
 
-    @pytest.mark.parametrize("path", ["alembic.ini", "app", "scripts", "requirements.txt"])
+    @pytest.mark.parametrize("path", ["alembic.ini", "app", "scripts", "knowledge", "requirements.txt"])
     def test_everything_the_image_copies_exists(self, path):
         assert path in DOCKERFILE, f"{path} is no longer copied into the image"
         assert (ROOT / path).exists(), f"{path} is copied but missing from the repository"
@@ -142,3 +142,13 @@ class TestComposeFile:
             assert f"${{{variable}:?" in self.COMPOSE, (
                 f"{variable} has a silent default; compose should refuse to start without it"
             )
+
+
+class TestKnowledgePackShipsInTheImage:
+    """bootstrap-brother runs inside the container, so the pack must be in the
+    image: found missing on the first real deployment (2026-09-16)."""
+
+    def test_the_pack_is_copied_and_not_ignored(self):
+        assert re.search(r"^COPY\b.*\bknowledge\b", DOCKERFILE, re.M)
+        ignored = (ROOT / ".dockerignore").read_text().splitlines()
+        assert not any(line.strip().rstrip("/") == "knowledge" for line in ignored)

@@ -46,6 +46,10 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **Knowledge pack missing from the image.** `bootstrap-brother` inside the
+  container refused with "knowledge pack directory not found" because the
+  Dockerfile did not copy `knowledge/`. It is copied now, next to `app/` and
+  `scripts/`. Found on the first real deployment.
 - A "trading plan" question is treated as reasoning (live readings become
   context for the model) rather than a bare status request.
 
