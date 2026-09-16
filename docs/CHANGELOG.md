@@ -7,6 +7,29 @@ migration note. Deploys follow: **backup → migrate → restart → verify logs
 
 **Migration:** none.
 
+### Added
+
+- **`load-knowledge --retry-rejected`** (AIH-3) — offers pack seeds the local
+  model previously rejected to the promotion gate once more. The reproduction
+  gate is a judgement by a particular model, and 48 seeds were rejected by
+  `llama3.2:3b` before `qwen2.5:7b` was installed; the model underneath them
+  changed, the seeds did not.
+
+  It does **not** delete the rejected rows, as the open item first proposed.
+  Iron Rule 4 says a re-taught question supersedes, never edits, so the
+  rejection is EXPIRED carrying its original reason
+  (`retried after rejection: …`) and the retry faces the gate as a new
+  candidate that earns its own status. The audit trail keeps what the gate
+  refused and why.
+
+  It refuses unless *every* row for a question is a REJECTED row that this
+  pack seeded: a PROMOTED, VALIDATED or still-CANDIDATE row means a live
+  answer is in play, and a rejected paid or taught answer belongs to those
+  paths. It is never automatic — a plain reload still skips, so Iron Rule 4
+  cannot be violated by a routine deploy. `seed_solutions` now also reports a
+  `retried` count. Tests:
+  `tests/unit/test_knowledge_pack.py::TestRetryingRejectedSeeds`.
+
 ### Fixed
 
 - **A failed request now says why it failed.** When level 2 produced nothing

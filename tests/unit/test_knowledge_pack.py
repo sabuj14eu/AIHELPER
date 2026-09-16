@@ -341,7 +341,10 @@ class TestSeeding:
 
         # Re-seeding never duplicates, and never resurrects a decision.
         again = seed_solutions(db, client_row.client_id, discover(root), pipeline=pipeline)
-        assert again == {"seeded": 0, "skipped": 2, "promoted": 0, "validated": 0, "rejected": 0, "remaining": 0}
+        assert again == {
+            "seeded": 0, "skipped": 2, "promoted": 0, "validated": 0, "rejected": 0,
+            "retried": 0, "remaining": 0,
+        }
 
     def test_a_seeded_solution_answers_the_exact_question_without_a_model_call_for_free(
         self, runtime, db, client_row, settings, local_provider, paid_provider, tmp_path
@@ -561,3 +564,101 @@ class TestTheShippedPack:
                 assert seeds, f"{pack_file.relative} has no parseable solution blocks"
                 for seed in seeds:
                     assert seed.evidence, f"{pack_file.relative}: '{seed.title}' has no evidence"
+
+
+class TestRetryingRejectedSeeds:
+    """`load-knowledge --retry-rejected` (AIH-3).
+
+    48 seeds were rejected by llama3.2:3b's reproduction gate before
+    qwen2.5:7b was installed. The model underneath them changed; the seeds did
+    not. These tests fix what the retry may and may not do.
+    """
+
+    def _pipeline(self, runtime, db, client_row, settings, local_provider):
+        services = runtime.for_session(db, client_row.client_id)
+        return PromotionPipeline(
+            db, client_row.client_id, settings=settings, local_provider=local_provider,
+            retriever=services.retriever,
+        )
+
+    def _seed_then_reject(self, db, client_row, root, pipeline):
+        """Seed the pack, then force every row to look like a gate rejection."""
+        seed_solutions(db, client_row.client_id, discover(root), pipeline=pipeline)
+        store = SolutionStore(db, client_row.client_id)
+        for row in store.list(limit=100):
+            row.status = SolutionStatus.REJECTED.value
+            row.status_reason = "the local model could not reproduce it"
+        db.flush()
+        return store
+
+    def test_a_plain_reload_never_resurrects_a_rejection(
+        self, runtime, db, client_row, settings, local_provider, tmp_path
+    ):
+        root = write_pack(tmp_path / "pack")
+        pipeline = self._pipeline(runtime, db, client_row, settings, local_provider)
+        store = self._seed_then_reject(db, client_row, root, pipeline)
+
+        counts = seed_solutions(db, client_row.client_id, discover(root), pipeline=pipeline)
+
+        assert counts["seeded"] == 0 and counts["retried"] == 0
+        assert counts["skipped"] == 2
+        assert store.counts()[SolutionStatus.REJECTED.value] == 2
+
+    def test_retry_rejected_supersedes_the_rejection_and_faces_the_gate_again(
+        self, runtime, db, client_row, settings, local_provider, tmp_path
+    ):
+        root = write_pack(tmp_path / "pack")
+        pipeline = self._pipeline(runtime, db, client_row, settings, local_provider)
+        store = self._seed_then_reject(db, client_row, root, pipeline)
+        old_ids = {row.id for row in store.list(limit=100)}
+
+        counts = seed_solutions(
+            db, client_row.client_id, discover(root), pipeline=pipeline, retry_rejected=True
+        )
+
+        assert counts["retried"] == 2 and counts["seeded"] == 2
+        assert counts["promoted"] == 2, counts
+        # The rejection is superseded, not deleted: Iron Rule 4.
+        assert store.counts().get(SolutionStatus.REJECTED.value, 0) == 0
+        expired = store.list(status=SolutionStatus.EXPIRED.value, limit=100)
+        assert {row.id for row in expired} == old_ids
+        assert all(row.status_reason.startswith("retried after rejection:") for row in expired)
+        assert all("could not reproduce" in row.status_reason for row in expired)
+        # The retry is a new row that earned its own status.
+        promoted = store.list(status=SolutionStatus.PROMOTED.value, limit=100)
+        assert old_ids.isdisjoint({row.id for row in promoted})
+
+    def test_a_live_solution_is_never_disturbed_by_a_retry(
+        self, runtime, db, client_row, settings, local_provider, tmp_path
+    ):
+        root = write_pack(tmp_path / "pack")
+        pipeline = self._pipeline(runtime, db, client_row, settings, local_provider)
+        seed_solutions(db, client_row.client_id, discover(root), pipeline=pipeline)
+        store = SolutionStore(db, client_row.client_id)
+        before = {row.id: row.status for row in store.list(limit=100)}
+        assert set(before.values()) == {SolutionStatus.PROMOTED.value}
+
+        counts = seed_solutions(
+            db, client_row.client_id, discover(root), pipeline=pipeline, retry_rejected=True
+        )
+
+        assert counts["retried"] == 0 and counts["seeded"] == 0 and counts["skipped"] == 2
+        assert {row.id: row.status for row in store.list(limit=100)} == before
+
+    def test_a_rejected_answer_that_the_pack_did_not_seed_is_left_alone(
+        self, runtime, db, client_row, settings, local_provider, tmp_path
+    ):
+        """A rejected taught or paid answer belongs to its own path, not to a reload."""
+        root = write_pack(tmp_path / "pack")
+        pipeline = self._pipeline(runtime, db, client_row, settings, local_provider)
+        store = self._seed_then_reject(db, client_row, root, pipeline)
+        for row in store.list(limit=100):
+            row.provider = "owner"
+        db.flush()
+
+        counts = seed_solutions(
+            db, client_row.client_id, discover(root), pipeline=pipeline, retry_rejected=True
+        )
+
+        assert counts["retried"] == 0 and counts["seeded"] == 0 and counts["skipped"] == 2
+        assert store.counts()[SolutionStatus.REJECTED.value] == 2

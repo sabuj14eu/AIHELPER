@@ -234,7 +234,8 @@ def _pack_root(args) -> Path:
 
 
 def _load_pack_for(
-    client_id: str, root, *, prune: bool, seed: bool, seed_limit: int | None = None
+    client_id: str, root, *, prune: bool, seed: bool, seed_limit: int | None = None,
+    retry_rejected: bool = False,
 ) -> dict:
     """Load a pack for one client through the ordinary runtime. Shared by two commands.
 
@@ -292,6 +293,7 @@ def _load_pack_for(
             ttl_days=None,
             commit_each=True,
             limit=seed_limit,
+            retry_rejected=retry_rejected,
             progress=progress,
         )
     return report.as_dict()
@@ -306,7 +308,7 @@ def cmd_load_knowledge(args) -> int:
     try:
         report = _load_pack_for(
             client_id, _pack_root(args), prune=args.prune, seed=not args.no_seed,
-            seed_limit=args.seed_limit,
+            seed_limit=args.seed_limit, retry_rejected=args.retry_rejected,
         )
     except LookupError:
         print(
@@ -552,6 +554,13 @@ def main(argv: list[str] | None = None) -> int:
     pack_args(load)
     load.add_argument(
         "--prune", action="store_true", help="also remove documents whose pack file is gone"
+    )
+    load.add_argument(
+        "--retry-rejected", action="store_true",
+        help=(
+            "offer seeds the local model previously rejected to the gate once more; "
+            "the rejection is superseded, never deleted. Use after changing the local model"
+        ),
     )
     load.set_defaults(func=cmd_load_knowledge)
 

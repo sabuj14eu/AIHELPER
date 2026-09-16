@@ -34,6 +34,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -375,6 +376,33 @@ def pending_seeds(files: list[PackFile]) -> list[tuple[PackFile, SeedSolution]]:
     return out
 
 
+def _expire_rejected_seeds(known: list, store: SolutionStore) -> bool:
+    """Supersede a question's rejected pack seeds so it may face the gate again.
+
+    Returns True only when it acted. It refuses -- leaving the question skipped
+    -- unless *every* row for it is a REJECTED row that this pack seeded. A
+    PROMOTED, VALIDATED or still-CANDIDATE row means a live answer is in play
+    and must not be disturbed; a rejected answer from a paid provider or from
+    the owner's teaching belongs to those paths, not to a pack reload.
+
+    The rejection is expired with its reason, never deleted: Iron Rule 4 keeps
+    the history of what the gate refused and why, and the retry has to earn its
+    place as a new candidate rather than inherit the old row's.
+    """
+    if not all(
+        row.status == SolutionStatus.REJECTED.value and row.provider == PACK_SOURCE
+        for row in known
+    ):
+        return False
+    for row in known:
+        previous = row.status_reason or "the local model could not reproduce it"
+        row.status = SolutionStatus.EXPIRED.value
+        row.status_reason = f"retried after rejection: {previous}"[:300]
+        row.expires_at = datetime.now(UTC)
+    store.session.flush()
+    return True
+
+
 def seed_solutions(
     session: Session,
     client_id: str,
@@ -384,6 +412,7 @@ def seed_solutions(
     ttl_days: int | None = None,
     commit_each: bool = False,
     limit: int | None = None,
+    retry_rejected: bool = False,
     progress=None,
 ) -> dict[str, int]:
     """Turn validated-solution blocks into candidates and run them through the gate.
@@ -396,17 +425,31 @@ def seed_solutions(
     stops after that many new seeds (a batch); ``progress(done, total, counts)``
     is called after each one, because the reproduction gate costs one local
     model call per solution and on a CPU box that is tens of seconds each.
+
+    ``retry_rejected`` is the deliberate exception, and only ever an explicit
+    one: a seed the local model could not reproduce is offered to the gate
+    once more, because the model underneath it may have changed (48 of these
+    were rejected by llama3.2:3b before qwen2.5:7b was installed). It does not
+    delete the rejection -- Iron Rule 4 says a re-taught question supersedes,
+    never edits -- so the old row is EXPIRED with its reason and a fresh
+    candidate faces the gate on its own merits. It applies only where *every*
+    row for that question is a REJECTED pack seed: a live solution is never
+    disturbed, and a rejected paid or taught answer is not the pack's to retry.
     """
     store = SolutionStore(session, client_id)
     counts = {
-        "seeded": 0, "skipped": 0, "promoted": 0, "validated": 0, "rejected": 0, "remaining": 0
+        "seeded": 0, "skipped": 0, "promoted": 0, "validated": 0, "rejected": 0,
+        "retried": 0, "remaining": 0,
     }
     todo = pending_seeds(files)
     total = len(todo)
     for index, (pack_file, seed) in enumerate(todo, start=1):
-        if store.by_fingerprint(seed.question):
+        known = store.by_fingerprint(seed.question)
+        if known and not (retry_rejected and _expire_rejected_seeds(known, store)):
             counts["skipped"] += 1
             continue
+        if known:
+            counts["retried"] += 1
         if limit is not None and counts["seeded"] >= limit:
             counts["remaining"] = total - index + 1
             break
