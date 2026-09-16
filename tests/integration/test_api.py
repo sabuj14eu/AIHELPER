@@ -6,6 +6,7 @@ import io
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
 from app.core.security import hash_password
 from app.main import create_app
@@ -158,7 +159,10 @@ def test_models_tools_and_agents(api, keys):
     tools = api.get("/api/v1/tools", headers=auth(keys["user"])).json()
     assert any(t["name"] == "calculator" for t in tools)
     agents = api.get("/api/v1/agents", headers=auth(keys["user"])).json()
-    assert {a["name"] for a in agents} == {"general", "research", "document", "developer"}
+    assert {a["name"] for a in agents} == {
+        "general", "research", "document", "developer",
+        "brother", "trading", "architect", "social",
+    }
 
 
 def test_admin_endpoints_require_an_admin_key(api, keys):
@@ -211,3 +215,81 @@ def test_admin_dashboard_login_flow(api):
     assert "Local success rate" in page.text
     for path in ("/admin/solutions", "/admin/clients", "/admin/audit"):
         assert api.get(path).status_code == 200
+
+
+# ------------------------------------------------------------------ Brother
+class TestBrotherChat:
+    """The dashboard's own chat runs as the personal client through the same ladder."""
+
+    @pytest.fixture
+    def signed_in(self, api, settings):
+        from app.core.security import hash_password
+
+        settings.ADMIN_PASSWORD_HASH = hash_password("dashboard-password-1")
+        response = api.post(
+            "/admin/login",
+            data={"username": settings.ADMIN_USERNAME, "password": "dashboard-password-1"},
+            follow_redirects=False,
+        )
+        assert response.status_code == 303
+        return api
+
+    def test_the_page_needs_a_session(self, api):
+        assert api.get("/admin/chat", follow_redirects=False).status_code == 401
+        assert (
+            api.post("/admin/chat/ask", json={"message": "hi"}, follow_redirects=False).status_code
+            == 401
+        )
+
+    def test_the_page_explains_when_the_personal_client_is_missing(self, signed_in):
+        page = signed_in.get("/admin/chat")
+        assert page.status_code == 200
+        assert "bootstrap-brother" in page.text
+        refused = signed_in.post("/admin/chat/ask", json={"message": "hello"})
+        assert refused.status_code == 503
+        assert "bootstrap-brother" in refused.json()["error"]
+
+    def test_a_question_runs_as_the_personal_client_with_the_default_agent(
+        self, signed_in, db, settings, local_provider, paid_provider
+    ):
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        db.commit()
+        page = signed_in.get("/admin/chat")
+        assert page.status_code == 200 and "bootstrap-brother" not in page.text
+        assert 'value="brother" selected' in page.text
+
+        answer = signed_in.post("/admin/chat/ask", json={"message": "What is the capital of France?"})
+        assert answer.status_code == 200, answer.text
+        body = answer.json()
+        assert body["agent"] == "brother"
+        assert body["route"] == "local" and "Paris" in body["answer"]
+        assert body["conversation_id"]
+        assert paid_provider.call_count == 0
+        assert "Never infer from silence" in local_provider.calls[-1].messages[0].content
+
+        # The conversation continues, and the log names the personal client.
+        follow = signed_in.post(
+            "/admin/chat/ask",
+            json={"message": "And its population?", "conversation_id": body["conversation_id"]},
+        )
+        assert follow.status_code == 200
+        assert follow.json()["conversation_id"] == body["conversation_id"]
+        from app.database.models import RequestLog
+
+        rows = list(db.scalars(select(RequestLog)))
+        assert rows and all(r.client_id == settings.PERSONAL_CLIENT_ID for r in rows)
+
+    def test_an_unknown_agent_is_refused(self, signed_in, db, settings):
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        db.commit()
+        refused = signed_in.post("/admin/chat/ask", json={"message": "hi", "agent": "nope"})
+        assert refused.status_code == 403
+
+    def test_a_tool_answer_stays_free(self, signed_in, db, settings, local_provider):
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        db.commit()
+        answer = signed_in.post(
+            "/admin/chat/ask", json={"message": "What is 1200 * 0.23?", "agent": "trading"}
+        )
+        assert answer.json()["route"] == "tool" and answer.json()["answer"] == "276"
+        assert local_provider.calls == []

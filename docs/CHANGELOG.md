@@ -3,6 +3,64 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.1.0 — 2026-09-16
+
+Brother: the personal assistant layer. AI Helper now knows who it works for.
+Requested by the owner on 2026-09-16 ("develop this AI helper as my personal
+AI"), which lifts the 1.0 feature freeze for this one addition; the gateway,
+routing, cost, privacy and learning code paths are unchanged.
+
+**Migration:** none. No table or column changes. The pack's provenance lives
+in the existing `documents.meta` JSON column and seeded solutions are ordinary
+`solution_candidates` rows (`provider = knowledge-pack`). Deploy is still
+backup → migrate (no-op) → restart → verify logs, then once:
+
+```bash
+docker compose exec ai-helper python -m app.cli bootstrap-brother
+```
+
+### Added
+
+- **Knowledge pack** (`knowledge/`) — hand-written digests of the owner's six
+  repositories (laws, architecture, evidence, workflows and tools, validated
+  solutions, open items, glossary) plus verbatim copies of their governing
+  documents stamped with the commit they came from. Loaded through the
+  ordinary ingestion pipeline as documents of the personal client, one
+  namespace per domain. `app/knowledge/pack.py`.
+- **Seeded solutions** — `*validated_solutions.md` blocks become CANDIDATE
+  rows and go through the same promotion gate as a paid answer. PROMOTED
+  with a local model running; held at VALIDATED without one.
+- **Brother agents** — `brother`, `trading`, `architect`, `social`, sharing
+  one set of working laws appended to the base rules. The four generic agents
+  are unchanged. `app/agents/builtin.py`.
+- **Dashboard chat** — `/admin/chat` runs as the personal client through the
+  same `GatewayRouter`, with the client's rate limit, and shows route,
+  confidence, cost, sources and validation notes for every reply.
+- **CLI** — `bootstrap-brother`, `load-knowledge [--prune]`,
+  `knowledge-status`; `scripts/sync_knowledge.py` refreshes `knowledge/sources/`
+  from sibling checkouts and refuses any file the privacy detector marks
+  RESTRICTED.
+- **Settings** — `PERSONAL_CLIENT_ID`, `PERSONAL_AGENT`, `KNOWLEDGE_PACK_DIR`.
+- **Audit action** — `knowledge.pack_loaded`.
+
+### Fixed
+
+- **Polarity check false positive** (`app/validation/factuality.py`). The
+  contradiction detector flagged an answer whenever *any* context sentence
+  sharing three content words differed in polarity, so a faithful quote of a
+  source that says both "X is invalid" and "X is not neutral" was rejected as
+  contradicting the source. Found when 278 seeded solutions and a pack
+  answer were all rejected. A conflict is now a phrase the context asserts
+  only with the opposite polarity. Regression test:
+  `tests/unit/test_validation.py::TestFactuality::test_a_faithful_quote_of_a_mixed_polarity_source_is_not_a_contradiction`.
+
+### Verification
+
+469 tests pass (435 before, 34 added), ruff clean. Loading the shipped pack
+against the fake local model produced 69 documents and 276 promoted seeds;
+the numbers a real deployment produces depend on its embedder and model and
+are printed by `bootstrap-brother`.
+
 ## 1.0.0 — 2026-09-07
 
 First release. The standalone AI Helper: a local-first gateway with paid-API

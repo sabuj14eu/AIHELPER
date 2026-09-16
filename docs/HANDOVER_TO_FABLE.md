@@ -23,6 +23,16 @@ routing, memory, privacy, security, cost, learning or validation — *unless you
 find a defect*. A defect you find is in scope to fix, with a regression test.
 Everything else waits.
 
+> **Amended 2026-09-16.** The owner asked for AI Helper to become his personal
+> assistant, which lifted the freeze for exactly that: the Brother layer
+> (`docs/BROTHER.md`, CHANGELOG 1.1.0). It is data plus agents plus a chat
+> page; the gateway, cost, privacy and learning paths are untouched, and AI
+> Helper still imports nothing from any other repository. The knowledge pack
+> is a copy of markdown, made on purpose and committed. One validation defect
+> was found and fixed along the way (the polarity check, CHANGELOG 1.1.0),
+> which is exactly the kind of thing §5 asked the next auditor to argue with.
+> The production blocker in §3 is unchanged.
+
 ---
 
 ## 2. Where it stands

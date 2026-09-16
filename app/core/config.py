@@ -138,6 +138,15 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------- workers
     WORKER_CONCURRENCY: int = 2
 
+    # ---------------------------------------------------------- Brother
+    # The personal assistant layer. The client that holds the owner's
+    # knowledge pack, the agent the dashboard chat opens with, and where the
+    # pack lives on disk. None of these is a secret; the client's API key is
+    # issued once by `python -m app.cli bootstrap-brother` and never stored.
+    PERSONAL_CLIENT_ID: str = "brother"
+    PERSONAL_AGENT: str = "brother"
+    KNOWLEDGE_PACK_DIR: str = "knowledge"
+
     @model_validator(mode="after")
     def _production_must_not_run_on_defaults(self) -> Settings:
         """Refuse to start a production deployment on placeholder secrets.

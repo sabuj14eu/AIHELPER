@@ -128,22 +128,32 @@ def check(
             )
 
     # Polarity: the same 3+ content-word phrase asserted positively in one
-    # place and negatively in the other.
+    # place and negatively in the other. A conflict is when the context
+    # asserts the phrase ONLY with the opposite polarity: a source that says
+    # both "a stale bias is invalid" and "a stale bias is not neutral" agrees
+    # with an answer that quotes either sentence, and flagging that faithful
+    # answer as a contradiction would reject exactly the answers grounded
+    # best (found while seeding the knowledge pack, 2026-09-16).
+    context_sentences = [(content_tokens(c), bool(_NEGATION.search(c))) for c in _sentences(context_blob)]
     for sentence in _sentences(answer):
         sentence_words = content_tokens(sentence)
         if len(sentence_words) < 3:
             continue
         answer_negated = bool(_NEGATION.search(sentence))
-        for context_sentence in _sentences(context_blob):
-            shared = sentence_words & content_tokens(context_sentence)
+        agreeing = False
+        opposing: set[str] | None = None
+        for context_words_, context_negated in context_sentences:
+            shared = sentence_words & context_words_
             if len(shared) < 3:
                 continue
-            context_negated = bool(_NEGATION.search(context_sentence))
-            if answer_negated != context_negated:
-                phrase = " ".join(sorted(shared)[:4])
-                report.polarity_conflicts.append(phrase)
-                report.contradiction = True
+            if answer_negated == context_negated:
+                agreeing = True
                 break
+            if opposing is None:
+                opposing = shared
+        if opposing is not None and not agreeing:
+            report.polarity_conflicts.append(" ".join(sorted(opposing)[:4]))
+            report.contradiction = True
     if report.polarity_conflicts:
         report.findings.append(
             "answer and context disagree in polarity on: "

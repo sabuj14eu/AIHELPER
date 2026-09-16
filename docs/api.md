@@ -87,7 +87,7 @@ ignored — a typo in a field name should not silently change behaviour.
 | Field | Notes |
 |---|---|
 | `task_type` | Overrides the classifier: `general`, `arithmetic`, `date`, `structured_data`, `document_qa`, `summarization`, `classification`, `extraction`, `research`, `code`, `reasoning` |
-| `agent` | `general`, `research`, `document`, `developer`. Narrows tools and adds a system-prompt fragment; it can never widen permissions |
+| `agent` | `general`, `research`, `document`, `developer`, or the Brother agents `brother`, `trading`, `architect`, `social`. Narrows tools and adds a system-prompt fragment; it can never widen permissions |
 | `document_ids` | Naming documents forces `document_qa` |
 | `classification` | `PUBLIC`…`RESTRICTED`. You can **raise** the sensitivity of your own request; you can never lower it below your client's floor |
 | `premium` | Ask for a paid model directly. Honoured only if `ALLOW_USER_REQUESTED_PREMIUM=true`; off by default because it spends money without a validation failure behind it |

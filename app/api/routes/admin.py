@@ -13,18 +13,33 @@ its actor.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import __version__
-from app.api.deps import admin_client, admin_session, db_dep, runtime_dep, settings_dep
+from app.api.deps import (
+    AGENTS,
+    admin_client,
+    admin_session,
+    db_dep,
+    resolve_agent,
+    runtime_dep,
+    settings_dep,
+)
 from app.core import audit
 from app.core.config import Settings
-from app.core.errors import AuthenticationError, ValidationError
+from app.core.errors import (
+    AuthenticationError,
+    ProviderUnavailableError,
+    RateLimitedError,
+    ValidationError,
+)
 from app.core.security import create_session_token, generate_api_key, verify_password
 from app.cost.analytics import fallback_report, recent_requests, usage_summary
 from app.cost.tracker import CostTracker
@@ -425,3 +440,110 @@ def create_client_ui(
     return RedirectResponse(
         url=f"/admin/clients?key={key.plaintext}&client={client_id}", status_code=303
     )
+
+
+# ============================================================ Brother chat
+# The dashboard's own conversation with the personal assistant. It is not a
+# second path: the admin session only *identifies* the operator; the request
+# runs as the personal client, through the same GatewayRouter, with the same
+# validation, budgets, privacy gate and audit rows as a call to /api/v1/chat.
+class AdminChatBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=32_000)
+    agent: str | None = Field(default=None, max_length=64)
+    conversation_id: str | None = Field(default=None, max_length=64)
+
+
+def _personal_client(db: Session, settings: Settings) -> Client | None:
+    client = db.get(Client, settings.PERSONAL_CLIENT_ID)
+    if client is None or not client.enabled or client.revoked_at is not None:
+        return None
+    return client
+
+
+def _knowledge_summary(db: Session, runtime: Runtime, client: Client | None) -> dict:
+    from app.database.enums import SolutionStatus
+    from app.knowledge.pack import KnowledgePackLoader
+
+    empty = {
+        "documents": 0,
+        "by_domain": {},
+        "solutions": {status.value: 0 for status in SolutionStatus},
+    }
+    if client is None:
+        return empty
+    services = runtime.for_session(db, client.client_id)
+    return KnowledgePackLoader(db, client.client_id, ingestor=services.ingestor).status()
+
+
+@ui_router.get("/chat", response_class=HTMLResponse)
+def chat_page(
+    request: Request,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    runtime: Runtime = Depends(runtime_dep),
+    settings: Settings = Depends(settings_dep),
+) -> HTMLResponse:
+    client = _personal_client(db, settings)
+    agents = [a.as_dict() | {"description": a.description} for a in AGENTS.list() if a.enabled]
+    local = runtime.providers.local
+    local_health = local.health() if local is not None else None
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "admin/chat.html",
+        {
+            "user": session.get("sub"),
+            "client_id": settings.PERSONAL_CLIENT_ID,
+            "client_exists": client is not None,
+            "knowledge": _knowledge_summary(db, runtime, client),
+            "agents": agents,
+            "agents_json": json.dumps(agents),
+            "default_agent": settings.PERSONAL_AGENT if AGENTS.get(settings.PERSONAL_AGENT) else "general",
+            "embedder": runtime.embedder.id,
+            "embedder_semantic": runtime.embedder.semantic,
+            "local_available": bool(local_health and local_health.available),
+            "local_models": list(local_health.models) if local_health else [],
+        },
+    )
+
+
+@ui_router.post("/chat/ask")
+def chat_ask(
+    request: Request,
+    body: AdminChatBody,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    runtime: Runtime = Depends(runtime_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    from app.gateway.router import GatewayRequest
+
+    client = _personal_client(db, settings)
+    if client is None:
+        raise ProviderUnavailableError(
+            f"the personal client '{settings.PERSONAL_CLIENT_ID}' does not exist — "
+            "run: python -m app.cli bootstrap-brother"
+        )
+    # The same per-client rate limit the API applies; an operator's browser is
+    # not exempt from the guard against an accidental loop.
+    decision = request.app.state.limiter.check(
+        client.client_id, rate_override=client.rate_limit_per_minute
+    )
+    if not decision.allowed:
+        raise RateLimitedError(
+            f"rate limit exceeded; retry in {decision.retry_after:.0f}s",
+            detail={"retry_after": decision.retry_after, "limit": decision.limit},
+        )
+    agent = resolve_agent(body.agent or settings.PERSONAL_AGENT)
+    services = runtime.for_session(db, client.client_id)
+    result = services.router.handle(
+        GatewayRequest(
+            message=body.message,
+            client=client,
+            conversation_id=body.conversation_id,
+            user_ref=f"admin:{session.get('sub')}"[:120],
+            agent=agent,
+        )
+    )
+    return result.as_dict()

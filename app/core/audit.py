@@ -36,6 +36,7 @@ MEMORY_WRITTEN = "memory.written"
 MEMORY_DELETED = "memory.deleted"
 DOCUMENT_INGESTED = "document.ingested"
 DOCUMENT_DELETED = "document.deleted"
+KNOWLEDGE_PACK_LOADED = "knowledge.pack_loaded"
 ADMIN_LOGIN = "admin.login"
 ADMIN_ACTION = "admin.action"
 

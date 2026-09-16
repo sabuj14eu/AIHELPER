@@ -1,0 +1,150 @@
+{
+  "synced_on": "2026-09-16",
+  "repos_root": "/home/user",
+  "files": [
+    {
+      "domain": "platform",
+      "path": "platform/CLAUDE.md",
+      "from": "Sniper-System/CLAUDE.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "platform",
+      "path": "platform/README.md",
+      "from": "Sniper-System/README.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "platform",
+      "path": "platform/docs__OPEN_ITEMS.md",
+      "from": "Sniper-System/docs/OPEN_ITEMS.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "platform",
+      "path": "platform/docs__HANDOFF_PLATFORM_SESSION.md",
+      "from": "Sniper-System/docs/HANDOFF_PLATFORM_SESSION.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "platform",
+      "path": "platform/docs__V7_SELF_DEPENDENCE_PLAN.md",
+      "from": "Sniper-System/docs/V7_SELF_DEPENDENCE_PLAN.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/CLAUDE.md",
+      "from": "brother_sniper_v7/CLAUDE.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/docs__START_HERE.md",
+      "from": "brother_sniper_v7/docs/START_HERE.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/docs__OPEN_ITEMS.md",
+      "from": "brother_sniper_v7/docs/OPEN_ITEMS.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/docs__STRATEGY_INTELLIGENCE.md",
+      "from": "brother_sniper_v7/docs/STRATEGY_INTELLIGENCE.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/CLAUDE.md",
+      "from": "brother-brain-v2/CLAUDE.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/README.md",
+      "from": "brother-brain-v2/README.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/docs__OPEN_ITEMS.md",
+      "from": "brother-brain-v2/docs/OPEN_ITEMS.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/docs__decisions.md",
+      "from": "brother-brain-v2/docs/decisions.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/docs__PROTOCOL.md",
+      "from": "brother-brain-v2/docs/PROTOCOL.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "developer",
+      "path": "developer/CLAUDE.md",
+      "from": "brother-developer/CLAUDE.md",
+      "commit": "55aba5b"
+    },
+    {
+      "domain": "developer",
+      "path": "developer/README.md",
+      "from": "brother-developer/README.md",
+      "commit": "55aba5b"
+    },
+    {
+      "domain": "developer",
+      "path": "developer/docs__BROTHER_DEVELOPER.md",
+      "from": "brother-developer/docs/BROTHER_DEVELOPER.md",
+      "commit": "55aba5b"
+    },
+    {
+      "domain": "developer",
+      "path": "developer/docs__SESSION_PROTOCOL.md",
+      "from": "brother-developer/docs/SESSION_PROTOCOL.md",
+      "commit": "55aba5b"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/CLAUDE.md",
+      "from": "Accounting-/CLAUDE.md",
+      "commit": "1e3e897"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/README.md",
+      "from": "Accounting-/README.md",
+      "commit": "1e3e897"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/docs__OPEN_ITEMS.md",
+      "from": "Accounting-/docs/OPEN_ITEMS.md",
+      "commit": "1e3e897"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/docs__ARCHITECTURE.md",
+      "from": "Accounting-/docs/ARCHITECTURE.md",
+      "commit": "1e3e897"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/docs__POLAND_TAX_ENGINE.md",
+      "from": "Accounting-/docs/POLAND_TAX_ENGINE.md",
+      "commit": "1e3e897"
+    },
+    {
+      "domain": "accounting",
+      "path": "accounting/docs__CHANGELOG.md",
+      "from": "Accounting-/docs/CHANGELOG.md",
+      "commit": "1e3e897"
+    }
+  ]
+}

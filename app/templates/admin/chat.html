@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+{% block title %}Brother — AI Helper{% endblock %}
+{% block content %}
+<h1>Brother <span class="muted" style="font-weight:400;font-size:.8rem">talks as client <code>{{ client_id }}</code> · every answer walks the same ladder as the API</span></h1>
+
+{% if not client_exists %}
+<div class="keybox">
+  <strong>The personal client <code>{{ client_id }}</code> does not exist yet.</strong>
+  <p class="note" style="margin:.4rem 0 0">Create it and load the knowledge pack once:</p>
+  <pre style="margin:.4rem 0 0"><code>docker compose exec ai-helper python -m app.cli bootstrap-brother</code></pre>
+</div>
+{% elif knowledge.documents == 0 %}
+<div class="keybox">
+  <strong>The knowledge pack is not loaded.</strong> Brother will answer from the model alone and
+  say INSUFFICIENT_CONTEXT for anything about your systems. Load it with
+  <code>python -m app.cli load-knowledge</code>.
+</div>
+{% endif %}
+
+<div class="cards" style="margin-bottom:1rem">
+  <div class="card"><div class="label">Pack documents</div><div class="value">{{ knowledge.documents }}</div>
+    <div class="sub">{% for d, b in knowledge.by_domain.items() %}{{ d }} {{ b.documents }}{% if not loop.last %} · {% endif %}{% endfor %}</div></div>
+  <div class="card"><div class="label">Learned solutions</div><div class="value">{{ knowledge.solutions.PROMOTED }}</div>
+    <div class="sub">{{ knowledge.solutions.VALIDATED }} validated · {{ knowledge.solutions.CANDIDATE }} candidate</div></div>
+  <div class="card"><div class="label">Embedder</div>
+    <div class="value {% if embedder_semantic %}ok{% else %}warn{% endif %}" style="font-size:1rem">{{ 'semantic' if embedder_semantic else 'lexical fallback' }}</div>
+    <div class="sub">{% if not embedder_semantic %}paraphrases will miss — install nomic-embed-text{% else %}{{ embedder }}{% endif %}</div></div>
+  <div class="card"><div class="label">Local model</div>
+    <div class="value {% if local_available %}ok{% else %}bad{% endif %}" style="font-size:1rem">{{ 'available' if local_available else 'not running' }}</div>
+    <div class="sub">{% if not local_available %}answers will fail honestly until Ollama is up{% else %}{{ local_models|join(', ') }}{% endif %}</div></div>
+</div>
+
+<div class="panel" style="padding:.9rem 1rem">
+  <div class="filters">
+    <label>Agent
+      <select id="agent">
+        {% for a in agents %}<option value="{{ a.name }}" {% if a.name == default_agent %}selected{% endif %} title="{{ a.description }}">{{ a.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <span id="agent-desc" class="note" style="margin:0"></span>
+    <button type="button" id="new-conv" style="margin-left:auto">New conversation</button>
+  </div>
+
+  <div id="log" style="display:flex;flex-direction:column;gap:.7rem;min-height:160px;max-height:60vh;overflow:auto;padding:.4rem 0"></div>
+
+  <form id="ask" style="display:flex;gap:.5rem;margin-top:.8rem;align-items:flex-end">
+    <textarea id="message" rows="3" placeholder="Ask Brother… (Enter sends, Shift+Enter for a new line)"
+      style="flex:1;font:inherit;padding:.5rem .6rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);resize:vertical"></textarea>
+    <button type="submit" id="send">Send</button>
+  </form>
+  <p class="note" style="margin:.6rem 0 0">Each reply shows its route (tool · memory · local · paid), confidence, cost and the sources it used.
+  A reply marked <em>unverified</em> did not pass validation — treat it as a draft, not a fact.</p>
+</div>
+
+<script>
+(function () {
+  const agents = {{ agents_json|safe }};
+  const log = document.getElementById('log');
+  const form = document.getElementById('ask');
+  const input = document.getElementById('message');
+  const send = document.getElementById('send');
+  const agentSel = document.getElementById('agent');
+  const agentDesc = document.getElementById('agent-desc');
+  let conversationId = null;
+
+  function describe() {
+    const a = agents.find(x => x.name === agentSel.value);
+    agentDesc.textContent = a ? a.description : '';
+  }
+  agentSel.addEventListener('change', describe); describe();
+
+  document.getElementById('new-conv').addEventListener('click', () => {
+    conversationId = null; log.innerHTML = '';
+  });
+
+  function bubble(role, text, meta) {
+    const box = document.createElement('div');
+    box.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;max-width:92%;white-space:pre-wrap;' +
+      (role === 'user' ? 'align-self:flex-end;background:rgba(31,78,140,.08)' : 'align-self:flex-start;background:var(--bg)');
+    const who = document.createElement('div');
+    who.className = 'muted'; who.style.cssText = 'font-size:.72rem;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.05em';
+    who.textContent = role === 'user' ? 'you' : (meta && meta.agent ? meta.agent : 'brother');
+    box.appendChild(who);
+    const body = document.createElement('div'); body.textContent = text; box.appendChild(body);
+    if (meta) {
+      const m = document.createElement('div');
+      m.className = 'muted'; m.style.cssText = 'font-size:.74rem;margin-top:.4rem';
+      const bits = [];
+      bits.push('route ' + meta.route);
+      if (meta.confidence !== null && meta.confidence !== undefined) bits.push('confidence ' + meta.confidence.toFixed(2));
+      if (meta.cost_usd) bits.push('cost $' + meta.cost_usd.toFixed(4));
+      if (meta.memory_hit) bits.push('memory hit');
+      if (!meta.success) bits.push('UNVERIFIED');
+      if (meta.sources && meta.sources.length) bits.push('sources: ' + meta.sources.map(s => s.source + ':' + s.ref).join(', '));
+      m.textContent = bits.join(' · ');
+      box.appendChild(m);
+      if (meta.notes && meta.notes.length) {
+        const n = document.createElement('div');
+        n.className = 'muted'; n.style.cssText = 'font-size:.72rem;margin-top:.2rem';
+        n.textContent = meta.notes.join(' · ');
+        box.appendChild(n);
+      }
+    }
+    log.appendChild(box); log.scrollTop = log.scrollHeight;
+  }
+
+  async function ask(text) {
+    bubble('user', text);
+    send.disabled = true; input.disabled = true;
+    try {
+      const r = await fetch('/admin/chat/ask', {
+        method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: text, agent: agentSel.value, conversation_id: conversationId})
+      });
+      const data = await r.json();
+      if (!r.ok) { bubble('assistant', (data.error || 'request failed'), {route: 'error', success: false, notes: []}); return; }
+      conversationId = data.conversation_id || conversationId;
+      bubble('assistant', data.answer || '(no answer)', data);
+    } catch (e) {
+      bubble('assistant', 'network error: ' + e, {route: 'error', success: false, notes: []});
+    } finally {
+      send.disabled = false; input.disabled = false; input.focus();
+    }
+  }
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    ask(text);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+  });
+})();
+</script>
+{% endblock %}

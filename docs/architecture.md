@@ -229,9 +229,25 @@ framework that could bypass the Gateway would be a second, unaudited path to a
 paid provider.
 
 Four generic agents ship: `general`, `research`, `document`, `developer`. None
-of them knows anything about accounting, trading, delivery or bookings; those
-belong to the applications that connect later, and adding one is a new
+of them knows anything about any particular deployment. Adding one is a new
 `AgentSpec` with no Gateway change.
+
+Four Brother agents ship alongside them since 1.1.0: `brother`, `trading`,
+`architect`, `social`. They carry the owner's *way of working* (findings
+first, the evidence law, never infer from silence, advisory only) as a shared
+prompt fragment, and get *what the owner knows* from the knowledge pack at
+retrieval time — never from the prompt. See `docs/BROTHER.md`.
+
+## The knowledge pack (`app/knowledge/pack.py`, `knowledge/`)
+
+A directory of markdown files with a small header (title, domain, repo,
+sources, verified_on, classification). Loading a pack ingests each file
+through `DocumentIngestor` as a document of the personal client in the
+namespace named by its domain, so a pack document *is* a document: same
+chunking, same embedder, same index, same isolation, same audit row. The
+file's digest is kept in `Document.meta`, which makes a reload idempotent.
+Validated-solution blocks in the pack are seeded as CANDIDATE rows and pass
+through the promotion pipeline like any paid answer.
 
 ## What is deliberately not here
 

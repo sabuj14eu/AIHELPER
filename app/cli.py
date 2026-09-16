@@ -4,6 +4,10 @@
     python -m app.cli create-client acme --admin
     python -m app.cli health
     python -m app.cli expire
+
+    python -m app.cli bootstrap-brother          # create the personal client and load the pack
+    python -m app.cli load-knowledge             # (re)load the knowledge pack; idempotent
+    python -m app.cli knowledge-status           # what the assistant currently holds
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ import argparse
 import getpass
 import json
 import sys
+from pathlib import Path
 
 from app.core.audit import CLIENT_CREATED, record
 from app.core.config import get_settings
@@ -221,6 +226,142 @@ def cmd_calibrate(args) -> int:
     return 0
 
 
+# ------------------------------------------------------------------ Brother
+def _pack_root(args) -> Path:
+    return Path(args.path or get_settings().KNOWLEDGE_PACK_DIR)
+
+
+def _load_pack_for(client_id: str, root, *, prune: bool, seed: bool) -> dict:
+    """Load a pack for one client through the ordinary runtime. Shared by two commands."""
+    from app.knowledge.pack import KnowledgePackLoader, discover, seed_solutions
+    from app.learning.promotion import PromotionPipeline
+    from app.runtime import get_runtime
+
+    settings = get_settings()
+    runtime = get_runtime()
+    with session_scope() as session:
+        if session.get(Client, client_id) is None:
+            raise LookupError(client_id)
+        services = runtime.for_session(session, client_id)
+        loader = KnowledgePackLoader(session, client_id, ingestor=services.ingestor)
+        report = loader.load(root, prune=prune)
+        if seed:
+            pipeline = PromotionPipeline(
+                session,
+                client_id,
+                settings=settings,
+                local_provider=runtime.providers.local,
+                retriever=services.retriever,
+            )
+            report.solutions = seed_solutions(
+                session,
+                client_id,
+                discover(root),
+                pipeline=pipeline,
+                ttl_days=None,
+            )
+        return report.as_dict()
+
+
+def cmd_load_knowledge(args) -> int:
+    """Ingest the knowledge pack for a client. Re-running is a no-op for unchanged files."""
+    from app.knowledge.pack import PackError
+
+    create_all(get_engine())
+    client_id = args.client or get_settings().PERSONAL_CLIENT_ID
+    try:
+        report = _load_pack_for(
+            client_id, _pack_root(args), prune=args.prune, seed=not args.no_seed
+        )
+    except LookupError:
+        print(
+            f"client '{client_id}' does not exist — run: python -m app.cli bootstrap-brother",
+            file=sys.stderr,
+        )
+        return 2
+    except PackError as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(report, indent=2))
+    return 0 if not report["failed"] else 1
+
+
+def cmd_bootstrap_brother(args) -> int:
+    """Create the personal client (once), then load the pack and seed its solutions.
+
+    The client cannot escalate by default and its data ceiling is INTERNAL:
+    the pack describes the owner's own systems, and sending it to a paid
+    provider is a decision to make on purpose, with `--may-escalate`.
+    """
+    from app.knowledge.pack import PackError
+
+    create_all(get_engine())
+    settings = get_settings()
+    client_id = args.client or settings.PERSONAL_CLIENT_ID
+    issued = None
+    with session_scope() as session:
+        if session.get(Client, client_id) is None:
+            key = generate_api_key()
+            session.add(
+                Client(
+                    client_id=client_id,
+                    name=args.name or "Brother",
+                    api_key_id=key.key_id,
+                    api_key_hash=key.hashed,
+                    is_admin=False,
+                    may_escalate=args.may_escalate,
+                    default_classification=Classification.INTERNAL.value,
+                    max_external_classification=Classification.INTERNAL.value,
+                    daily_budget_usd=args.daily_budget,
+                    meta={"role": "personal-assistant"},
+                )
+            )
+            record(
+                session,
+                actor="cli",
+                actor_type="operator",
+                action=CLIENT_CREATED,
+                resource_type="client",
+                resource_id=client_id,
+                detail={"is_admin": False, "role": "personal-assistant"},
+            )
+            issued = key.plaintext
+    root = _pack_root(args)
+    try:
+        report = _load_pack_for(client_id, root, prune=False, seed=not args.no_seed)
+    except PackError as exc:
+        print(f"client ready, but the pack was refused: {exc}", file=sys.stderr)
+        return 2
+    out = {"client_id": client_id, "created": issued is not None, "pack": report}
+    if issued is not None:
+        out["api_key"] = issued
+    print(json.dumps(out, indent=2))
+    if issued is not None:
+        print(
+            "\nThis key is shown once and is stored only as a digest. Save it now.\n"
+            "The dashboard chat at /admin/chat uses the admin session, not this key.",
+            file=sys.stderr,
+        )
+    return 0 if not report["failed"] else 1
+
+
+def cmd_knowledge_status(args) -> int:
+    from app.knowledge.pack import KnowledgePackLoader
+    from app.runtime import get_runtime
+
+    create_all(get_engine())
+    client_id = args.client or get_settings().PERSONAL_CLIENT_ID
+    runtime = get_runtime()
+    with session_scope() as session:
+        if session.get(Client, client_id) is None:
+            print(f"client '{client_id}' does not exist", file=sys.stderr)
+            return 2
+        services = runtime.for_session(session, client_id)
+        loader = KnowledgePackLoader(session, client_id, ingestor=services.ingestor)
+        print(json.dumps(loader.status(_pack_root(args)), indent=2))
+    return 0
+
+
 def cmd_expire(_args) -> int:
     """Age out memory items and solutions whose time-to-live has elapsed."""
     from app.learning.solution_store import SolutionStore
@@ -263,6 +404,34 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("expire", help="expire memory and solutions past their TTL").set_defaults(
         func=cmd_expire
     )
+
+    def pack_args(parser):
+        parser.add_argument("--client", help="client id (default: PERSONAL_CLIENT_ID)")
+        parser.add_argument("--path", help="pack directory (default: KNOWLEDGE_PACK_DIR)")
+        parser.add_argument(
+            "--no-seed", action="store_true", help="do not seed validated solutions"
+        )
+
+    bootstrap = sub.add_parser(
+        "bootstrap-brother",
+        help="create the personal assistant's client and load its knowledge pack",
+    )
+    pack_args(bootstrap)
+    bootstrap.add_argument("--name")
+    bootstrap.add_argument("--may-escalate", action="store_true", default=False)
+    bootstrap.add_argument("--daily-budget", type=float, default=None)
+    bootstrap.set_defaults(func=cmd_bootstrap_brother)
+
+    load = sub.add_parser("load-knowledge", help="(re)load the knowledge pack; idempotent")
+    pack_args(load)
+    load.add_argument(
+        "--prune", action="store_true", help="also remove documents whose pack file is gone"
+    )
+    load.set_defaults(func=cmd_load_knowledge)
+
+    status = sub.add_parser("knowledge-status", help="what the assistant currently holds")
+    pack_args(status)
+    status.set_defaults(func=cmd_knowledge_status)
 
     args = parser.parse_args(argv)
     return args.func(args)

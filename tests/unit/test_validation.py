@@ -58,6 +58,21 @@ class TestFactuality:
         report = factuality_check("The base is 9999 PLN.", CONTEXT, strict_numbers=True)
         assert report.contradiction is True and "9999" in report.unsupported_numbers
 
+    def test_a_faithful_quote_of_a_mixed_polarity_source_is_not_a_contradiction(self):
+        """A source can say both "X is invalid" and "X is not neutral". An answer
+        that quotes either sentence agrees with the source; only a phrase the
+        context asserts solely with the opposite polarity is a conflict."""
+        source = (
+            "A stale bias is invalid and unused. A stale bias is not neutral. "
+            "Missing news is UNKNOWN, not low risk."
+        )
+        faithful = factuality_check("A stale bias is invalid and unused, not neutral.", [source])
+        assert faithful.contradiction is False, faithful.polarity_conflicts
+        quoted = factuality_check(source, [source])
+        assert quoted.contradiction is False, quoted.polarity_conflicts
+        flipped = factuality_check("A stale bias is neutral and used.", [source])
+        assert flipped.contradiction is True
+
     def test_a_polarity_flip_is_a_contradiction(self):
         context = ["The health contribution is not indivisible for partial months."]
         report = factuality_check(

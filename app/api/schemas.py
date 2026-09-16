@@ -21,7 +21,13 @@ class ChatRequest(BaseModel):
         default=None,
         description="Override the classifier: general, document_qa, summarization, …",
     )
-    agent: str | None = Field(default=None, description="general, research, document, developer")
+    agent: str | None = Field(
+        default=None,
+        description=(
+            "general, research, document, developer, or the Brother agents: "
+            "brother, trading, architect, social"
+        ),
+    )
     conversation_id: str | None = None
     document_ids: list[str] = Field(default_factory=list, max_length=50)
     namespace: str | None = Field(default=None, max_length=120)

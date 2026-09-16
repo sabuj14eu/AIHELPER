@@ -63,6 +63,26 @@ should not cost money again.
   recommends. It has no tool that performs an outside action, and an answer
   claiming otherwise fails validation.
 
+## Brother — the personal assistant
+
+Since 1.1.0 the gateway ships with a **knowledge pack** and four **Brother
+agents** that turn it into the owner's own assistant: it knows the Brother
+Sniper trading system (the platform, the v18 brain, the v7 bot, the Pine
+sensor), the Brother Developer agent and the Polish accounting application,
+and it works by their laws — findings first, the evidence law, never infer
+from silence, stale is invalid not neutral, advisory only.
+
+```bash
+docker compose exec ai-helper python -m app.cli bootstrap-brother   # once
+# then sign in at /admin and open /admin/chat
+```
+
+The pack is data (`knowledge/`), loaded through the ordinary document
+pipeline; nothing is imported from any other repository. Every answer still
+walks the same ladder and shows its route, confidence, cost and sources.
+`docs/BROTHER.md` has the design, the agents, and how to keep the pack
+current.
+
 ## Requirements
 
 - Docker and Docker Compose v2
@@ -145,7 +165,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest tests/test_acceptance.py -s   # the acceptance scenario
 ```
 
-435 tests at the time of writing. They run against a real database, the real
+469 tests at the time of writing. They run against a real database, the real
 gateway, the real validation pipeline and the real cost tracker; only the two
 model providers are fakes.
 `tests/gateway/test_critical_regressions.py` holds the ten guarantees from the
@@ -162,6 +182,7 @@ matters most: a question is paid for once and answered locally thereafter.
 | [`docs/deployment.md`](docs/deployment.md) | Production install, TLS, resources, upgrades |
 | [`docs/operations.md`](docs/operations.md) | Backups, models, logs, troubleshooting, tuning |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Releases and migration notes |
+| [`docs/BROTHER.md`](docs/BROTHER.md) | The personal assistant layer: the knowledge pack, the Brother agents, the dashboard chat, refresh procedure |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | What this does not do, and what it costs you |
 | [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) | Independent verification, findings, and the production verdict |
 | [`docs/HANDOVER_TO_FABLE.md`](docs/HANDOVER_TO_FABLE.md) | Brief for the next auditor: state, the one blocker, and what deserves a second opinion |
