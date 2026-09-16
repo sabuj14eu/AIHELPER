@@ -53,7 +53,8 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
   specialist from the message.
 - `app/validation/states.py` the four answer states.
 - `app/knowledge/pack.py` pack loader, seeding, `secret_probe`.
-- `app/learning/` capture, promotion (the gate), `teaching.py`.
+- `app/learning/` capture, promotion (the gate), `teaching.py`,
+  `origin.py` (seeded / taught / self / paid).
 - `app/api/routes/admin.py` dashboard incl. `/admin/chat` (queued job +
   poll), `/admin/chat/teach`, `/admin/chat/ask-now`.
 - `app/cli.py` bootstrap-brother, load-knowledge, knowledge-status, ask,
@@ -61,7 +62,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 565 tests; conftest disables the live connectors so no test
+- `tests/` 585 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -129,6 +130,39 @@ failures, and the second outlived the first. These are now laws.
   agent's `default_task_type` was passed as `declared` and disabled
   per-message classification entirely. Anything that short-circuits a
   classifier deserves the same suspicion.
+
+## WHAT THE BUDGET AND THE LEARNING WORK CHANGED (2026-09-16, later)
+- **A budget is three costs, not one.** Model load, prompt evaluation,
+  generation. Measured on the box: load 31 s, prompt eval **19.8 tok/s**,
+  generation 5.35 tok/s. A real request spends 86-117 s *reading the prompt*
+  before it writes anything, which is why the first repaired answer arrived
+  as the two words "1. The". `LOCAL_CONTEXT_CHARS` is the biggest lever:
+  every 1,000 characters of evidence costs ~13 s before the model speaks.
+- **Never extrapolate a rate from a sample that small.** The first
+  prompt-eval figure came from a 38-token prompt with a 0.18 s duration and
+  was wrong by 10x. The Evidence Law applies to our own measurements, not
+  only to trading results. Measure at the size you actually run at.
+- **"Timed out" must say which timeout.** Ollama sends no frames while it
+  loads and reads; the first frame is the first *generated* token. "No text
+  after 180 s" covered both "generation never started" and "the model
+  produced nothing", and those have opposite fixes.
+- **A partial answer is worth more than none**, and must never be shown as
+  complete. The client streams, keeps what was generated, and marks it
+  `finish_reason="timeout"`, which the validator reads as truncation.
+- **Authoring is not learning.** Status says how far a solution got; origin
+  (`app/learning/origin.py`) says where it started. 229 PROMOTED pack seeds
+  are 229 things a session wrote, and presenting them as learning made the
+  system look like it improved with use. Show every origin, including the
+  zeros -- `self: 0` was the number that needed saying.
+- **A local answer passes its own reproduction gate by construction.** So
+  Brother's own verified answers are kept as CANDIDATE and never promoted
+  automatically; the owner confirms. Anything else is a rubber stamp that
+  serves its own mistakes back for `SOLUTION_TTL_DAYS`.
+- **The gates check usability, not truth, so what they cannot catch is
+  checked before the write.** Teaching refuses a fragment, refuses Brother's
+  own "I don't have enough information" (a gap to fill, not to teach away)
+  and refuses a degenerate loop. It never judges whether an answer is right:
+  that is the owner's call and the point of the form.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

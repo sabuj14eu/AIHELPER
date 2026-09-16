@@ -59,8 +59,10 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   budget shipped in 1.5.0, so a timeout no longer discards the answer. What
   remains of it is model routing by turn shape (the 3B for small talk and
   clarification) and one cheap local retry on a tighter prompt before giving
-  up. **Phase 6** (thread summarisation and capturing real outcomes,
-  F9/F11/F12). **Phase 7** (paid teacher) is design only and must not be built
+  up. **Phase 6** is partly done: origin
+  (seeded/taught/self/paid) and self-capture of verified local answers shipped
+  in 1.7.0. What remains of it is thread summarisation instead of a six-turn
+  window (F12) and a clarifying-question state (F11). **Phase 7** (paid teacher) is design only and must not be built
   without an explicit decision. None of these has been run on the box. OPEN.
 
 ## P2 — quality and robustness
@@ -119,6 +121,16 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   done. The box now has real models, so this is runnable. Same as AIH-4. OPEN.
 
 ## Done this session (proof)
+
+- Budget sized from a measurement at realistic prompt size; streaming keeps partial work → `tests/integration/test_failures.py::TestOllamaClientFailures`, commits e90082f, 89c18a7, b6e30a8.
+- Seeded vs taught vs self vs paid, and Brother keeps its own verified answers → `tests/unit/test_learning_origin.py`, commit 196e79e.
+- Teach refuses a fragment, a shrug or a loop → `TestTeachRefusesWhatIsNotAnAnswer`, same commit.
+
+- **AIH-14 Confirming a self-captured candidate has no one-click path.**
+  `_keep_own_answer` writes CANDIDATE rows on purpose and the owner is meant
+  to confirm them, but the dashboard's solutions page has no confirm button
+  yet — it must be done through the API or the CLI. Small, and the feature is
+  half-useful without it. Opened 2026-09-16. OPEN.
 
 - Four answer states; "lacks evidence" is no longer scored as a refusal → `tests/integration/test_failures.py::TestTheFourStates`, `tests/unit/test_validation.py::TestOutputChecks::test_lacking_evidence_is_not_a_refusal`, commit d6a91f5.
 - The system prompt stops ordering a refusal it elsewhere forbids → `TestBrotherAgents::test_the_brother_agents_do_not_carry_the_unconditional_refusal_order`, commit ce1fa76.
