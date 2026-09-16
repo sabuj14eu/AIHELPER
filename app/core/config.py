@@ -50,7 +50,16 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "nomic-embed-text"
     EMBEDDING_DIM: int = 768
     LOCAL_TIMEOUT_SECONDS: float = 180.0
-    LOCAL_MAX_TOKENS: int = 1024
+    # Measured on the production box 2026-09-16: qwen2.5:7b generates at
+    # 5.35 tok/s, and a real Brother request carries ~2,320 input tokens
+    # (~11 s of prompt eval) before the first output token. Against
+    # LOCAL_TIMEOUT_SECONDS=180 that leaves room for ~900 tokens warm and
+    # ~740 cold. 1024 was above both ceilings, so the app was permitting an
+    # answer length this hardware cannot deliver in time. 600 fits in every
+    # case with margin. This is not a threshold moved as a side effect: it is
+    # a limit set to what the machine can actually produce, and the arithmetic
+    # is in docs/CHANGELOG.md 1.5.0.
+    LOCAL_MAX_TOKENS: int = 600
     # Evidence budget for the LOCAL prompt. Prompt evaluation dominates a CPU
     # model's latency, so this is the single biggest speed knob: 4500 chars
     # is about four chunks plus a live reading. Paid providers keep 8000.

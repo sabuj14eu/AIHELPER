@@ -3,6 +3,64 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.5.0 — 2026-09-16
+
+P0 resolved. The local model's budget now matches what the hardware measured,
+and a run that overruns keeps its work.
+
+**Migration:** none in the database. **On the box, `.env` overrides the new
+default** — change `LOCAL_MAX_TOKENS=1024` to `600` there or the old ceiling
+stays in force.
+
+### The measurement this is built on
+
+Taken on the production box (Contabo, 6 cores, 11 GiB, no swap), 2026-09-16:
+
+| | |
+|---|---|
+| qwen2.5:7b generation | **5.35 tok/s** |
+| prompt evaluation (warm) | **208.6 tok/s** |
+| cold model load | **31.0 s** |
+| a real Brother request | **~2,320 input tokens → 11.1 s** before the first output token |
+
+Against `LOCAL_TIMEOUT_SECONDS=180` that allows **~900 output tokens warm and
+~740 cold**. `LOCAL_MAX_TOKENS` was 1024 — above both. The application was
+permitting an answer length this machine cannot produce in time, and because
+the call was not streamed, crossing the line discarded everything.
+
+### Fixed
+
+- **A run that overruns its budget no longer loses the answer.**
+  `OllamaClient.chat` streams and accumulates instead of issuing one blocking
+  POST. At 5.35 tok/s an answer 900 tokens along when the clock ran out was
+  lost exactly as completely as one that never started; now it comes back with
+  `finish_reason="timeout"`, which the validator reads as truncation and the
+  reader sees labelled as unfinished. **A deadline that arrives with nothing
+  generated is still a failure** and still routes as one.
+
+  The deadline is also enforced more honestly than before. httpx's timeout is
+  per-read, so a slow-but-steady stream could have run for an hour without
+  tripping it; the budget is now a wall-clock deadline checked between chunks.
+
+- **`LOCAL_MAX_TOKENS` 1024 → 600.** Not a threshold moved as a side effect —
+  a ceiling set to what the box can deliver, with the arithmetic above behind
+  it. 600 tokens is 123 s warm and 154 s cold, inside 180 s in both cases.
+
+- **`KEEP_ALIVE` 60m → 24h.** Reloading qwen2.5:7b costs 31 s and it was
+  landing *inside* a request's own budget every time the model had been idle
+  an hour. The reload is not the model being slow, it is the model being
+  absent, and an assistant asked something twice a day should never pay it.
+
+- **`finish_reason="timeout"` counts as truncation** in `check_output`, so a
+  partial answer cannot be scored as a complete one.
+
+### Note on what was NOT done
+
+`LOCAL_TIMEOUT_SECONDS` stays at 180. Raising it would let a 1024-token answer
+finish, but a reply that takes three and a half minutes is a worse assistant,
+and on the synchronous routes it collides with nginx's own
+`proxy_read_timeout 180s`.
+
 ## 1.4.0 — 2026-09-16
 
 Phase 3: something finally sends a message to a specialist.

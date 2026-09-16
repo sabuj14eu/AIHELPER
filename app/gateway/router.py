@@ -770,6 +770,11 @@ class GatewayRouter:
                     "the model reported that the evidence for this is not available — "
                     "that is an answer, not a fault"
                 )
+            elif (local_result.response.finish_reason or "") == "timeout":
+                base.notes.append(
+                    "the local model ran out of time part-way through — this is "
+                    "what it had written, and it is unfinished"
+                )
             else:
                 base.notes.append(
                     "returned the local answer, which did not pass validation — "

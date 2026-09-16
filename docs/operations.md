@@ -126,7 +126,33 @@ curl -s localhost:8000/api/v1/costs -H "Authorization: Bearer $ADMIN_KEY" \
 | `LOW_CONFIDENCE` | the local model nearly manages | try a stronger local model before touching the threshold |
 | `VALIDATION_FAILURE` | the local model produces unusable output | a bigger model, or a `PAID_TASK_DENYLIST` entry for that task type |
 | `LOCAL_MODEL_UNAVAILABLE` | Ollama is down or has no model | fix that; you are paying for an outage |
-| `LOCAL_TIMEOUT` | the model is too slow | raise `LOCAL_TIMEOUT_SECONDS`, or use a smaller model |
+| `LOCAL_TIMEOUT` | the model is too slow | **measure before changing anything** — see below |
+
+### When the local model runs out of time
+
+Raising `LOCAL_TIMEOUT_SECONDS` is almost never the right first move: it makes
+the assistant slower rather than better, and on the synchronous routes it
+collides with the reverse proxy's own `proxy_read_timeout`. The budget has
+three parts and only a measurement says which one is spending it:
+
+```
+docker compose exec -T ai-helper python -m app.cli ask "In one sentence, what is the v7 bot?"
+```
+
+- **Model load.** Ollama unloads an idle model; reloading a 7B on CPU was
+  measured at 31 s. `KEEP_ALIVE` in `app/local_ai/ollama_client.py` is 24h so
+  this stops landing inside a request's budget. Check with
+  `docker compose exec ollama ollama ps` — an empty list means the next
+  request pays it.
+- **Prompt evaluation.** `LOCAL_CONTEXT_CHARS` plus the agent's system prompt.
+  ~2,320 tokens at 208 tok/s is ~11 s before the first output token.
+- **Generation.** `LOCAL_MAX_TOKENS` ÷ the measured tok/s. This is the part
+  that overruns, and the fix is to set the ceiling to what the machine can
+  deliver, not to widen the clock.
+
+A run that overruns is no longer lost: the client streams and returns what it
+generated with `finish_reason="timeout"`, which the validator reads as
+truncation and the reader sees labelled as unfinished.
 | `TASK_TOO_COMPLEX` | genuinely beyond the local model | this is what the paid provider is for |
 
 Lowering `CONFIDENCE_THRESHOLD` reduces spend by accepting more local answers,

@@ -161,7 +161,10 @@ def check_output(
         result.too_short = True
         result.failures.append("too_short")
 
-    if finish_reason in ("length", "max_tokens"):
+    # "timeout" is the local client handing back what it had when the wall
+    # clock ran out. It is a real partial answer and it is kept -- but it is
+    # incomplete, and incomplete is exactly what `truncated` means.
+    if finish_reason in ("length", "max_tokens", "timeout"):
         result.truncated = True
         result.failures.append("truncated")
 

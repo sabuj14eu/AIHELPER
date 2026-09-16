@@ -8,6 +8,8 @@ never quietly spends money it was not allowed to spend.
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import pytest
 from sqlalchemy import select
@@ -68,6 +70,84 @@ class TestOllamaClientFailures:
 
         with pytest.raises(ProviderUnavailableError):
             self._client(handler).chat("m", [{"role": "user", "content": "hi"}])
+
+    def _stream(self, chunks: list[dict], *, delay: float = 0.0):
+        """A handler that answers /api/chat the way Ollama does: NDJSON frames.
+
+        With ``delay`` the frames are yielded lazily, one every ``delay``
+        seconds, so the client really does read a slow stream. A MockTransport
+        that returns the whole body at once cannot exercise a wall-clock
+        deadline -- the loop finishes before the clock moves.
+        """
+        import time as _t
+
+        def handler(_request):
+            def frames():
+                for chunk in chunks:
+                    if delay:
+                        _t.sleep(delay)
+                    yield (json.dumps(chunk) + "\n").encode()
+
+            return httpx.Response(200, content=frames())
+
+        return handler
+
+    def test_a_completed_stream_is_reassembled_into_one_answer(self):
+        chunks = [
+            {"message": {"content": "Paris"}, "done": False},
+            {"message": {"content": " is the"}, "done": False},
+            {"message": {"content": " capital."}, "done": True, "done_reason": "stop",
+             "model": "m", "prompt_eval_count": 12, "eval_count": 5},
+        ]
+        result = self._client(self._stream(chunks)).chat("m", [{"role": "user", "content": "hi"}])
+        assert result["text"] == "Paris is the capital."
+        assert result["finish_reason"] == "stop"
+        assert result["input_tokens"] == 12 and result["output_tokens"] == 5
+
+    def test_a_deadline_keeps_what_was_generated_instead_of_throwing_it_away(self):
+        """The defect this whole change exists for.
+
+        On the production box qwen generates at 5.35 tok/s. The blocking call
+        meant an answer 900 tokens along when the clock ran out was lost
+        exactly as completely as one that never started.
+        """
+        chunks = [{"message": {"content": f"word{i} "}, "done": False} for i in range(200)]
+        client = OllamaClient(
+            "http://ollama",
+            timeout=0.3,
+            client=httpx.Client(
+                transport=httpx.MockTransport(self._stream(chunks, delay=0.01)),
+                base_url="http://ollama",
+            ),
+        )
+        result = client.chat("m", [{"role": "user", "content": "hi"}])
+        assert result["text"].startswith("word0"), "the work done before the deadline is kept"
+        assert result["finish_reason"] == "timeout"
+
+    def test_a_deadline_with_nothing_generated_is_still_a_failure(self):
+        """There is no partial answer to keep, so the router must still route on it."""
+        client = OllamaClient(
+            "http://ollama",
+            timeout=0.3,
+            client=httpx.Client(
+                transport=httpx.MockTransport(self._stream([{"done": False}] * 200, delay=0.01)),
+                base_url="http://ollama",
+            ),
+        )
+        with pytest.raises(ProviderTimeoutError):
+            client.chat("m", [{"role": "user", "content": "hi"}])
+
+    def test_an_error_frame_mid_stream_is_reported(self):
+        chunks = [{"message": {"content": "partial"}, "done": False}, {"error": "out of memory"}]
+        with pytest.raises(ProviderUnavailableError, match="reported an error"):
+            self._client(self._stream(chunks)).chat("m", [{"role": "user", "content": "hi"}])
+
+    def test_the_model_is_held_in_memory_long_enough_to_matter(self):
+        """Loading qwen2.5:7b was measured at 31.0 s, and it landed inside the
+        request's own budget every time the model had been idle."""
+        from app.local_ai.ollama_client import KEEP_ALIVE
+
+        assert KEEP_ALIVE == "24h"
 
     def test_a_non_json_body_is_reported(self):
         def handler(_request):
