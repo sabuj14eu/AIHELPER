@@ -95,7 +95,10 @@ class TestFactuality:
         quoted = factuality_check(source, [source])
         assert quoted.contradiction is False, quoted.polarity_conflicts
         flipped = factuality_check("A stale bias is neutral and used.", [source])
-        assert flipped.contradiction is True
+        assert flipped.polarity_conflicts, "the flip is still seen"
+        assert flipped.contradiction is False, (
+            "seen, but not a veto -- see test_a_polarity_flip_is_a_signal_not_a_veto"
+        )
 
     def test_the_insufficient_marker_is_caught_with_a_space_or_lower_case(self):
         from app.validation import validate_answer
@@ -105,10 +108,39 @@ class TestFactuality:
             report = validate_answer(text, question="anything?", task_type="general")
             assert not report.passed and "model_declared_insufficient_context" in report.vetoes, text
 
-    def test_a_polarity_flip_is_a_contradiction(self):
+    def test_a_polarity_flip_is_a_signal_not_a_veto(self):
+        """It used to veto. On 2026-09-16 it failed the first complete plan
+        answer the system produced: the pack says "MISSING NEWS is not low
+        risk", the answer said "news risk is LOW" about a reading fetched
+        seconds earlier, and the shared words low/news/risk were enough. The
+        two sentences have different subjects and both were true.
+
+        A bag of shared words cannot see a subject, so it costs confidence and
+        says what it saw. Objective findings veto; inferences do not.
+        """
         context = ["The health contribution is not indivisible for partial months."]
         report = factuality_check(
             "The health contribution is indivisible for partial months.", context
+        )
+        assert report.polarity_conflicts, "still seen"
+        assert report.contradiction is False, "no longer a veto"
+        assert report.grounding <= 0.35, "and it costs confidence, heavily"
+        assert "cannot tell two subjects apart" in report.findings[0]
+
+    def test_the_real_false_positive_from_the_box(self):
+        """The exact pair that failed on 2026-09-16, kept as a regression."""
+        report = factuality_check(
+            "News risk is LOW, with the next high-impact event in 11h 12m.",
+            ["MISSING NEWS is not low risk, it is UNKNOWN. UNKNOWN is never LOW."],
+            question="Gold now 4265 what is trading plan. today fomc",
+        )
+        assert report.contradiction is False
+
+    def test_a_number_absent_from_the_source_is_still_a_veto(self):
+        """Objective, so it may veto. That is the line."""
+        report = factuality_check(
+            "The ZUS base is 9999 PLN.", ["The 2026 ZUS base is 5203.80 PLN."],
+            strict_numbers=True,
         )
         assert report.contradiction is True
 

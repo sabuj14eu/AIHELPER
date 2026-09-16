@@ -78,8 +78,13 @@ class Settings(BaseSettings):
     # The single biggest lever on latency, and it was the one nobody had
     # measured. At 19.8 tok/s every 1,000 characters of evidence costs ~13 s
     # before the model says anything. 4,500 put the prompt at 117 s on its own.
-    # 2,000 still carries two or three good chunks and costs ~26 s of that.
-    LOCAL_CONTEXT_CHARS: int = 2000
+    # Set to 2,000 when the clock was the emergency. The first complete answer
+    # then took 210 s of a 300 s budget and was visibly thin -- it said gold's
+    # session preference was "not specified" when the pack says Asia, and it
+    # omitted the journal evidence entirely. Both were plausibly cut here. At
+    # 19.8 tok/s another 1,000 characters costs ~13 s, which the 90 s of
+    # headroom affords. Evidence the model never sees cannot help it.
+    LOCAL_CONTEXT_CHARS: int = 3000
 
     # ----------------------------------------------------- paid providers
     # Disabled by default. This is a hard requirement, not a preference.

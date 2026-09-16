@@ -153,10 +153,24 @@ def check(
                 opposing = shared
         if opposing is not None and not agreeing:
             report.polarity_conflicts.append(" ".join(sorted(opposing)[:4]))
-            report.contradiction = True
     if report.polarity_conflicts:
+        # A SIGNAL, NOT A VERDICT. This used to set `contradiction`, which is a
+        # veto, and on 2026-09-16 it failed the first complete plan answer the
+        # system ever produced. The pack says "MISSING NEWS is not low risk, it
+        # is UNKNOWN"; the answer said "news risk is LOW" about a reading
+        # fetched seconds earlier. Shared words: low, news, risk. One sentence
+        # negated, one not -- so the check called it a contradiction, when the
+        # two sentences are about different subjects and both are true.
+        #
+        # A bag of shared content words cannot see the subject of a sentence,
+        # and no threshold fixes that: it is the wrong kind of evidence for the
+        # claim. So polarity now costs confidence, heavily, and names what it
+        # saw. A NUMERIC contradiction stays a veto -- "this figure is not in
+        # the source" is objective, and objective findings may veto.
         report.findings.append(
-            "answer and context disagree in polarity on: "
+            "answer and context may disagree in polarity on: "
             + "; ".join(report.polarity_conflicts[:3])
+            + " (word-overlap heuristic; it cannot tell two subjects apart)"
         )
+        report.grounding = min(report.grounding, 0.35)
     return report

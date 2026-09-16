@@ -3,6 +3,46 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.8.2 — 2026-09-16
+
+**Migration:** none.
+
+### Fixed — the polarity check was the wrong kind of evidence for a veto
+
+The box gave the diagnosis 1.8.1 refused to guess at:
+
+```
+polarity : ['low market news risk']
+```
+
+The pack says *"MISSING NEWS ≠ low risk — it is UNKNOWN"*. The answer said
+*"Market news risk is LOW"* about a reading fetched seconds earlier. Shared
+content words: low, market, news, risk. One sentence negated, one not — so the
+check called it a contradiction. **The two sentences have different subjects
+and both are true.** A bag of shared words cannot see a subject, and no
+threshold fixes that: it is the wrong kind of evidence for the claim.
+
+Polarity conflict is now a **signal**, not a veto: it caps grounding at 0.35,
+names the phrases, and says in the finding that it cannot tell two subjects
+apart. A **numeric** contradiction — a figure absent from the source — stays a
+veto, because that one is objective. Objective findings may veto; inferences
+may not.
+
+Step 5 (`conflicts.py`) still uses polarity, deliberately: there the
+consequence is "put this in front of the owner", and a signal may raise a flag
+even where it may not pass a sentence.
+
+Regression: `test_the_real_false_positive_from_the_box` keeps the exact pair.
+
+### Changed
+
+- **`LOCAL_CONTEXT_CHARS` 2000 → 3000.** 2000 was set when the clock was the
+  emergency. The first complete answer then took 210 s of a 300 s budget and
+  was visibly thin — it reported gold's session preference as "not specified"
+  when the pack says Asia, and omitted the journal evidence. At 19.8 tok/s
+  another 1,000 characters costs ~13 s, which the headroom affords. Evidence
+  the model never sees cannot help it.
+
 ## 1.8.1 — 2026-09-16
 
 **Migration:** none. Deploy this before asking anything else.

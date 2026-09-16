@@ -115,7 +115,13 @@ def check_against_known(
             continue
         seen.add(solution.id)
         report = factuality_check(answer, [solution.answer])
-        if not report.contradiction:
+        # `contradiction` is the objective finding (a figure absent from the
+        # source). `polarity_conflicts` is the heuristic one, and since 1.8.2
+        # it no longer vetoes an answer -- it was wrong too often for that.
+        # It is still the best signal available HERE, because the consequence
+        # here is "put this in front of the owner", not "throw the answer
+        # away". A signal may raise a flag; it may not pass a sentence.
+        if not (report.contradiction or report.polarity_conflicts):
             continue
         detail = report.findings[0] if report.findings else "the two answers disagree"
         check.conflicts.append(

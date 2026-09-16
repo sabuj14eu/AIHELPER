@@ -63,7 +63,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 596 tests; conftest disables the live connectors so no test
+- `tests/` 598 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -184,6 +184,14 @@ failures, and the second outlived the first. These are now laws.
   shared words and a negation, and while it sat in that set it deleted the
   first complete plan answer the system ever produced. Suppression is for
   things that are certainly wrong, not things that are probably wrong.
+
+- **Objective findings may veto; inferences may not.** A figure absent from
+  the source is objective. A polarity clash over shared content words is an
+  inference — it cannot see the subject of a sentence, so "MISSING NEWS is not
+  low risk" reads as contradicting "news risk is LOW" when both are true. It
+  costs confidence and names itself; it does not fail an answer. The same
+  signal may still raise a review flag in `conflicts.py`, because a flag is
+  not a sentence.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the
