@@ -165,6 +165,41 @@ Read `docs/OPEN_ITEMS.md` AIH-13 for Phases 4-7. The audit report itself is
 the artifact linked in that conversation; its findings are numbered F1-F12 and
 the open items reference them.
 
+## 6d. P0 settled by measurement (2026-09-16, later still)
+
+The owner ran the read-only probes. **Nothing on the box was broken.** Ollama
+up 7 days, qwen2.5:7b installed, database, Qdrant, embedder and n8n all OK,
+paid providers DISABLED as intended. The 502 was the boot window and is gone
+(`/admin/chat` returns 401, which is nginx working); `proxy_pass` is a fixed
+loopback target, so there was never a stale-upstream problem.
+
+The numbers:
+
+```
+qwen2.5:7b generation      5.35 tok/s
+prompt evaluation (warm) 208.6 tok/s
+cold model load             31.0 s
+a real Brother request   ~2,320 input tokens -> 11.1 s before token one
+```
+
+`LOCAL_TIMEOUT_SECONDS=180` therefore allows ~900 output tokens warm, ~740
+cold. `LOCAL_MAX_TOKENS` was **1024** — above both. The application was
+permitting an answer length the hardware cannot produce in time, and the
+blocking call threw the work away at the deadline. That is the whole failure.
+
+Shipped as 1.5.0 (`e90082f`): stream and keep partial work, ceiling 600,
+`KEEP_ALIVE` 24h. `LOCAL_TIMEOUT_SECONDS` deliberately unchanged — raising it
+makes the assistant slower, not better, and collides with nginx's 180 s on the
+synchronous routes.
+
+**The trap for whoever deploys this:** the box's `.env` carries
+`LOCAL_MAX_TOKENS=1024` explicitly, which overrides the new default. Edit that
+line or the fix does nothing.
+
+Lesson worth keeping: *a budget is three costs, not one* — model load, prompt
+evaluation, generation — and only a measurement says which one is spending it.
+"Raise the timeout" would have hidden all three.
+
 ## 7. Commands for Shyam, in order
 
 Each block is one line at a time. Run them on the box, in

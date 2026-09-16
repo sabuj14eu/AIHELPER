@@ -12,39 +12,33 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   status" answers "not configured". Needs a USER key from the platform's
   `/api-access` page, then `docker compose restart ai-helper`. Owner action.
   Opened 2026-09-16. OPEN.
-- **AIH-2 The plan answer under qwen2.5:7b failed to arrive at all.** The
-  observation has now happened, and it was not the expected refusal. Asked
-  "Gold now 4265 what is trading plan. today fomc", the chat returned an
-  empty bubble:
+- **AIH-2 Cause found, measured and fixed in code; not yet verified on the box.**
+  The plan question returned nothing because the local call raised. The P0
+  diagnosis (2026-09-16, read-only, owner ran the probes) settled why, and it
+  was not a broken component — every one was healthy:
 
-      route failed · UNVERIFIED · sources: tool:market_news:ELEVATED, document:…×5
-      live data supplied by tool:market_news · escalation blocked: this client
-      is not permitted to use paid providers
+      qwen2.5:7b generation      5.35 tok/s
+      prompt evaluation (warm) 208.6 tok/s
+      cold model load             31.0 s
+      a real request           ~2,320 input tokens -> 11.1 s before token one
 
-  Read what that line says: levels 0 and 1 worked. The news tool fetched and
-  returned ELEVATED, retrieval found five pack chunks. **Level 2 produced
-  nothing** — no confidence appears on the response, and confidence is only
-  set when the local call returns, so the call raised rather than answering.
-  A timeout and an Ollama that is down look identical from here, which was
-  itself a defect: the reason was being dropped. Fixed in 1.2.1 (commit
-  443e8a5) — a failed request now names its cause first.
+  Against `LOCAL_TIMEOUT_SECONDS=180` that allows ~900 output tokens warm and
+  ~740 cold. `LOCAL_MAX_TOKENS` was 1024 — above both. The app permitted an
+  answer length the machine cannot produce in time, and the non-streaming call
+  discarded everything when the clock ran out. Arithmetic, not a fault.
 
-  **Remaining, and it needs the box:** re-ask and read the new first note.
-  The two candidates and what settles each:
-  1. *A local timeout.* `LOCAL_TIMEOUT_SECONDS` may still read 60 in the
-     box's `.env` while the code default is 180 (the handoff flagged this).
-     Even at 180 the arithmetic is tight: `LOCAL_MAX_TOKENS` is 1024, so a
-     full-length answer clears 180 s only above ~5.7 tokens/s, and a 7B model
-     on a CPU VPS is commonly slower than that. Measure the rate before
-     touching any threshold — do not move one on a guess.
-  2. *Ollama unreachable or the model not loaded.* qwen2.5:7b was pulled
-     hours before this and `keep_alive` is 60m, so a cold load of ~5 GB may
-     have been inside the timeout window on the first call.
+  Fixed in 1.5.0 (`e90082f`): the client streams so a partial answer survives,
+  the ceiling is 600, and `KEEP_ALIVE` is 24h so the 31 s reload stops landing
+  inside a request's budget.
 
-  The commands are in `docs/HANDOFF_BROTHER_SESSION.md` §7. If it turns out
-  to be a timeout, the answer is thrown away whole — the call is not
-  streamed — which is the real cost of AIH-9 and should be weighed there.
-  Opened 2026-09-16. IN PROGRESS.
+  **Remaining, and it needs the box.** Two steps, in this order:
+  1. Deploy 1.5.0 **and change `LOCAL_MAX_TOKENS=1024` to `600` in the box's
+     `.env`** — the file overrides the new code default, so without this edit
+     the old ceiling stays in force and nothing improves.
+  2. Run one real request end to end and read the result:
+     `python -m app.cli ask "In one sentence, what is the v7 bot?"` then the
+     gold plan question in `/admin/chat`.
+  Until step 2 returns an answer, this stays open. Opened 2026-09-16. IN PROGRESS.
 - **AIH-3 48 seeded solutions were REJECTED by llama3.2:3b's reproduction
   gate** (229 promoted, 1 validated, 48 rejected on 2026-09-16 ~17:30 UTC).
   The mechanism is built: `load-knowledge --retry-rejected`, commit ff8d268,
@@ -61,10 +55,11 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   The audit (2026-09-16) found six blocking defects. Phases 1–3 fixed five of
   them and shipped in 1.3.0, 1.3.1 and 1.4.0 — four states, prompt coherence,
   the agent router. **Phase 4** (scoped retrieval and reranking, F8) wants the
-  AIH-4 evals set built first so the change is measured. **Phase 5** (model
-  routing, streaming, a local retry before giving up) is what actually
-  resolves F6 and F7 — until it lands, a failed local call is still the end of
-  the road. **Phase 6** (thread summarisation and capturing real outcomes,
+  AIH-4 evals set built first so the change is measured. **Phase 5** is now partly done: streaming and the
+  budget shipped in 1.5.0, so a timeout no longer discards the answer. What
+  remains of it is model routing by turn shape (the 3B for small talk and
+  clarification) and one cheap local retry on a tighter prompt before giving
+  up. **Phase 6** (thread summarisation and capturing real outcomes,
   F9/F11/F12). **Phase 7** (paid teacher) is design only and must not be built
   without an explicit decision. None of these has been run on the box. OPEN.
 
