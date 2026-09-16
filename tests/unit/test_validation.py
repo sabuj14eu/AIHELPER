@@ -73,6 +73,14 @@ class TestFactuality:
         flipped = factuality_check("A stale bias is neutral and used.", [source])
         assert flipped.contradiction is True
 
+    def test_the_insufficient_marker_is_caught_with_a_space_or_lower_case(self):
+        from app.validation import validate_answer
+
+        for text in ("INSUFFICIENT CONTEXT", "insufficient context: the spec is missing.",
+                     "INSUFFICIENT-CONTEXT"):
+            report = validate_answer(text, question="anything?", task_type="general")
+            assert not report.passed and "model_declared_insufficient_context" in report.vetoes, text
+
     def test_a_polarity_flip_is_a_contradiction(self):
         context = ["The health contribution is not indivisible for partial months."]
         report = factuality_check(

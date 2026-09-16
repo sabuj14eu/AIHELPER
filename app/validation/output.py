@@ -13,6 +13,10 @@ from dataclasses import dataclass, field
 from app.local_ai.prompts import INSUFFICIENT_MARKER
 
 # Phrases a model emits when it is declining rather than answering.
+# Small models write the marker as "INSUFFICIENT CONTEXT" or "insufficient
+# context" about as often as the exact token; it is the same declaration.
+_INSUFFICIENT_LOOSE = re.compile(r"(?i)\binsufficient[ _-]context\b")
+
 REFUSAL_PATTERNS = [
     re.compile(r"(?i)\bI (?:can(?:no|')t|am unable to|cannot) (?:help|assist|answer|provide)"),
     re.compile(r"(?i)\bas an (?:AI|artificial intelligence)\b.{0,60}\b(?:cannot|can't|unable)"),
@@ -125,7 +129,7 @@ def check_output(
         result.failures.append("empty_output")
         return result
 
-    if INSUFFICIENT_MARKER in stripped:
+    if INSUFFICIENT_MARKER in stripped or _INSUFFICIENT_LOOSE.search(stripped):
         result.declared_insufficient = True
         result.failures.append("model_declared_insufficient_context")
 

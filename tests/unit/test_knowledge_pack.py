@@ -258,6 +258,28 @@ class TestRetrievalAndAnswering:
         assert system.startswith("You are AI Helper")
         assert "Never infer from silence" in system
 
+    def test_small_talk_skips_retrieval_and_is_answered_warmly(
+        self, runtime, db, client_row, tmp_path, local_provider
+    ):
+        from app.agents.builtin import BROTHER
+        from app.gateway.router import is_small_talk
+
+        assert is_small_talk("hello") and is_small_talk("Hi Brother, good morning!")
+        assert is_small_talk("thanks bro") and is_small_talk("who are you?")
+        assert not is_small_talk("hello, what does the Freshness Law say about stale bias?")
+        assert not is_small_talk("what is the bot status")
+
+        root = write_pack(tmp_path / "pack")
+        services = runtime.for_session(db, client_row.client_id)
+        KnowledgePackLoader(db, client_row.client_id, ingestor=services.ingestor).load(root)
+        response = services.router.handle(
+            GatewayRequest(message="hello", client=client_row, agent=BROTHER)
+        )
+        assert response.route is Route.LOCAL and response.success
+        assert response.sources == []
+        assert any(n.startswith("small talk") for n in response.notes)
+        assert "<<<CONTEXT" not in local_provider.calls[-1].messages[-1].content
+
     def test_without_the_pack_the_same_question_is_insufficient_context(
         self, runtime, db, client_row, local_provider
     ):

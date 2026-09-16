@@ -46,6 +46,13 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **"hello" was answered with INSUFFICIENT CONTEXT.** Small talk was still
+  retrieving pack chunks, and the base rule told the model to refuse when the
+  context did not cover the question. Greetings and thanks now skip retrieval
+  (`gateway.router.is_small_talk`), the Brother laws say the refusal is only
+  for facts about the owner's systems, and the validator now catches the
+  marker written as "INSUFFICIENT CONTEXT" (space, dash or lower case), which
+  had slipped past as a passing answer at confidence 0.65.
 - **`python -m app.cli ask "…"`** — talk to Brother from the terminal as the
   personal client, through the same ladder, bypassing any reverse proxy.
   Prints the answer, then route, confidence, latency, cost and sources.

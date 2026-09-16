@@ -23,6 +23,7 @@ Two rules shape the code more than anything else:
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -64,6 +65,21 @@ log = get_logger("gateway")
 
 # Task types whose answers are supposed to come from sources.
 CONTEXT_TASKS = {TaskType.DOCUMENT_QA, TaskType.RESEARCH, TaskType.EXTRACTION}
+
+# A greeting or a thank-you needs no evidence. Retrieving some anyway hands the
+# model unrelated chunks and a rule that says "refuse if the context does not
+# cover it", which is how "hello" came back as INSUFFICIENT CONTEXT on the
+# first real deployment. Short, no content words, no question about anything.
+_SMALL_TALK = re.compile(
+    r"^\W*(?:hi|hello|hey|yo|hiya|good\s+(?:morning|afternoon|evening|night)|thanks?|thank you|"
+    r"ok(?:ay)?|cheers|bye|goodbye|good\s+job|well done|nice|great|cool|how are you|"
+    r"what'?s up|who are you|introduce yourself)\b[\w\s,.!?'-]{0,40}$",
+    re.I,
+)
+
+
+def is_small_talk(message: str) -> bool:
+    return bool(_SMALL_TALK.match((message or "").strip()))
 
 
 def _system_prompt(task_type: TaskType, response_format: str, agent: AgentSpec | None) -> str:
@@ -273,7 +289,11 @@ class GatewayRouter:
             base.notes.append(f"tool declined: {dispatch.error}")
 
         # ============================================ LEVEL 1: retrieval
-        retrieval = self._retrieve(message, task_type, request.namespace)
+        if is_small_talk(message):
+            retrieval = RetrievalResult()
+            base.notes.append("small talk: answered without retrieving evidence")
+        else:
+            retrieval = self._retrieve(message, task_type, request.namespace)
         if dispatch.context_items:
             # A live reading outranks stored text: it is about now, and it
             # carries its own timestamp and freshness for the model to quote.
