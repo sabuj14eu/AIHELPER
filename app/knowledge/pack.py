@@ -60,6 +60,16 @@ _SOLUTION_BLOCK = re.compile(
 )
 
 
+_PLACEHOLDER = re.compile(r"<[A-Z][A-Z0-9_]{2,}>")
+
+
+def secret_probe(text: str) -> str:
+    """The text to classify for secrets: documented placeholders such as
+    ``X-Brain-Secret: <BB_BRAIN_WEBHOOK_SECRET>`` are blanked to a short token
+    so they do not read as a credential value. The pack keeps the text as is."""
+    return _PLACEHOLDER.sub("TBD", text or "")
+
+
 class PackError(ValueError):
     """A pack file that cannot be loaded as written."""
 

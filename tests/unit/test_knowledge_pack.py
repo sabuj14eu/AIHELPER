@@ -538,11 +538,19 @@ class TestTheShippedPack:
 
     def test_no_shipped_file_carries_a_secret_shape(self):
         from app.database.enums import Classification
+        from app.knowledge.pack import secret_probe
         from app.privacy.classification import classify
 
         for pack_file in discover(self.ROOT):
-            verdict = classify(pack_file.body, client_default=Classification.INTERNAL.value)
+            verdict = classify(secret_probe(pack_file.body), client_default=Classification.INTERNAL.value)
             assert verdict.classification is not Classification.RESTRICTED, pack_file.relative
+
+    def test_the_secret_probe_blanks_documented_placeholders_only(self):
+        from app.knowledge.pack import secret_probe
+
+        assert secret_probe("X-Brain-Secret: <BB_BRAIN_WEBHOOK_SECRET>") == "X-Brain-Secret: TBD"
+        real = "secret: abcdef123456"
+        assert secret_probe(real) == real
 
     def test_shipped_solution_files_yield_parseable_blocks(self):
         for pack_file in discover(self.ROOT):

@@ -24,7 +24,6 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -125,6 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     from app.database.enums import Classification
+    from app.knowledge.pack import secret_probe
     from app.privacy.classification import classify
 
     root = Path(args.repos_root).expanduser().resolve()
@@ -149,8 +149,7 @@ def main(argv: list[str] | None = None) -> int:
             text = source.read_text(encoding="utf-8", errors="replace")
             # A documented placeholder such as `X-Brain-Secret: <BB_BRAIN_WEBHOOK_SECRET>`
             # is not a secret; classify with placeholders blanked, copy the text as is.
-            probe = re.sub(r"<[A-Z][A-Z0-9_]{2,}>", "TBD", text)
-            verdict = classify(probe, client_default=Classification.INTERNAL.value)
+            verdict = classify(secret_probe(text), client_default=Classification.INTERNAL.value)
             if verdict.classification is Classification.RESTRICTED:
                 refused.append(f"{domain}/{relative}")
                 print(f"REFUSED {domain}/{relative}: looks like it holds a secret", file=sys.stderr)
