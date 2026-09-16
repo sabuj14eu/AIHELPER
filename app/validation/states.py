@@ -51,20 +51,31 @@ INSUFFICIENCY_VETOES = frozenset(
     {"model_declared_insufficient_context", "model_lacks_evidence", "model_refused"}
 )
 
-# No reading of these leaves the text worth showing.
+# No reading of these leaves the text worth showing. Each is an OBJECTIVE
+# finding: the output was unsafe, it looped, it was not the format asked for,
+# or it disagreed with a calculation the system had already done. None of them
+# is a judgement call, which is what makes suppressing the text safe.
+#
+# `contradicts_context` was in this set in 1.7.0 and has been removed. It is a
+# heuristic -- shared content words plus a negation somewhere in the sentence
+# -- and on 2026-09-16 it withheld the first complete plan answer the system
+# ever produced, after 116 s of work, from a reader who then had no way to see
+# what it said or judge whether the detector was right. A heuristic verdict may
+# label an answer. It may not delete one.
 WITHHOLDING_VETOES = frozenset(
     {
         "safety_violation",
-        "contradicts_context",
         "repetitive_output",
         "format_invalid",
         "disagrees_with_deterministic_tool",
     }
 )
 
+# Shown, with the disagreement named. Not silently, and not hidden.
+DISPUTED_VETOES = frozenset({"contradicts_context"})
+
 _WITHHOLD_REASON = {
     "safety_violation": "the answer failed a safety check",
-    "contradicts_context": "the answer contradicted the sources it was given",
     "repetitive_output": "the model produced a repeating loop rather than an answer",
     "format_invalid": "the answer was not in the format that was requested",
     "disagrees_with_deterministic_tool": (
@@ -92,7 +103,26 @@ def derive_state(*, has_text: bool, validation: ValidationReport | None) -> Answ
         return AnswerState.FAILED
     if vetoes & INSUFFICIENCY_VETOES:
         return AnswerState.INSUFFICIENT
+    # A disputed answer is USEFUL -- an answer with a named reservation, which
+    # is exactly what that state is for. The reservation is loud; the text is
+    # still the reader's to weigh.
     return AnswerState.USEFUL
+
+
+def disputed_reason(validation: ValidationReport | None) -> str | None:
+    """What the answer is accused of disagreeing with, if anything."""
+    if validation is None or not (set(validation.vetoes) & DISPUTED_VETOES):
+        return None
+    detail = ""
+    factuality = validation.factuality if isinstance(validation.factuality, dict) else {}
+    conflicts = factuality.get("polarity_conflicts") or []
+    if conflicts:
+        detail = " — on: " + "; ".join(str(c) for c in conflicts[:2])
+    return (
+        "this disagrees with the sources it was given" + detail + ". "
+        "Check it before trusting it; the check that flagged it is a heuristic "
+        "and can be wrong"
+    )
 
 
 def withholding_reason(validation: ValidationReport | None) -> str | None:

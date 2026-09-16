@@ -3,6 +3,42 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.8.1 — 2026-09-16
+
+**Migration:** none. Deploy this before asking anything else.
+
+### Fixed — a correction to 1.7.0, and the reason to make it
+
+The box produced its **first complete plan answer**: 116 s, routed to the
+trading agent, no timeout. The budget work in 1.6.0 did what it was meant to.
+
+Then 1.7.0 deleted it. `contradicts_context` was in `WITHHOLDING_VETOES`, so
+the text was suppressed and the reader saw `system problem` and nothing else —
+no answer, and no way to judge whether the check was even right.
+
+That was the wrong call and it is reversed. The other four withholding vetoes
+are **objective**: the output was unsafe, it looped, it was the wrong format,
+or it disagreed with a calculation already made. Contradiction is not in that
+class — it is a heuristic over shared content words and a negation somewhere in
+the sentence. **A heuristic verdict may label an answer. It may not delete
+one.**
+
+A disputed answer is now `USEFUL`: shown, with the disagreement named, the
+conflicting phrases quoted, and the check's own fallibility stated in the note.
+Tests:
+`TestTheFourStates::test_a_heuristic_verdict_may_label_an_answer_but_not_delete_one`
+and `::test_an_objective_veto_withholds_the_text`.
+
+### Still open
+
+Why the detector fired on that answer is **not yet known** and is not guessed
+at here. The `jobs` row for that request holds the full validation report
+including `polarity_conflicts`; read it before changing the detector. A
+plausible mechanism — the plan procedure instructs Brother to write negated
+sentences ("the outlook is ABSENT, so I am not using a level…") against pack
+documents written in positive voice — did **not** reproduce locally, so it
+remains a hypothesis, not a finding.
+
 ## 1.8.0 — 2026-09-16
 
 Steps 4 and 5 of the learning pipeline. The store now checks a candidate

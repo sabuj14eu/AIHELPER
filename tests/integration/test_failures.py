@@ -458,21 +458,48 @@ class TestTheFourStates:
         assert response.answer == ""
         assert "fake local model timed out" in response.notes[0]
 
-    def test_a_withholding_veto_produces_failed_not_a_labelled_answer(self):
-        """This case tightens the bar rather than relaxing it.
+    def test_an_objective_veto_withholds_the_text(self):
+        """Unsafe, looping, or the wrong format.
 
-        An answer vetoed for contradicting its own sources used to be handed
-        to the reader with an "unverified" note. There is no reading of that
-        veto under which the text is worth showing.
+        Each is an OBJECTIVE finding, not a judgement call, and that is what
+        makes suppressing the text safe.
         """
         from app.validation.confidence import ValidationReport
         from app.validation.states import derive_state, withholding_reason
 
-        contradicted = ValidationReport(
-            passed=False, confidence=0.2, vetoes=["contradicts_context"]
+        for veto in ("safety_violation", "repetitive_output", "format_invalid"):
+            report = ValidationReport(passed=False, confidence=0.2, vetoes=[veto])
+            assert derive_state(has_text=True, validation=report) is AnswerState.FAILED
+            assert withholding_reason(report), veto
+
+    def test_a_heuristic_verdict_may_label_an_answer_but_not_delete_one(self):
+        """1.7.0 put `contradicts_context` in the withholding set. That was wrong.
+
+        On 2026-09-16 it threw away the first complete plan answer the system
+        ever produced -- 116 s of work -- and left the reader with no way to
+        see what it said or judge whether the detector was right. Unlike the
+        vetoes above, contradiction is a heuristic: shared content words plus a
+        negation somewhere in the sentence. It earns a loud label, not a delete.
+        """
+        from app.validation.confidence import ValidationReport
+        from app.validation.states import derive_state, disputed_reason, withholding_reason
+
+        disputed = ValidationReport(
+            passed=False,
+            confidence=0.3,
+            vetoes=["contradicts_context"],
+            factuality={"polarity_conflicts": ["entries new no"]},
         )
-        assert derive_state(has_text=True, validation=contradicted) is AnswerState.FAILED
-        assert "contradicted" in withholding_reason(contradicted)
+        assert derive_state(has_text=True, validation=disputed) is AnswerState.USEFUL
+        assert withholding_reason(disputed) is None, "the text must survive"
+        reason = disputed_reason(disputed)
+        assert "disagrees with the sources" in reason
+        assert "entries new no" in reason, "say what it disagreed about"
+        assert "heuristic" in reason, "and admit the check can be wrong"
+
+    def test_lacking_evidence_is_still_its_own_state(self):
+        from app.validation.confidence import ValidationReport
+        from app.validation.states import derive_state, withholding_reason
 
         lacking = ValidationReport(
             passed=False, confidence=0.2, vetoes=["model_lacks_evidence"]

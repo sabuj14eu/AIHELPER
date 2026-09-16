@@ -63,7 +63,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 594 tests; conftest disables the live connectors so no test
+- `tests/` 596 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -177,6 +177,13 @@ failures, and the second outlived the first. These are now laws.
   store loses the duplicate check, not the lesson — a missed check costs a
   duplicate row, refusing to capture costs what was being learned. Know which
   kind each gate is before choosing its failure mode.
+
+- **A heuristic verdict may label an answer; it may not delete one.** The
+  withholding vetoes are objective findings — unsafe, looping, wrong format,
+  disagrees with a calculation. `contradicts_context` is a heuristic over
+  shared words and a negation, and while it sat in that set it deleted the
+  first complete plan answer the system ever produced. Suppression is for
+  things that are certainly wrong, not things that are probably wrong.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

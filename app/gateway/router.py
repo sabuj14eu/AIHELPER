@@ -62,7 +62,12 @@ from app.tools.dispatcher import try_dispatch
 from app.tools.registry import ToolRegistry
 from app.validation import ValidationReport, validate_answer
 from app.validation.safety import check_input
-from app.validation.states import AnswerState, derive_state, withholding_reason
+from app.validation.states import (
+    AnswerState,
+    derive_state,
+    disputed_reason,
+    withholding_reason,
+)
 
 log = get_logger("gateway")
 
@@ -882,6 +887,8 @@ class GatewayRouter:
                     "the model reported that the evidence for this is not available — "
                     "that is an answer, not a fault"
                 )
+            elif disputed_reason(report):
+                base.notes.append(disputed_reason(report))
             elif (local_result.response.finish_reason or "") == "timeout":
                 base.notes.append(
                     "the local model ran out of time part-way through — this is "
