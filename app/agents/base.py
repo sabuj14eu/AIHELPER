@@ -35,6 +35,12 @@ class AgentSpec:
     # "small" | "default" | "strong" | None. A preferred local model class;
     # resolved against settings by the router and honoured only if installed.
     model_role: str | None = None
+    # "strict" refuses the whole question when the CONTEXT falls short;
+    # "partial" names the missing input and answers the rest. Strict is the
+    # default because a document-QA agent must not fill gaps from general
+    # knowledge; the Brother agents choose partial, because their own laws
+    # already say what to do about a gap.
+    context_policy: str = "strict"
 
     def as_dict(self) -> dict:
         return {
@@ -44,6 +50,7 @@ class AgentSpec:
             "allowed_tools": list(self.allowed_tools) if self.allowed_tools else None,
             "enabled": self.enabled,
             "model_role": self.model_role,
+            "context_policy": self.context_policy,
         }
 
 

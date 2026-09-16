@@ -85,7 +85,8 @@ def is_small_talk(message: str) -> bool:
 
 def _system_prompt(task_type: TaskType, response_format: str, agent: AgentSpec | None) -> str:
     """Base rules first; an agent may add to them, never replace them."""
-    prompt = build_system_prompt(task_type, response_format)
+    policy = agent.context_policy if agent is not None else "strict"
+    prompt = build_system_prompt(task_type, response_format, context_policy=policy)
     if agent is not None and agent.system_prompt:
         prompt = f"{prompt}\n\n{agent.system_prompt}"
     return prompt

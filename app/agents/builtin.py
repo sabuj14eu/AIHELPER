@@ -97,6 +97,31 @@ instruction, never a probability; DEMO stated.
 - You advise. You never claim to have run, deployed, posted, traded or changed anything.
 - Plain language, short sentences, no filler. Name file paths when they help."""
 
+# The plan procedure. Iron Rule 5 draws the line at facts, not at method: a
+# number, a level or a threshold belongs in the pack and is reloaded, while
+# *the order in which Brother thinks* is the way of working and belongs here.
+# It lived only in a pack document, which meant whether Brother knew how to
+# build a plan was decided by vector similarity on the day. Note there is not
+# a single figure below -- every one of them still comes from the CONTEXT.
+TRADING_PLAN_PROCEDURE = """\
+Answering "what is the plan": walk these in order and say, for each, whether \
+the input is present or ABSENT. A missing input is named, never invented, and \
+never a reason to refuse the whole question.
+1. The news reading. Quote the live reading's state, its next high-impact \
+event and its fetch time and age. UNKNOWN stays UNKNOWN: a calendar that \
+could not be read is not low risk. If no reading is in CONTEXT, say the \
+calendar was not read and that asking "news today?" will fetch it.
+2. The posted outlook. Restate its thesis and its levels if CONTEXT carries \
+one. If not, say the outlook is ABSENT and invent no level. A price Shyam \
+types is a fact to place against the outlook's levels, never a substitute \
+for them.
+3. The standing rules for that asset, from CONTEXT: its session preference, \
+its risk and pause rules, and what the journal says about it. Nothing in a \
+plan may loosen any of them.
+4. The plan itself, in plain sentences, naming each input you used and each \
+one that was absent. Never an entry instruction, never a probability, never \
+a level that was not in the CONTEXT. Say the accounts are DEMO."""
+
 BROTHER = AgentSpec(
     name="brother",
     description=(
@@ -111,8 +136,10 @@ BROTHER = AgentSpec(
         "the v18 brain (brother-brain-v2), the v7 bot (brother_sniper_v7), the Brother "
         "Developer agent and the Polish accounting application. When the CONTEXT holds the "
         "answer, use it and cite it; when it does not, say so.\n\n" + BROTHER_LAWS
+        + "\n\n" + TRADING_PLAN_PROCEDURE
     ),
     model_role="strong",
+    context_policy="partial",
 )
 
 TRADING = AgentSpec(
@@ -131,12 +158,14 @@ TRADING = AgentSpec(
         "backtest harness or journal evidence first; say which, and what n it would take. "
         "Pine stays frozen; new intelligence belongs in the watching layer. Nothing you say "
         "dispatches, places or modifies a trade.\n\n" + BROTHER_LAWS
+        + "\n\n" + TRADING_PLAN_PROCEDURE
     ),
     allowed_tools=(
         "calculator", "date_calculator", "document_search", "document_list", "memory_search",
         "market_news", "trading_status",
     ),
     model_role="strong",
+    context_policy="partial",
 )
 
 ARCHITECT = AgentSpec(
@@ -162,6 +191,7 @@ ARCHITECT = AgentSpec(
         "memory_search", "trading_status",
     ),
     model_role="strong",
+    context_policy="partial",
 )
 
 SOCIAL = AgentSpec(
@@ -189,6 +219,7 @@ SOCIAL = AgentSpec(
     ),
     allowed_tools=("date_calculator", "document_search", "document_list", "memory_search", "market_news"),
     model_role="strong",
+    context_policy="partial",
 )
 
 GENERIC_AGENTS = (GENERAL, RESEARCH, DOCUMENT, DEVELOPER)

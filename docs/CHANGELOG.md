@@ -3,6 +3,40 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.3.1 — 2026-09-16
+
+Phase 2: the system prompt stops contradicting itself.
+
+**Migration:** none.
+
+### Fixed
+
+- **One system message carried two incompatible orders.** `BASE_SYSTEM` told
+  the model, unconditionally and first, to answer `INSUFFICIENT_CONTEXT`
+  whenever the CONTEXT fell short. `BROTHER_LAWS`, appended several hundred
+  words later, said a plan question is "a procedure, never a refusal". A small
+  model follows the blunt rule that came first, which is the direct cause of
+  the refusal observed under llama3.2:3b.
+
+  The rule is now a choice an agent makes. `STRICT_CONTEXT_RULE` is unchanged
+  and stays the default — a document-QA agent must not fill gaps from general
+  knowledge. `PARTIAL_CONTEXT_RULE` says to name the missing input in one line
+  and answer the rest, and keeps the marker as a last resort for when nothing
+  useful can be said at all. The four Brother agents declare
+  `context_policy="partial"`; everything else is untouched.
+  Test: `TestBrotherAgents::test_the_brother_agents_do_not_carry_the_unconditional_refusal_order`.
+
+### Changed
+
+- **The plan procedure moved into the prompts of the agents that answer plan
+  questions** (`brother`, `trading`). It lived only in a pack document, which
+  made "does Brother know how to build a plan" a question about cosine
+  similarity on the day. Iron Rule 5 draws its line at facts, not at method:
+  the order Brother thinks in is the way of working. The procedure contains no
+  level, threshold or sample size — every figure still comes from CONTEXT, and
+  a test now enforces that across every Brother prompt, not just the shared
+  laws.
+
 ## 1.3.0 — 2026-09-16
 
 Phase 1 of the Brother architecture work (see the audit): a turn is now one of

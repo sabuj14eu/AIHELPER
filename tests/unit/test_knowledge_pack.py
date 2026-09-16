@@ -441,6 +441,58 @@ class TestAgents:
         numbers = set(re.findall(r"\b\d{3,}\b", BROTHER_LAWS))
         assert numbers <= {"100"}, numbers
 
+    def test_no_brother_prompt_fossilises_a_fact(self):
+        """The rule covers every Brother prompt, not only the shared laws.
+
+        Iron Rule 5 draws its line at facts, not at method: the plan procedure
+        is the order Brother thinks in and belongs in the prompt, but the
+        moment a level, a threshold or a sample size appears there it has
+        stopped being reloadable and the pack no longer owns it.
+        """
+        import re
+
+        from app.agents.builtin import BROTHER_AGENTS
+
+        for spec in BROTHER_AGENTS:
+            numbers = set(re.findall(r"\b\d{3,}\b", spec.system_prompt))
+            assert numbers <= {"100"}, (spec.name, numbers)
+
+    def test_the_plan_procedure_travels_with_the_agents_that_answer_plan_questions(self):
+        """It used to live only in a pack document.
+
+        That made "does Brother know how to build a plan" a question about
+        cosine similarity on the day. A procedure is the way of working.
+        """
+        from app.agents.builtin import BROTHER, SOCIAL, TRADING
+
+        for spec in (BROTHER, TRADING):
+            assert "walk these in order" in spec.system_prompt, spec.name
+            assert "ABSENT" in spec.system_prompt
+            assert "never a probability" in spec.system_prompt
+        assert "walk these in order" not in SOCIAL.system_prompt
+
+    def test_the_brother_agents_do_not_carry_the_unconditional_refusal_order(self):
+        """The contradiction that produced the refusal, asserted away.
+
+        BASE_SYSTEM used to order INSUFFICIENT_CONTEXT whenever the context
+        fell short, unconditionally, while the laws appended after it said a
+        plan question is a procedure and never a refusal. A small model
+        follows the blunt rule that came first.
+        """
+        from app.agents.builtin import BROTHER_AGENTS, DOCUMENT
+        from app.database.enums import TaskType
+        from app.local_ai.prompts import build_system_prompt
+
+        for spec in BROTHER_AGENTS:
+            prompt = build_system_prompt(TaskType.GENERAL, context_policy=spec.context_policy)
+            assert "If the CONTEXT does not contain what you need" not in prompt, spec.name
+            assert "name that gap in one line" in prompt
+            # The marker still exists as a last resort -- the bar has not moved.
+            assert "INSUFFICIENT_CONTEXT" in prompt
+
+        strict = build_system_prompt(TaskType.DOCUMENT_QA, context_policy=DOCUMENT.context_policy)
+        assert "If the CONTEXT does not contain what you need" in strict
+
 
 class TestCli:
     @pytest.fixture
