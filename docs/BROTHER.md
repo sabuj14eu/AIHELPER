@@ -174,6 +174,29 @@ Every reply shows its route (tool, memory, local, paid), its confidence, its
 cost, the sources it used and the validation notes. A reply marked UNVERIFIED
 did not pass validation and is a draft, not a fact.
 
+## Teaching Brother
+
+The 1.0 learning loop learns only from paid answers, so a deployment that
+keeps paid providers off would never learn from its owner. Teaching is the
+other source. On any reply in the chat, **Teach Brother the right answer**
+opens a form: the question (edit it to the general form you want remembered),
+the right answer, and where the proof is. From the terminal:
+
+```bash
+docker compose exec ai-helper python -m app.cli teach \
+  --question "What is the gate window around a high-impact USD event?" \
+  --answer "The v7 news gate blocks new entries 30 minutes either side of any high-impact event and 45 minutes for the major currencies including USD, XAU and XAG." \
+  --evidence "brother_sniper_v7/filters/news_gate.py"
+```
+
+A taught pair is not trusted because you typed it. It becomes a CANDIDATE
+with `provider=owner` and goes through the same two gates as a paid answer:
+validation, then the local model must produce a passing answer with it in
+front of it. Only then is it PROMOTED and offered back, and the exact
+question is answered from memory at no cost from then on. Teaching the same
+question again supersedes the earlier answer (EXPIRED with the reason, never
+edited). Every teach is audited under your admin name.
+
 ## Keeping it current
 
 Two kinds of change, two procedures.

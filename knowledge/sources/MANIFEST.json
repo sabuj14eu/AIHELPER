@@ -33,9 +33,45 @@
       "commit": "3257184"
     },
     {
+      "domain": "platform",
+      "path": "platform/docs__INTEGRATION_V7.md",
+      "from": "Sniper-System/docs/INTEGRATION_V7.md",
+      "commit": "3257184"
+    },
+    {
+      "domain": "platform",
+      "path": "platform/docs__HANDOVER_V7_DESK.md",
+      "from": "Sniper-System/docs/HANDOVER_V7_DESK.md",
+      "commit": "3257184"
+    },
+    {
       "domain": "v7",
       "path": "v7/CLAUDE.md",
       "from": "brother_sniper_v7/CLAUDE.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/INTENT_v5.md",
+      "from": "brother_sniper_v7/INTENT_v5.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/ROADMAP.md",
+      "from": "brother_sniper_v7/ROADMAP.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/docs__V7_AUTONOMY_PLAN.md",
+      "from": "brother_sniper_v7/docs/V7_AUTONOMY_PLAN.md",
+      "commit": "f7cacfd"
+    },
+    {
+      "domain": "v7",
+      "path": "v7/docs__ADAPTIVE_GATES_SPEC.md",
+      "from": "brother_sniper_v7/docs/ADAPTIVE_GATES_SPEC.md",
       "commit": "f7cacfd"
     },
     {
@@ -84,6 +120,12 @@
       "domain": "brain",
       "path": "brain/docs__PROTOCOL.md",
       "from": "brother-brain-v2/docs/PROTOCOL.md",
+      "commit": "0f8f49d"
+    },
+    {
+      "domain": "brain",
+      "path": "brain/docs__PINE_VS_BOT_MAP.md",
+      "from": "brother-brain-v2/docs/PINE_VS_BOT_MAP.md",
       "commit": "0f8f49d"
     },
     {

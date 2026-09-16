@@ -106,6 +106,13 @@
         n.textContent = meta.notes.join(' · ');
         box.appendChild(n);
       }
+      if (meta.route !== 'error' && meta.question) {
+        const t = document.createElement('a');
+        t.href = '#'; t.style.cssText = 'font-size:.74rem;display:inline-block;margin-top:.35rem';
+        t.textContent = 'Teach Brother the right answer';
+        t.addEventListener('click', (e) => { e.preventDefault(); teachForm(box, meta.question, t); });
+        box.appendChild(t);
+      }
     }
     log.appendChild(box); log.scrollTop = log.scrollHeight;
   }
@@ -132,6 +139,39 @@
     if (status === 502) why = 'the reverse proxy could not reach AI Helper (is the container up or restarting?)';
     if (status === 401 || status === 403) why = 'your admin session has expired; sign in again';
     return 'HTTP ' + status + ': ' + why + (text ? ' — ' + text : '');
+  }
+
+  function teachForm(box, question, link) {
+    link.remove();
+    const form = document.createElement('form');
+    form.style.cssText = 'margin-top:.5rem;display:flex;flex-direction:column;gap:.35rem';
+    form.innerHTML =
+      '<label style="font-size:.74rem" class="muted">Question (edit to the general form you want remembered)</label>' +
+      '<textarea name="question" rows="2" style="font:inherit;padding:.4rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)"></textarea>' +
+      '<label style="font-size:.74rem" class="muted">The right answer</label>' +
+      '<textarea name="answer" rows="5" placeholder="What Brother should have said" style="font:inherit;padding:.4rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)"></textarea>' +
+      '<input name="evidence" type="text" placeholder="Where the proof is (file, commit, date) — optional" style="font:inherit;padding:.4rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink)">' +
+      '<div><button type="submit">Teach</button> <span class="muted" style="font-size:.74rem">Goes through the same gate as any learned answer: validation, then the local model must be able to use it.</span></div>';
+    form.question.value = question;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button'); btn.disabled = true; btn.textContent = 'Teaching…';
+      try {
+        const r = await fetch('/admin/chat/teach', {
+          method: 'POST', credentials: 'same-origin',
+          headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+          body: JSON.stringify({question: form.question.value, answer: form.answer.value, evidence: form.evidence.value})
+        });
+        const raw = await r.text(); let data = null; try { data = JSON.parse(raw); } catch (_) {}
+        const msg = document.createElement('div'); msg.className = 'muted'; msg.style.cssText = 'font-size:.78rem;margin-top:.3rem';
+        if (!data) msg.textContent = explainNonJson(r.status, raw);
+        else if (!r.ok) msg.textContent = data.error || 'teach failed';
+        else msg.textContent = (data.promoted ? 'Learned (PROMOTED): ' : 'Not promoted (' + data.status + '): ') + data.reason +
+          (data.superseded.length ? ' · replaced ' + data.superseded.length + ' earlier answer(s)' : '');
+        form.replaceWith(msg);
+      } catch (err) { btn.disabled = false; btn.textContent = 'Teach'; alert('network error: ' + err); }
+    });
+    box.appendChild(form);
   }
 
   async function ask(text) {
@@ -169,6 +209,7 @@
       done();
       if (data === null) { bubble('assistant', 'still running after 20 minutes; check docker compose logs ai-helper', {route: 'error', success: false, notes: []}); return; }
       conversationId = data.conversation_id || conversationId;
+      data.question = text;
       bubble('assistant', data.answer || '(no answer)', data);
     } catch (e) {
       done();

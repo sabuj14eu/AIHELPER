@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -43,6 +44,8 @@ SOURCES: dict[str, tuple[str, str, list[tuple[str, str]]]] = {
             ("docs/OPEN_ITEMS.md", "Sniper-System open items (both sides)"),
             ("docs/HANDOFF_PLATFORM_SESSION.md", "Platform session handoff"),
             ("docs/V7_SELF_DEPENDENCE_PLAN.md", "V7 self-dependence master plan"),
+            ("docs/INTEGRATION_V7.md", "Platform contract with the v7 bot"),
+            ("docs/HANDOVER_V7_DESK.md", "Trade Desk handover for v7"),
         ],
     ),
     "v7": (
@@ -50,6 +53,10 @@ SOURCES: dict[str, tuple[str, str, list[tuple[str, str]]]] = {
         "sabuj14eu/brother_sniper_v7",
         [
             ("CLAUDE.md", "Brother Sniper v7 constitution (CLAUDE.md)"),
+            ("INTENT_v5.md", "v7 trading intent (INTENT v5, symbol thesis and risk rules)"),
+            ("ROADMAP.md", "v7 roadmap"),
+            ("docs/V7_AUTONOMY_PLAN.md", "v7 autonomy plan"),
+            ("docs/ADAPTIVE_GATES_SPEC.md", "v7 adaptive gates specification"),
             ("docs/START_HERE.md", "v7 bot: start here"),
             ("docs/OPEN_ITEMS.md", "v7 bot open items"),
             ("docs/STRATEGY_INTELLIGENCE.md", "v7 strategy intelligence"),
@@ -64,6 +71,7 @@ SOURCES: dict[str, tuple[str, str, list[tuple[str, str]]]] = {
             ("docs/OPEN_ITEMS.md", "v18 brain open items"),
             ("docs/decisions.md", "v18 brain decisions log"),
             ("docs/PROTOCOL.md", "v18 brain protocol"),
+            ("docs/PINE_VS_BOT_MAP.md", "Pine versus bot map"),
         ],
     ),
     "developer": (
@@ -139,7 +147,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"skip {domain}/{relative}: not in repository", file=sys.stderr)
                 continue
             text = source.read_text(encoding="utf-8", errors="replace")
-            verdict = classify(text, client_default=Classification.INTERNAL.value)
+            # A documented placeholder such as `X-Brain-Secret: <BB_BRAIN_WEBHOOK_SECRET>`
+            # is not a secret; classify with placeholders blanked, copy the text as is.
+            probe = re.sub(r"<[A-Z][A-Z0-9_]{2,}>", "TBD", text)
+            verdict = classify(probe, client_default=Classification.INTERNAL.value)
             if verdict.classification is Classification.RESTRICTED:
                 refused.append(f"{domain}/{relative}")
                 print(f"REFUSED {domain}/{relative}: looks like it holds a secret", file=sys.stderr)

@@ -46,6 +46,22 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **Teaching** (`app/learning/teaching.py`, `/admin/chat/teach`,
+  `python -m app.cli teach`, a form on every chat reply). The owner supplies
+  question, answer and evidence; the pair goes through the same validation
+  and reproduction gates as a paid answer and is PROMOTED only when the local
+  model can use it. A re-taught question supersedes the earlier row. This is
+  how a deployment with paid providers off learns from its owner.
+- **Plan questions are a procedure.** A new pack document
+  (`knowledge/brother/brother__trading_plan_recipe.md`) and a law line: news
+  reading first, then the posted outlook (ABSENT if none), then the standing
+  rules for the asset, then the plan, naming each input present or absent.
+  Never a refusal, never an entry instruction.
+- **Pack sources extended** with the documents Brother reported missing:
+  v7 `INTENT_v5.md`, `ROADMAP.md`, the autonomy plan and adaptive gates spec;
+  the platform's v7 integration contract and desk handover; the brain's
+  Pine-versus-bot map. The sync now treats documented placeholders such as
+  `<BB_BRAIN_WEBHOOK_SECRET>` as placeholders, not secrets.
 - **The dashboard chat no longer depends on the proxy timeout.** A local
   model on CPU can take minutes on a reasoning question, and nginx's
   `proxy_read_timeout` (60 s by default) answered with its own 504 page.

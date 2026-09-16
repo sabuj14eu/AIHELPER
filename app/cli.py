@@ -9,6 +9,7 @@
     python -m app.cli load-knowledge             # (re)load the knowledge pack; idempotent
     python -m app.cli knowledge-status           # what the assistant currently holds
     python -m app.cli ask "news today?"          # talk to Brother from the terminal
+    python -m app.cli teach --question "…" --answer "…"   # correct it; goes through the gate
 """
 
 from __future__ import annotations
@@ -431,6 +432,41 @@ def cmd_ask(args) -> int:
     return 0 if payload["success"] else 1
 
 
+def cmd_teach(args) -> int:
+    """Teach Brother the right answer to a question, through the promotion gate."""
+    from app.learning.teaching import teach
+    from app.runtime import get_runtime
+
+    create_all(get_engine())
+    settings = get_settings()
+    client_id = args.client or settings.PERSONAL_CLIENT_ID
+    runtime = get_runtime()
+    with session_scope() as session:
+        if session.get(Client, client_id) is None:
+            print(f"client '{client_id}' does not exist — run: python -m app.cli bootstrap-brother",
+                  file=sys.stderr)
+            return 2
+        services = runtime.for_session(session, client_id)
+        try:
+            result = teach(
+                session,
+                client_id,
+                question=args.question,
+                answer=args.answer,
+                evidence=args.evidence or "",
+                actor="cli",
+                settings=settings,
+                local_provider=runtime.providers.local,
+                retriever=services.retriever,
+            )
+        except ValueError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 2
+        payload = result.as_dict()
+    print(json.dumps(payload, indent=2))
+    return 0 if payload["promoted"] else 1
+
+
 def cmd_knowledge_status(args) -> int:
     from app.knowledge.pack import KnowledgePackLoader
     from app.runtime import get_runtime
@@ -524,6 +560,13 @@ def main(argv: list[str] | None = None) -> int:
     ask.add_argument("--client", help="client id (default: PERSONAL_CLIENT_ID)")
     ask.add_argument("--agent", help="agent name (default: PERSONAL_AGENT)")
     ask.set_defaults(func=cmd_ask)
+
+    teach_cmd = sub.add_parser("teach", help="teach Brother the right answer to a question")
+    teach_cmd.add_argument("--question", required=True)
+    teach_cmd.add_argument("--answer", required=True)
+    teach_cmd.add_argument("--evidence", default="", help="where the proof is (file, commit, date)")
+    teach_cmd.add_argument("--client", help="client id (default: PERSONAL_CLIENT_ID)")
+    teach_cmd.set_defaults(func=cmd_teach)
 
     status = sub.add_parser("knowledge-status", help="what the assistant currently holds")
     pack_args(status)

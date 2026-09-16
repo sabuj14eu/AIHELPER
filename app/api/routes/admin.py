@@ -448,6 +448,14 @@ def create_client_ui(
 # second path: the admin session only *identifies* the operator; the request
 # runs as the personal client, through the same GatewayRouter, with the same
 # validation, budgets, privacy gate and audit rows as a call to /api/v1/chat.
+class TeachBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=3, max_length=4000)
+    answer: str = Field(min_length=3, max_length=8000)
+    evidence: str = Field(default="", max_length=500)
+
+
 class AdminChatBody(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -623,5 +631,51 @@ def chat_ask_now(
             user_ref=f"admin:{session.get('sub')}"[:120],
             agent=agent,
         )
+    )
+    return result.as_dict()
+
+
+@ui_router.post("/chat/teach")
+def chat_teach(
+    body: TeachBody,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    runtime: Runtime = Depends(runtime_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    """The owner corrects Brother. The pair goes through the same promotion
+    gate as a paid answer; it is offered back only once the local model has
+    shown it can use it. This is how a no-paid-provider deployment learns."""
+    from app.learning.teaching import teach
+
+    client = _personal_client(db, settings)
+    if client is None:
+        raise ProviderUnavailableError(
+            f"the personal client '{settings.PERSONAL_CLIENT_ID}' does not exist — "
+            "run: python -m app.cli bootstrap-brother"
+        )
+    services = runtime.for_session(db, client.client_id)
+    try:
+        result = teach(
+            db,
+            client.client_id,
+            question=body.question,
+            answer=body.answer,
+            evidence=body.evidence,
+            actor=f"admin:{session.get('sub')}"[:120],
+            settings=settings,
+            local_provider=runtime.providers.local,
+            retriever=services.retriever,
+        )
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+    audit.record(
+        db,
+        actor=str(session.get("sub")),
+        action=audit.ADMIN_ACTION,
+        actor_type="admin",
+        resource_type="solution",
+        resource_id=result.solution_id,
+        detail={"action": "teach", "status": result.outcome.status.value},
     )
     return result.as_dict()

@@ -319,6 +319,24 @@ class TestBrotherChat:
         assert answer["route"] == "tool" and answer["answer"] == "276"
         assert local_provider.calls == []
 
+    def test_the_owner_can_teach_brother_from_the_page(self, signed_in, db, settings, paid_provider):
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        db.commit()
+        question = "What does the ZUS health contribution look-back rule say?"
+        taught = signed_in.post(
+            "/admin/chat/teach",
+            json={"question": question, "answer": paid_provider.answer, "evidence": "rates/zus_health.php"},
+        )
+        assert taught.status_code == 200, taught.text
+        assert taught.json()["promoted"] and taught.json()["status"] == "PROMOTED"
+        body = self.ask_and_wait(signed_in, {"message": question})
+        assert body["memory_hit"] and body["solution_id"] == taught.json()["solution_id"]
+        assert paid_provider.call_count == 0
+        # Needs the session, and refuses an empty pair.
+        assert signed_in.post("/admin/chat/teach", json={"question": question, "answer": "no"}).status_code == 422
+        anon = signed_in.post("/admin/chat/teach", json={"question": question, "answer": "x" * 10}, headers={"cookie": ""})
+        assert anon.status_code == 401
+
     def test_the_synchronous_form_still_answers_in_one_call(self, signed_in, db, settings):
         make_client(db, settings.PERSONAL_CLIENT_ID)
         db.commit()
