@@ -147,6 +147,13 @@ class OllamaClient:
         saw_line = False
         saw_json = False
         bad_content = False
+        # Ollama sends nothing at all while it loads the model and evaluates the
+        # prompt; the first frame arrives with the first generated token. So
+        # "no frames" and "frames but no text" are different failures with
+        # different fixes -- one is the budget being spent before generation
+        # starts, the other is the model producing nothing. Saying "timed out"
+        # for both is what sent an entire session looking at the wrong number.
+        saw_content_frame = False
 
         try:
             with self._http().stream(
@@ -171,6 +178,7 @@ class OllamaClient:
                         )
                     piece = (chunk.get("message") or {}).get("content")
                     if isinstance(piece, str):
+                        saw_content_frame = True
                         parts.append(piece)
                     elif piece is not None:
                         bad_content = True
@@ -208,6 +216,13 @@ class OllamaClient:
             if timed_out:
                 # The clock ran out with nothing written. There is no partial
                 # answer to keep, so this is a failure and the router routes on it.
+                if not saw_content_frame:
+                    raise ProviderTimeoutError(
+                        f"Ollama timed out after {budget}s without starting to "
+                        "generate — the whole budget went on loading the model and "
+                        "reading the prompt, so shortening the prompt is the fix, "
+                        "not a longer clock"
+                    )
                 raise ProviderTimeoutError(f"Ollama timed out after {budget}s")
             if saw_line and not saw_json:
                 raise ProviderUnavailableError("Ollama returned a non-JSON body")

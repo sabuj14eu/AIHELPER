@@ -137,6 +137,24 @@ class TestOllamaClientFailures:
         with pytest.raises(ProviderTimeoutError):
             client.chat("m", [{"role": "user", "content": "hi"}])
 
+    def test_a_deadline_before_generation_starts_says_so(self):
+        """Ollama sends nothing while it loads and reads the prompt.
+
+        "Timed out" was true of both that and a model producing nothing, and
+        saying it for both is what sent a whole session looking at generation
+        speed when the budget was being spent on the prompt.
+        """
+        client = OllamaClient(
+            "http://ollama",
+            timeout=0.3,
+            client=httpx.Client(
+                transport=httpx.MockTransport(self._stream([{"done": False}] * 200, delay=0.01)),
+                base_url="http://ollama",
+            ),
+        )
+        with pytest.raises(ProviderTimeoutError, match="without starting to generate"):
+            client.chat("m", [{"role": "user", "content": "hi"}])
+
     def test_an_error_frame_mid_stream_is_reported(self):
         chunks = [{"message": {"content": "partial"}, "done": False}, {"error": "out of memory"}]
         with pytest.raises(ProviderUnavailableError, match="reported an error"):

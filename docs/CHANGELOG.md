@@ -3,6 +3,34 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.5.1 — 2026-09-16
+
+**Migration:** none.
+
+### Fixed
+
+- **"Timed out" was saying two different things.** Ollama sends no frames at
+  all while it loads the model and evaluates the prompt — the first frame
+  arrives with the first *generated* token. So a deadline that lands before
+  generation starts and a model that generates nothing produced the identical
+  message, and that ambiguity sent a whole session tuning generation speed
+  while the budget was being spent on the prompt. The client now distinguishes
+  them, and the first case says where the time actually went.
+  Test: `TestOllamaClientFailures::test_a_deadline_before_generation_starts_says_so`.
+
+### Correction to 1.5.0
+
+The prompt-evaluation figure in the 1.5.0 note (**208.6 tok/s**) was measured
+from a **38-token** prompt whose `prompt_eval_duration` was 0.18 s, and then
+extrapolated to a ~2,320-token request. That is a fixed-overhead-dominated
+sample, and the Evidence Law in CLAUDE.md is explicit about what a sample that
+size is worth. The derived "11.1 s before the first output token", and the
+~900/~740-token envelopes built on it, are **not trustworthy** and should not
+be quoted. The generation figure (5.35 tok/s, measured twice over 40–53
+generated tokens) stands; `LOCAL_MAX_TOKENS=600` and `KEEP_ALIVE=24h` remain
+correct changes on their own merits, but they did not fix the failure, because
+the failure was not in generation.
+
 ## 1.5.0 — 2026-09-16
 
 P0 resolved. The local model's budget now matches what the hardware measured,
