@@ -36,6 +36,7 @@ from app.core import audit
 from app.core.config import Settings
 from app.core.errors import (
     AuthenticationError,
+    NotFoundError,
     ProviderUnavailableError,
     RateLimitedError,
     ValidationError,
@@ -516,8 +517,76 @@ def chat_page(
     )
 
 
-@ui_router.post("/chat/ask")
+@ui_router.post("/chat/ask", status_code=202)
 def chat_ask(
+    request: Request,
+    body: AdminChatBody,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    """Queue the question as a background job and return its id at once.
+
+    A local model on CPU can take minutes, and every reverse proxy in front
+    of the dashboard has a timeout shorter than that. The page polls
+    ``/admin/chat/task/{id}`` instead, so no proxy ever waits on the model.
+    The job runs the same GatewayRouter as a call to /api/v1/tasks.
+    """
+    from app.api.routes.tasks import CHAT_JOB
+
+    client = _personal_client(db, settings)
+    if client is None:
+        raise ProviderUnavailableError(
+            f"the personal client '{settings.PERSONAL_CLIENT_ID}' does not exist — "
+            "run: python -m app.cli bootstrap-brother"
+        )
+    decision = request.app.state.limiter.check(
+        client.client_id, rate_override=client.rate_limit_per_minute
+    )
+    if not decision.allowed:
+        raise RateLimitedError(
+            f"rate limit exceeded; retry in {decision.retry_after:.0f}s",
+            detail={"retry_after": decision.retry_after, "limit": decision.limit},
+        )
+    resolve_agent(body.agent or settings.PERSONAL_AGENT)  # refuse an unknown agent now, not in the job
+    job_id = request.app.state.jobs.submit(
+        client_id=client.client_id,
+        kind=CHAT_JOB,
+        payload={
+            "message": body.message,
+            "agent": body.agent or settings.PERSONAL_AGENT,
+            "conversation_id": body.conversation_id,
+            "user_ref": f"admin:{session.get('sub')}"[:120],
+            "store_conversation": True,
+        },
+    )
+    return {"task_id": job_id, "status": "queued"}
+
+
+@ui_router.get("/chat/task/{task_id}")
+def chat_task(
+    task_id: str,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    from app.database.models import Job
+
+    job = db.get(Job, task_id)
+    if job is None or job.client_id != settings.PERSONAL_CLIENT_ID:
+        raise NotFoundError(f"task '{task_id}' not found")
+    return {
+        "task_id": job.id,
+        "status": job.status,
+        "result": job.result or None,
+        "error": job.error,
+        "started_at": job.started_at.isoformat() if job.started_at else None,
+        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+    }
+
+
+@ui_router.post("/chat/ask-now")
+def chat_ask_now(
     request: Request,
     body: AdminChatBody,
     session: dict = Depends(admin_session),
@@ -525,6 +594,7 @@ def chat_ask(
     runtime: Runtime = Depends(runtime_dep),
     settings: Settings = Depends(settings_dep),
 ) -> dict:
+    """The synchronous form, for scripts behind no proxy. Same ladder, same client."""
     from app.gateway.router import GatewayRequest
 
     client = _personal_client(db, settings)

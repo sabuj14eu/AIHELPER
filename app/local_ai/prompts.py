@@ -92,8 +92,10 @@ def render_context(items: list[ContextItem], max_chars: int = 8000) -> str:
     return "\n\n".join(blocks)
 
 
-def build_user_prompt(question: str, context_items: list[ContextItem] | None = None) -> str:
-    context = render_context(context_items or [])
+def build_user_prompt(
+    question: str, context_items: list[ContextItem] | None = None, *, max_chars: int = 8000
+) -> str:
+    context = render_context(context_items or [], max_chars=max_chars)
     if not context:
         return question
     return (

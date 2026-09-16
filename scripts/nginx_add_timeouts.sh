@@ -15,7 +15,10 @@ seconds="${2:-180}"
 [[ "$seconds" =~ ^[0-9]+$ ]] || { echo "seconds must be a number" >&2; exit 2; }
 
 if grep -qE '^\s*proxy_read_timeout' "$site"; then
-    echo "already set:"; grep -nE '^\s*proxy_(read|send)_timeout' "$site"; exit 0
+    echo "already set:"; grep -nE '^\s*proxy_(read|send)_timeout' "$site"
+    # An edit made by hand may never have been reloaded; make sure it is live.
+    nginx -t && systemctl reload nginx && echo "nginx reloaded"
+    exit 0
 fi
 
 anchors=$(grep -cE '^\s*proxy_pass\s' "$site" || true)

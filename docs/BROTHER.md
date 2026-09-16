@@ -150,6 +150,12 @@ provider is a decision to take on purpose (`--may-escalate`, a budget, and
 the deployment's own provider flags). The API key is printed once for
 programmatic use; the dashboard chat does not need it.
 
+The chat page queues each question as a background job and polls for the
+answer every two seconds, so a reasoning question that takes the local model
+two minutes on CPU is never cut off by a reverse proxy timeout. The elapsed
+time is shown while it works. `python -m app.cli ask` and
+`/admin/chat/ask-now` are the synchronous forms for scripts behind no proxy.
+
 The chat page shows, before you type, whether the pack is loaded, whether a
 local model is running and whether the embedder is semantic. Without
 `nomic-embed-text` the embedder is the lexical fallback: it matches wording,

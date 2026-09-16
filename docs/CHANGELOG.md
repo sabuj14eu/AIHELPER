@@ -46,6 +46,21 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **The dashboard chat no longer depends on the proxy timeout.** A local
+  model on CPU can take minutes on a reasoning question, and nginx's
+  `proxy_read_timeout` (60 s by default) answered with its own 504 page.
+  `/admin/chat/ask` now queues the question as the same background job
+  `/api/v1/tasks` uses and returns at once; the page polls
+  `/admin/chat/task/{id}` every two seconds and shows the elapsed time.
+  `/admin/chat/ask-now` keeps the synchronous form for scripts behind no proxy.
+- **Local prompt evidence budget** — `LOCAL_CONTEXT_CHARS` (default 4500,
+  was the paid providers' 8000). Prompt evaluation dominates CPU latency, so
+  this roughly halves the time to first token on a 3B model.
+- **Ollama keep-alive 60 min** — the model no longer unloads after five idle
+  minutes and pays a 10–20 s reload at the start of the next answer.
+- `scripts/nginx_add_timeouts.sh` now tests and reloads nginx even when the
+  directives are already present, so a hand edit that was never reloaded
+  becomes live.
 - **"hello" was answered with INSUFFICIENT CONTEXT.** Small talk was still
   retrieving pack chunks, and the base rule told the model to refuse when the
   context did not cover the question. Greetings and thanks now skip retrieval

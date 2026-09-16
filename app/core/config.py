@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     EMBEDDING_DIM: int = 768
     LOCAL_TIMEOUT_SECONDS: float = 180.0
     LOCAL_MAX_TOKENS: int = 1024
+    # Evidence budget for the LOCAL prompt. Prompt evaluation dominates a CPU
+    # model's latency, so this is the single biggest speed knob: 4500 chars
+    # is about four chunks plus a live reading. Paid providers keep 8000.
+    LOCAL_CONTEXT_CHARS: int = 4500
 
     # ----------------------------------------------------- paid providers
     # Disabled by default. This is a hard requirement, not a preference.

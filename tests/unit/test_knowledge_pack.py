@@ -258,6 +258,27 @@ class TestRetrievalAndAnswering:
         assert system.startswith("You are AI Helper")
         assert "Never infer from silence" in system
 
+    def test_the_local_prompt_respects_its_evidence_budget(
+        self, runtime, db, client_row, tmp_path, local_provider, settings
+    ):
+        from app.agents.builtin import BROTHER
+
+        settings.LOCAL_CONTEXT_CHARS = 1200
+        root = write_pack(tmp_path / "pack")
+        services = runtime.for_session(db, client_row.client_id)
+        KnowledgePackLoader(db, client_row.client_id, ingestor=services.ingestor).load(root)
+        local_provider.hard_topics.append("Freshness Law")
+        services.router.handle(
+            GatewayRequest(
+                message="What does the Freshness Law say about stale data?",
+                client=client_row,
+                agent=BROTHER,
+            )
+        )
+        prompt = local_provider.calls[-1].messages[-1].content
+        context = prompt[prompt.index("<<<CONTEXT"): prompt.rindex("CONTEXT>>>") + len("CONTEXT>>>")]
+        assert len(context) <= 1200 + 300  # the budget plus one header's slack
+
     def test_small_talk_skips_retrieval_and_is_answered_warmly(
         self, runtime, db, client_row, tmp_path, local_provider
     ):

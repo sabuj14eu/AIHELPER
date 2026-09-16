@@ -530,7 +530,12 @@ class GatewayRouter:
             if turn.role in ("user", "assistant"):
                 messages.append(Message(role=turn.role, content=turn.content))
         messages.append(
-            Message(role="user", content=build_user_prompt(message, retrieval.items))
+            Message(
+                role="user",
+                content=build_user_prompt(
+                    message, retrieval.items, max_chars=self.settings.LOCAL_CONTEXT_CHARS
+                ),
+            )
         )
 
         try:

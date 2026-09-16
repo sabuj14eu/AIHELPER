@@ -17,6 +17,9 @@ from app.core.logging import get_logger
 log = get_logger("ollama")
 
 
+KEEP_ALIVE = "60m"
+
+
 class OllamaClient:
     def __init__(self, base_url: str, timeout: float = 60.0, client: httpx.Client | None = None):
         self.base_url = base_url.rstrip("/")
@@ -100,6 +103,9 @@ class OllamaClient:
             "messages": messages,
             "stream": False,
             "options": options,
+            # Ollama unloads a model after 5 idle minutes and reloading a 3B
+            # model on CPU costs 10-20 s at the start of the next answer.
+            "keep_alive": KEEP_ALIVE,
         }
         if json_mode:
             payload["format"] = "json"

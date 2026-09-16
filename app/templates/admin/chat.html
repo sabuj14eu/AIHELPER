@@ -139,20 +139,35 @@
     send.disabled = true; input.disabled = true;
     const done = thinking();
     try {
+      // Queue the question, then poll. The model may take minutes on CPU and
+      // no reverse proxy has to wait for it: each poll is a quick request.
       const r = await fetch('/admin/chat/ask', {
         method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
         body: JSON.stringify({message: text, agent: agentSel.value, conversation_id: conversationId})
       });
       const raw = await r.text();
+      let queued = null;
+      try { queued = JSON.parse(raw); } catch (_) { queued = null; }
+      if (queued === null) { done(); bubble('assistant', explainNonJson(r.status, raw), {route: 'error', success: false, notes: []}); return; }
+      if (!r.ok) { done(); bubble('assistant', (queued.error || 'request failed'), {route: 'error', success: false, notes: []}); return; }
+
       let data = null;
-      try { data = JSON.parse(raw); } catch (_) { data = null; }
-      done();
-      if (data === null) {
-        bubble('assistant', explainNonJson(r.status, raw), {route: 'error', success: false, notes: []});
-        return;
+      for (let i = 0; i < 600; i++) {            // up to 20 minutes, 2 s apart
+        await new Promise(res => setTimeout(res, 2000));
+        const p = await fetch('/admin/chat/task/' + encodeURIComponent(queued.task_id), {
+          credentials: 'same-origin', headers: {'Accept': 'application/json'}
+        });
+        const praw = await p.text();
+        let job = null;
+        try { job = JSON.parse(praw); } catch (_) { job = null; }
+        if (job === null) { done(); bubble('assistant', explainNonJson(p.status, praw), {route: 'error', success: false, notes: []}); return; }
+        if (!p.ok) { done(); bubble('assistant', (job.error || 'poll failed'), {route: 'error', success: false, notes: []}); return; }
+        if (job.status === 'succeeded') { data = job.result; break; }
+        if (job.status === 'failed') { done(); bubble('assistant', 'the job failed: ' + (job.error || 'unknown'), {route: 'error', success: false, notes: []}); return; }
       }
-      if (!r.ok) { bubble('assistant', (data.error || 'request failed'), {route: 'error', success: false, notes: []}); return; }
+      done();
+      if (data === null) { bubble('assistant', 'still running after 20 minutes; check docker compose logs ai-helper', {route: 'error', success: false, notes: []}); return; }
       conversationId = data.conversation_id || conversationId;
       bubble('assistant', data.answer || '(no answer)', data);
     } catch (e) {

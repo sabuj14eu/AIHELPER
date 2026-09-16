@@ -258,6 +258,22 @@ class TestBrotherChat:
         assert refused.status_code == 503
         assert "bootstrap-brother" in refused.json()["error"]
 
+    @staticmethod
+    def ask_and_wait(api, payload: dict) -> dict:
+        """The page's own protocol: queue, then poll until the job settles."""
+        import time
+
+        queued = api.post("/admin/chat/ask", json=payload)
+        assert queued.status_code == 202, queued.text
+        task_id = queued.json()["task_id"]
+        for _ in range(500):
+            job = api.get(f"/admin/chat/task/{task_id}").json()
+            if job["status"] in ("succeeded", "failed"):
+                break
+            time.sleep(0.01)
+        assert job["status"] == "succeeded", job.get("error") or job
+        return job["result"]
+
     def test_a_question_runs_as_the_personal_client_with_the_default_agent(
         self, signed_in, db, settings, local_provider, paid_provider
     ):
@@ -267,9 +283,7 @@ class TestBrotherChat:
         assert page.status_code == 200 and "bootstrap-brother" not in page.text
         assert 'value="brother" selected' in page.text
 
-        answer = signed_in.post("/admin/chat/ask", json={"message": "What is the capital of France?"})
-        assert answer.status_code == 200, answer.text
-        body = answer.json()
+        body = self.ask_and_wait(signed_in, {"message": "What is the capital of France?"})
         assert body["agent"] == "brother"
         assert body["route"] == "local" and "Paris" in body["answer"]
         assert body["conversation_id"]
@@ -277,12 +291,14 @@ class TestBrotherChat:
         assert "Never infer from silence" in local_provider.calls[-1].messages[0].content
 
         # The conversation continues, and the log names the personal client.
-        follow = signed_in.post(
-            "/admin/chat/ask",
-            json={"message": "And its population?", "conversation_id": body["conversation_id"]},
+        follow = self.ask_and_wait(
+            signed_in, {"message": "And its population?", "conversation_id": body["conversation_id"]}
         )
-        assert follow.status_code == 200
-        assert follow.json()["conversation_id"] == body["conversation_id"]
+        assert follow["conversation_id"] == body["conversation_id"]
+        # A task id cannot be probed without the admin session.
+        anon = signed_in.get("/admin/chat/task/task_nope", headers={"cookie": ""})
+        assert anon.status_code == 401
+        assert signed_in.get("/admin/chat/task/task_nope").status_code == 404
         from app.database.models import RequestLog
 
         rows = list(db.scalars(select(RequestLog)))
@@ -297,8 +313,14 @@ class TestBrotherChat:
     def test_a_tool_answer_stays_free(self, signed_in, db, settings, local_provider):
         make_client(db, settings.PERSONAL_CLIENT_ID)
         db.commit()
-        answer = signed_in.post(
-            "/admin/chat/ask", json={"message": "What is 1200 * 0.23?", "agent": "trading"}
+        answer = self.ask_and_wait(
+            signed_in, {"message": "What is 1200 * 0.23?", "agent": "trading"}
         )
-        assert answer.json()["route"] == "tool" and answer.json()["answer"] == "276"
+        assert answer["route"] == "tool" and answer["answer"] == "276"
         assert local_provider.calls == []
+
+    def test_the_synchronous_form_still_answers_in_one_call(self, signed_in, db, settings):
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        db.commit()
+        answer = signed_in.post("/admin/chat/ask-now", json={"message": "What is 2 + 2?"})
+        assert answer.status_code == 200 and answer.json()["answer"] == "4"
