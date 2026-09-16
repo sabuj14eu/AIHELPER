@@ -281,10 +281,16 @@ class TestBrotherChat:
         db.commit()
         page = signed_in.get("/admin/chat")
         assert page.status_code == 200 and "bootstrap-brother" not in page.text
-        assert 'value="brother" selected' in page.text
+        # The selector now opens on "auto" -- the specialist is picked from the
+        # message. Every named agent is still there to override it with.
+        assert 'value="auto" selected' in page.text
+        assert 'value="brother"' in page.text and 'value="trading"' in page.text
 
         body = self.ask_and_wait(signed_in, {"message": "What is the capital of France?"})
+        # Nothing in that question points at a specialist, so it lands on the
+        # generalist -- which is the same agent the dropdown used to force.
         assert body["agent"] == "brother"
+        assert body["agent_routing"]["agent"] == "brother"
         assert body["route"] == "local" and "Paris" in body["answer"]
         assert body["conversation_id"]
         assert paid_provider.call_count == 0

@@ -40,7 +40,8 @@
   <div class="filters">
     <label>Agent
       <select id="agent">
-        {% for a in agents %}<option value="{{ a.name }}" {% if a.name == default_agent %}selected{% endif %} title="{{ a.description }}">{{ a.name }}</option>{% endfor %}
+        <option value="auto" selected title="Pick the specialist from the message; falls back to brother.">auto</option>
+        {% for a in agents %}<option value="{{ a.name }}" title="{{ a.description }}">{{ a.name }}</option>{% endfor %}
       </select>
     </label>
     <span id="agent-desc" class="note" style="margin:0"></span>
@@ -54,8 +55,9 @@
       style="flex:1;font:inherit;padding:.5rem .6rem;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink);resize:vertical"></textarea>
     <button type="submit" id="send">Send</button>
   </form>
-  <p class="note" style="margin:.6rem 0 0">Each reply shows its route (tool · memory · local · paid), confidence, cost and the sources it used.
-  A reply marked <em>unverified</em> did not pass validation — treat it as a draft, not a fact.</p>
+  <p class="note" style="margin:.6rem 0 0">On <em>auto</em>, Brother picks the specialist from what you asked; choose one yourself to override it.
+  Each reply carries one word for how far it got — <em>verified</em>, <em>unverified</em> (a draft, not a fact),
+  <em>not enough evidence</em> (an answer, not a fault), or <em>system problem</em>. Open <em>why</em> for the route, sources and cost.</p>
 </div>
 
 <script>
@@ -70,6 +72,10 @@
   let conversationId = null;
 
   function describe() {
+    if (agentSel.value === 'auto') {
+      agentDesc.textContent = 'Brother picks the specialist from your message; falls back to brother.';
+      return;
+    }
     const a = agents.find(x => x.name === agentSel.value);
     agentDesc.textContent = a ? a.description : '';
   }
@@ -147,6 +153,10 @@
         const lines = [bits.join(' · ')];
         if (meta.sources && meta.sources.length) {
           lines.push('sources: ' + meta.sources.map(s => s.source + ':' + s.ref).join(', '));
+        }
+        if (meta.agent_routing) {
+          lines.push('agent chosen automatically: ' + meta.agent_routing.agent +
+                     ' — ' + meta.agent_routing.reason);
         }
         if (meta.notes && meta.notes.length) lines.push(meta.notes.join(' · '));
         inner.textContent = lines.filter(Boolean).join('\n');

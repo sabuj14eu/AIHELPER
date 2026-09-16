@@ -3,6 +3,53 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.4.0 — 2026-09-16
+
+Phase 3: something finally sends a message to a specialist.
+
+**Migration:** none. The chat's agent selector now opens on `auto`.
+
+### Added
+
+- **A deterministic agent router** (`app/agents/router.py`). Four Brother
+  agents existed, each with its own prompt and tool set, and nothing routed to
+  any of them — the agent was whichever value the dropdown held. A trading
+  question reached the trading expert only if the reader remembered to pick it,
+  which is the same as saying the specialisation was decorative.
+
+  It is regex over the message, not a model call. Iron Rule 2 stands, and a
+  test asserts the module cannot reach a provider. Scoring counts *distinct*
+  signals, so a message has to lean into a domain — one incidental "plan" does
+  not move a question to trading. A tie goes to the generalist. Being wrong
+  costs one local call against a slightly-wrong prompt, and that stays true
+  only because the fallback is `brother`, which inherits the client's whole
+  tool set — never "no agent", never a refusal.
+
+  Every decision records the words that caused it and travels on the response
+  as `agent_routing`, so accuracy is a measurement. The 24-message labelled set
+  in `tests/unit/test_agent_router.py::LABELLED` is the thing to grow when it
+  gets something wrong; it found six real misses on its first run.
+
+- **`auto` in the chat selector**, and it is the default. Any named agent still
+  overrides it and is never second-guessed: someone who picked the social agent
+  for a question about gold meant it. `PERSONAL_AGENT` becomes the router's
+  fallback rather than a fixed choice.
+
+### Fixed
+
+- **An agent's `default_task_type` disabled per-message classification.** It
+  was passed to the classifier as `declared`, which short-circuits at
+  confidence 1.0 — and all four Brother agents declare GENERAL, so every
+  message in the chat classified as GENERAL and the 90 lines of patterns below
+  never ran. The message speaks first now; the agent's default catches it only
+  when nothing specific matched (`AGENT_DEFAULT_FLOOR`).
+
+  The floor is deliberately at 0.8, which excludes the classifier's two guesses
+  that are about the *client* rather than the question — "documents exist and
+  this is open-ended" (0.5) and "nothing matched" (0.4). For a client holding a
+  77-document knowledge pack the first fires on almost every sentence and would
+  route ordinary conversation into strict document QA.
+
 ## 1.3.1 — 2026-09-16
 
 Phase 2: the system prompt stops contradicting itself.

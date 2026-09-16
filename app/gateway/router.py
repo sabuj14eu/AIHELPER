@@ -64,6 +64,11 @@ from app.validation.states import AnswerState, derive_state, withholding_reason
 
 log = get_logger("gateway")
 
+# A classification at or above this came from an explicit pattern in the
+# message (0.8) or a named document (0.85+). Below it, the classifier is
+# guessing from the client's shape rather than reading the question.
+AGENT_DEFAULT_FLOOR = 0.8
+
 # Task types whose answers are supposed to come from sources.
 CONTEXT_TASKS = {TaskType.DOCUMENT_QA, TaskType.RESEARCH, TaskType.EXTRACTION}
 
@@ -258,15 +263,32 @@ class GatewayRouter:
 
         # ---- classification of the task ---------------------------------
         has_documents = bool(request.document_ids) or self._client_has_documents(client.client_id)
-        declared_task = request.task_type
-        if not declared_task and request.agent is not None:
-            declared_task = request.agent.default_task_type.value
+        # An agent's default_task_type used to be passed as `declared`, which
+        # short-circuits the classifier at confidence 1.0 -- so with an agent
+        # selected, every message in the chat classified as GENERAL and the
+        # patterns below it never ran. The message gets to speak first now, and
+        # the agent's default catches it only when nothing specific matched.
         task = task_classifier.classify(
             message,
-            declared=declared_task,
+            declared=request.task_type,
             has_documents=has_documents,
             document_ids=request.document_ids,
         )
+        if (
+            not request.task_type
+            and request.agent is not None
+            and task.confidence < AGENT_DEFAULT_FLOOR
+        ):
+            # Below the floor sit the two guesses that are about the client
+            # rather than the question -- "documents exist and this is
+            # open-ended", and "nothing matched". For a client holding a
+            # knowledge pack the first fires on almost every sentence and
+            # would route ordinary conversation into strict document QA.
+            task = task_classifier.Classification(
+                request.agent.default_task_type,
+                1.0,
+                f"the {request.agent.name} agent's default; no pattern matched the message",
+            )
         task_type = task.task_type
         allowed_tools = narrowed_tools(request.agent, client.allowed_tools) if request.agent else client.allowed_tools
 

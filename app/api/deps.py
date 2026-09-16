@@ -141,9 +141,28 @@ def services_dep(
 
 
 def resolve_agent(name: str | None) -> AgentSpec | None:
-    if not name:
+    if not name or name.lower() == "auto":
         return None
     spec = AGENTS.get(name)
     if spec is None:
         raise PermissionDeniedError(f"unknown or disabled agent '{name}'")
     return spec
+
+
+def resolve_agent_for(
+    name: str | None, message: str, *, fallback: str = "brother"
+) -> tuple[AgentSpec | None, dict | None]:
+    """The agent for this turn, and how it was chosen.
+
+    A named agent is honoured exactly as given: someone who picked the social
+    agent for a question about gold meant it, and a router that argues with an
+    explicit instruction is worse than no router. "auto", or nothing at all,
+    means "you decide" -- and the decision lands on ``fallback`` whenever the
+    message does not clearly belong to a specialist.
+    """
+    from app.agents.router import resolve_requested
+
+    if name and name.lower() != "auto":
+        return resolve_agent(name), None
+    spec, choice = resolve_requested("auto", message, AGENTS, fallback=fallback)
+    return spec, (choice.as_dict() if choice else None)

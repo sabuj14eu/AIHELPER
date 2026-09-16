@@ -40,7 +40,7 @@ def register_jobs(runner: JobRunner) -> None:
     """Job handlers. Each opens its own session; none holds a request's."""
 
     def chat_job(client_id: str, payload: dict) -> dict:
-        from app.api.deps import resolve_agent
+        from app.api.deps import resolve_agent_for
         from app.database.models import Client
         from app.database.session import session_scope
         from app.gateway.router import GatewayRequest
@@ -51,6 +51,11 @@ def register_jobs(runner: JobRunner) -> None:
             if client is None:
                 raise ValueError(f"client '{client_id}' no longer exists")
             services = get_runtime().for_session(session, client_id)
+            agent, routing = resolve_agent_for(
+                payload.get("agent"),
+                payload["message"],
+                fallback=payload.get("agent_fallback") or "brother",
+            )
             result = services.router.handle(
                 GatewayRequest(
                     message=payload["message"],
@@ -66,10 +71,13 @@ def register_jobs(runner: JobRunner) -> None:
                     user_ref=payload.get("user_ref"),
                     max_tokens=payload.get("max_tokens"),
                     store_conversation=bool(payload.get("store_conversation", True)),
-                    agent=resolve_agent(payload.get("agent")),
+                    agent=agent,
                 )
             )
-            return result.as_dict()
+            answer = result.as_dict()
+            if routing is not None:
+                answer["agent_routing"] = routing
+            return answer
 
     runner.register(tasks.CHAT_JOB, chat_job)
 

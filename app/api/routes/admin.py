@@ -29,6 +29,7 @@ from app.api.deps import (
     admin_session,
     db_dep,
     resolve_agent,
+    resolve_agent_for,
     runtime_dep,
     settings_dep,
 )
@@ -556,13 +557,16 @@ def chat_ask(
             f"rate limit exceeded; retry in {decision.retry_after:.0f}s",
             detail={"retry_after": decision.retry_after, "limit": decision.limit},
         )
-    resolve_agent(body.agent or settings.PERSONAL_AGENT)  # refuse an unknown agent now, not in the job
+    # Refuse an unknown agent now, not inside the job. "auto" is legal and
+    # is resolved by the router when the job runs, with the message in hand.
+    resolve_agent(body.agent)
     job_id = request.app.state.jobs.submit(
         client_id=client.client_id,
         kind=CHAT_JOB,
         payload={
             "message": body.message,
-            "agent": body.agent or settings.PERSONAL_AGENT,
+            "agent": body.agent or "auto",
+            "agent_fallback": settings.PERSONAL_AGENT,
             "conversation_id": body.conversation_id,
             "user_ref": f"admin:{session.get('sub')}"[:120],
             "store_conversation": True,
@@ -621,7 +625,9 @@ def chat_ask_now(
             f"rate limit exceeded; retry in {decision.retry_after:.0f}s",
             detail={"retry_after": decision.retry_after, "limit": decision.limit},
         )
-    agent = resolve_agent(body.agent or settings.PERSONAL_AGENT)
+    agent, routing = resolve_agent_for(
+        body.agent, body.message, fallback=settings.PERSONAL_AGENT
+    )
     services = runtime.for_session(db, client.client_id)
     result = services.router.handle(
         GatewayRequest(
@@ -632,7 +638,10 @@ def chat_ask_now(
             agent=agent,
         )
     )
-    return result.as_dict()
+    answer = result.as_dict()
+    if routing is not None:
+        answer["agent_routing"] = routing
+    return answer
 
 
 @ui_router.post("/chat/teach")
