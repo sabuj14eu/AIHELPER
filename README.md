@@ -187,7 +187,10 @@ matters most: a question is paid for once and answered locally thereafter.
 | [`docs/deployment.md`](docs/deployment.md) | Production install, TLS, resources, upgrades |
 | [`docs/operations.md`](docs/operations.md) | Backups, models, logs, troubleshooting, tuning |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Releases and migration notes |
-| [`docs/BROTHER.md`](docs/BROTHER.md) | The personal assistant layer: the knowledge pack, the Brother agents, the dashboard chat, refresh procedure |
+| [`CLAUDE.md`](CLAUDE.md) | The constitution: iron rules, layout, the laws learned on the first real deployment |
+| [`docs/BROTHER.md`](docs/BROTHER.md) | The personal assistant layer: the knowledge pack, the Brother agents, the dashboard chat, teaching, refresh procedure |
+| [`docs/HANDOFF_BROTHER_SESSION.md`](docs/HANDOFF_BROTHER_SESSION.md) | The living session handoff: state on the box, what was verified live, the backlog, the opening prompt |
+| [`docs/OPEN_ITEMS.md`](docs/OPEN_ITEMS.md) | Deferred work with status; an item not here does not exist |
 | [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | What this does not do, and what it costs you |
 | [`audit/AUDIT_REPORT.md`](audit/AUDIT_REPORT.md) | Independent verification, findings, and the production verdict |
 | [`docs/HANDOVER_TO_FABLE.md`](docs/HANDOVER_TO_FABLE.md) | Brief for the next auditor: state, the one blocker, and what deserves a second opinion |

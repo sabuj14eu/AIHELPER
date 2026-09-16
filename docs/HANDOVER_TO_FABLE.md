@@ -32,6 +32,10 @@ Everything else waits.
 > was found and fixed along the way (the polarity check, CHANGELOG 1.1.0),
 > which is exactly the kind of thing §5 asked the next auditor to argue with.
 > The production blocker in §3 is unchanged.
+>
+> **Superseded 2026-09-16 (evening)** by `docs/HANDOFF_BROTHER_SESSION.md`,
+> the living handoff, and `docs/OPEN_ITEMS.md`. This file stays as the
+> record of the 1.0 audit; the box now has real models, so §3 is runnable.
 
 ---
 

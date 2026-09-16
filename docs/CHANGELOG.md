@@ -46,6 +46,10 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **Constitution and handoff** — `CLAUDE.md` (iron rules, layout, the laws
+  learned on the first real deployment), `docs/HANDOFF_BROTHER_SESSION.md`
+  (state on the box, verified vs. not, backlog, opening prompt) and
+  `docs/OPEN_ITEMS.md` (AIH-1 … AIH-11 with status).
 - **Teaching** (`app/learning/teaching.py`, `/admin/chat/teach`,
   `python -m app.cli teach`, a form on every chat reply). The owner supplies
   question, answer and evidence; the pair goes through the same validation
