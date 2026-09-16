@@ -450,15 +450,28 @@ def make_trading_status_spec(settings: Settings, client: httpx.Client | None = N
             if stats.get("low_sample"):
                 sample = f" — LOW SAMPLE, under the platform's {stats.get('min_sample', '?')}-trade floor; not a verdict"
             parts = [f"closed trades n={count}{sample}"]
-            for key, label in (
-                ("win_rate", "win rate"), ("profit_factor", "profit factor"),
-                ("total_profit", "net"), ("today_profit", "today"), ("weekly_profit", "7d"),
-                ("monthly_profit", "30d"), ("max_drawdown", "max drawdown"),
-                ("consecutive_losses", "consecutive losses"), ("best_symbol", "best symbol"),
-                ("worst_symbol", "worst symbol"),
+            for key, label, unit in (
+                # win_rate arrives as a percentage (analytics.core_stats rounds
+                # it to one place), so it is rendered with its unit: "54.1"
+                # standing next to "profit factor 1.21" is a number whose
+                # meaning the reader has to guess.
+                ("win_rate", "win rate", "%"),
+                ("profit_factor", "profit factor", ""),
+                ("total_profit", "net", ""), ("today_profit", "today", ""),
+                ("weekly_profit", "7d", ""), ("monthly_profit", "30d", ""),
+                ("max_drawdown", "max drawdown", ""),
+                ("consecutive_losses", "consecutive losses", ""),
+                ("best_symbol", "best symbol", ""), ("worst_symbol", "worst symbol", ""),
             ):
-                if key in stats and stats[key] is not None:
-                    parts.append(f"{label} {stats[key]}")
+                if key not in stats:
+                    continue
+                # A key the platform sent as null was being dropped, which reads
+                # as "not reported" when it means something: profit_factor is
+                # null when there were no losing trades to divide by. Absence is
+                # not zero and it is not silence -- it is UNKNOWN, and Brother
+                # does not guess which of the two it was.
+                value = stats[key]
+                parts.append(f"{label} UNKNOWN" if value is None else f"{label} {value}{unit}")
             lines.append("Stats: " + " · ".join(parts))
         elif "stats" in errors:
             lines.append(f"Stats: UNKNOWN ({errors['stats']})")

@@ -166,11 +166,13 @@ class TestMarketNewsTool:
         assert currency_in("nothing here") is None
 
 
-def platform_transport(*, fail: set[str] = frozenset()):
-    return httpx.Client(transport=httpx.MockTransport(platform_handler(fail=fail)))
+def platform_transport(*, fail: set[str] = frozenset(), stats_overrides: dict | None = None):
+    return httpx.Client(
+        transport=httpx.MockTransport(platform_handler(fail=fail, stats_overrides=stats_overrides))
+    )
 
 
-def platform_handler(*, fail: set[str] = frozenset()):
+def platform_handler(*, fail: set[str] = frozenset(), stats_overrides: dict | None = None):
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"].startswith("Bearer bb_")
         path = request.url.path
@@ -180,8 +182,10 @@ def platform_handler(*, fail: set[str] = frozenset()):
             return httpx.Response(200, json={"balance": 10000.0, "equity": 10042.1, "free_margin": 9000.0,
                                              "floating_pnl": 42.1, "accounts": 2, "online": 1})
         if path.endswith("/stats"):
-            return httpx.Response(200, json={"count": 37, "low_sample": True, "min_sample": 100,
-                                             "win_rate": 54.1, "profit_factor": 1.21, "total_profit": 312.5})
+            body = {"count": 37, "low_sample": True, "min_sample": 100,
+                    "win_rate": 54.1, "profit_factor": 1.21, "total_profit": 312.5}
+            body.update(stats_overrides or {})
+            return httpx.Response(200, json=body)
         if path.endswith("/trades"):
             assert request.url.params["status"] == "open"
             return httpx.Response(200, json=[{"symbol": "GOLD", "direction": "BUY", "lots": 0.1,
@@ -221,6 +225,28 @@ class TestTradingStatusTool:
         assert "n=37" in result.display and "LOW SAMPLE" in result.display
         assert "bb_test_key_not_real" not in result.display
         assert not result.meta["partial"]
+
+    def test_the_win_rate_carries_its_unit(self, settings):
+        """54.1 next to "profit factor 1.21" is a number the reader has to guess at.
+
+        The platform's analytics.core_stats returns win_rate as a percentage.
+        """
+        self.configure(settings)
+        result = make_trading_status_spec(settings, platform_transport()).handler()
+        assert "win rate 54.1%" in result.display
+
+    def test_a_null_statistic_reads_unknown_rather_than_vanishing(self, settings):
+        """The platform sends profit_factor: null when there were no losing trades.
+
+        Dropping the key made that look like "the platform did not report it".
+        Absence is not zero and it is not silence, and Brother does not guess
+        which of the two the platform meant.
+        """
+        self.configure(settings)
+        result = make_trading_status_spec(
+            settings, platform_transport(stats_overrides={"profit_factor": None})
+        ).handler()
+        assert "profit factor UNKNOWN" in result.display
 
     def test_a_failed_section_is_unknown_not_missing(self, settings):
         self.configure(settings)

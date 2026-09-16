@@ -32,6 +32,28 @@ migration note. Deploys follow: **backup → migrate → restart → verify logs
 
 ### Fixed
 
+- **The trading mirror's field names are verified, and two of its numbers now
+  say what they mean** (AIH-5). Every key `trading_status` renders was checked
+  against the platform's `app/routers/api_v1.py` and
+  `app/services/analytics.py` at Sniper-System `3257184`: `portfolio` →
+  `analytics.portfolio_totals`, `stats` → `analytics.full_report` (which
+  spreads `core_stats`), and the `trades` and `signals` dictionaries are built
+  literally in the router. All of them match; nothing was renamed. Two
+  rendering defects turned up while checking:
+  - `win_rate` arrives as a percentage and was printed bare, so "win rate 54.1"
+    sat next to "profit factor 1.21" with nothing to say they are different
+    kinds of number. It now carries its `%`.
+  - A key the platform sent as `null` was dropped from the line entirely, which
+    reads as "the platform did not report it". `profit_factor` is `null`
+    precisely when there were no losing trades to divide by, and `max_drawdown`
+    and `avg_rr` are `null` on an empty history. Absence is not zero and it is
+    not silence: a present-but-null statistic now reads `UNKNOWN`, and Brother
+    does not guess which of the two the platform meant.
+
+  Note this is a rendering audit against the platform's source, not a live
+  read: the connector is still unconfigured on the box (AIH-1), so no real
+  payload has been through it.
+
 - **A failed request now says why it failed.** When level 2 produced nothing
   at all, `GatewayRouter._degraded` recorded the reason only `if not
   base.notes` — and by the time it is reached a note almost always exists,
