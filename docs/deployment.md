@@ -43,7 +43,15 @@ docker compose up -d
 ## TLS and the reverse proxy
 
 Compose binds everything to `127.0.0.1`. Nothing is reachable from outside the
-host until you put a proxy in front. nginx:
+host until you put a proxy in front. If a site file already exists, add the
+timeouts a local model needs with the anchor-safe helper (backup, one
+`proxy_pass` anchor or it refuses, `nginx -t`, reload):
+
+```bash
+sudo bash scripts/nginx_add_timeouts.sh /etc/nginx/sites-available/<site> 180
+```
+
+A full site from scratch, nginx:
 
 ```nginx
 server {

@@ -53,6 +53,9 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   for facts about the owner's systems, and the validator now catches the
   marker written as "INSUFFICIENT CONTEXT" (space, dash or lower case), which
   had slipped past as a passing answer at confidence 0.65.
+- **`scripts/nginx_add_timeouts.sh`** — adds `proxy_read_timeout` and
+  `proxy_send_timeout` to an existing nginx site file, anchor-safe: backup,
+  exactly one `proxy_pass` or it refuses, `nginx -t`, reload, restore on failure.
 - **`python -m app.cli ask "…"`** — talk to Brother from the terminal as the
   personal client, through the same ladder, bypassing any reverse proxy.
   Prints the answer, then route, confidence, latency, cost and sources.
