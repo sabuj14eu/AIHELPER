@@ -12,10 +12,11 @@ Nothing here is application-specific: no accounting rules, no trading rules.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.core.errors import PermissionDeniedError, ToolError
 from app.database.enums import TaskType
+from app.local_ai.prompts import ContextItem
 from app.tools.registry import ToolRegistry, ToolResult
 
 # A message that is nothing but an arithmetic expression, optionally wrapped in
@@ -74,6 +75,8 @@ class DispatchResult:
     result: ToolResult | None = None
     answer: str | None = None
     error: str | None = None
+    # Live evidence a tool supplied for the model without answering outright.
+    context_items: list[ContextItem] = field(default_factory=list)
 
 
 def _arith_expression(message: str) -> str | None:
@@ -136,8 +139,32 @@ def try_dispatch(
         if match:
             plan = ("json_parser", {"text": match.group("body").strip()})
 
+    # Tools with their own matcher (the live connectors). A direct match is a
+    # level-0 answer; a context match runs the tool and hands the model its
+    # reading as evidence, marked untrusted like any retrieved text.
+    context_plans: list[tuple[str, dict]] = []
     if plan is None:
-        return DispatchResult(matched=False)
+        for spec in registry.list(include_disabled=False):
+            if spec.intent is None:
+                continue
+            if allowed_tools is not None and spec.name not in allowed_tools:
+                continue
+            try:
+                intent = spec.intent(text)
+            except Exception:  # a matcher bug must not take down the request
+                intent = None
+            if intent is None:
+                continue
+            if intent.direct and spec.answers_directly:
+                plan = (spec.name, intent.arguments)
+                break
+            context_plans.append((spec.name, intent.arguments))
+
+    if plan is None:
+        return DispatchResult(
+            matched=False,
+            context_items=_run_context_plans(registry, context_plans, allowed_tools, granted_permissions, context),
+        )
 
     tool_name, arguments = plan
     try:
@@ -165,3 +192,36 @@ def try_dispatch(
         result=result,
         answer=result.display or str(result.value),
     )
+
+
+def _run_context_plans(
+    registry: ToolRegistry,
+    plans: list[tuple[str, dict]],
+    allowed_tools: list[str] | None,
+    granted_permissions: set[str] | None,
+    context: dict | None,
+) -> list[ContextItem]:
+    items: list[ContextItem] = []
+    for tool_name, arguments in plans:
+        try:
+            result = registry.invoke(
+                tool_name,
+                arguments,
+                allowed_tools=allowed_tools,
+                granted_permissions=granted_permissions,
+                context=context,
+            )
+        except (PermissionDeniedError, ToolError):
+            continue
+        if not result.ok or not (result.display or "").strip():
+            continue
+        items.append(
+            ContextItem(
+                source=f"tool:{tool_name}",
+                ref=str(result.meta.get("state") or "live"),
+                content=result.display,
+                score=1.0,
+                note="live reading, untrusted data with its own timestamp",
+            )
+        )
+    return items

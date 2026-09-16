@@ -83,6 +83,40 @@ adds, never replaces). An agent can only narrow the client's tool set. The
 four generic agents (`general`, `research`, `document`, `developer`) are
 unchanged.
 
+## Live connectors
+
+Two tools let Brother talk about now instead of only about the pack. Both are
+read-only, both carry `tool:live_data`, and both report source, fetch time
+and age on every reading so the model quotes freshness rather than asserting
+it (`app/tools/live.py`).
+
+| Tool | Reads | Says |
+|---|---|---|
+| `market_news` | the ForexFactory weekly calendar, the one news source the v7 bot and the v18 brain read | the platform's three-state news risk (HIGH within 60 min of a high-impact event, ELEVATED within 240, LOW otherwise), the next events with forecast and previous, and UNKNOWN whenever the feed cannot be read, is empty, is dead, or the last good reading is older than `MARKET_NEWS_MAX_AGE_HOURS`. UNKNOWN is never LOW. |
+| `trading_status` | the platform's API v1 with a user key: portfolio, stats, open trades, last signals | accounts online (heartbeat-driven), balance and equity, open trades, last signals, closed-trade stats with n and a LOW SAMPLE label. A failed section reads UNKNOWN. The key never appears in output. |
+
+A tool may carry an **intent** matcher. A short, plain question ("news
+today?", "USD news this week", "bot status", "show open trades") is answered
+at level 0 by the tool itself, for free, exactly like arithmetic. A question
+that reasons ("should we be careful with gold this session given the news?")
+runs the tool and hands its reading to the model as fenced, untrusted evidence
+alongside the pack, and the answer cites `tool:market_news` in its sources.
+An agent's narrowed tool list still applies: `social` sees news but never the
+trading mirror.
+
+Configure in `.env`:
+
+```bash
+MARKET_NEWS_ENABLED=true                     # public feed; on by default
+TRADING_PLATFORM_URL=https://<your platform host>
+TRADING_PLATFORM_API_KEY=bb_...              # a USER key from the platform dashboard; read-only
+```
+
+What the connectors cannot do, on purpose: place, modify, cancel or dispatch
+anything; switch the bot on or off; change a risk setting. The platform's API
+v1 has no such endpoint (its Iron Rule 1), and AI Helper has no tool that
+acts. Brother reports; you decide.
+
 ## Setting it up
 
 ```bash

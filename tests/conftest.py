@@ -42,6 +42,10 @@ def settings() -> Settings:
         AUTO_PROMOTE=True,
         PROMOTION_REQUIRES_REPRODUCTION=True,
         LOG_LEVEL="CRITICAL",
+        # The live connectors reach the network; tests that want them build a
+        # registry with a mock transport (tests/unit/test_live_tools.py).
+        MARKET_NEWS_ENABLED=False,
+        TRADING_STATUS_ENABLED=False,
     )
 
 

@@ -4,6 +4,7 @@ from app.tools.builder import build_registry
 from app.tools.registry import (
     DEFAULT_PERMISSIONS,
     PERM_COMPUTE,
+    PERM_LIVE_DATA,
     PERM_NETWORK,
     PERM_READ_DOCUMENTS,
     PERM_READ_MEMORY,
@@ -20,6 +21,7 @@ __all__ = [
     "build_registry",
     "DEFAULT_PERMISSIONS",
     "PERM_COMPUTE",
+    "PERM_LIVE_DATA",
     "PERM_NETWORK",
     "PERM_READ_DOCUMENTS",
     "PERM_READ_MEMORY",

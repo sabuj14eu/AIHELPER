@@ -274,6 +274,14 @@ class GatewayRouter:
 
         # ============================================ LEVEL 1: retrieval
         retrieval = self._retrieve(message, task_type, request.namespace)
+        if dispatch.context_items:
+            # A live reading outranks stored text: it is about now, and it
+            # carries its own timestamp and freshness for the model to quote.
+            retrieval.items = [*dispatch.context_items, *retrieval.items]
+            retrieval.top_score = max(retrieval.top_score, 1.0)
+            base.notes.append(
+                "live data supplied by " + ", ".join(i.source for i in dispatch.context_items)
+            )
         base.memory_hit = retrieval.memory_hit
         base.retrieval = retrieval.as_dict()
         base.sources = [
@@ -481,14 +489,15 @@ class GatewayRouter:
         if local is None or not local.enabled:
             return self._LocalResult(available=False, detail="no local provider configured")
 
+        wanted = requested_model or self._agent_model(agent)
         model = None
         resolver = getattr(local, "resolve_model", None)
         if resolver is not None:
-            model = resolver(task_type, requested_model)
+            model = resolver(task_type, wanted)
             if model is None:
                 return self._LocalResult(available=False, detail="no local model is installed")
         else:
-            model = requested_model
+            model = wanted
 
         messages = [
             Message(
@@ -522,6 +531,20 @@ class GatewayRouter:
             log.warning("local_unavailable", detail=exc.code)
             return self._LocalResult(available=False, failed=True, detail=exc.message)
         return self._LocalResult(response=response)
+
+    def _agent_model(self, agent: AgentSpec | None) -> str | None:
+        """The model class an agent prefers, resolved against this deployment.
+
+        A preference, not a demand: the model manager falls back to the task's
+        class when the preferred model is not installed, and says so in the log.
+        """
+        if agent is None or not agent.model_role:
+            return None
+        return {
+            "small": self.settings.SMALL_LOCAL_MODEL,
+            "default": self.settings.DEFAULT_LOCAL_MODEL,
+            "strong": self.settings.STRONG_LOCAL_MODEL,
+        }.get(agent.model_role)
 
     # ------------------------------------------------------------- level 4
     def _run_paid(

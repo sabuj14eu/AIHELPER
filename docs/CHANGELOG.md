@@ -3,6 +3,48 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.2.0 — 2026-09-16
+
+Brother can now talk about *now*: two read-only live connectors, a tool
+intent mechanism that feeds live readings to the model as evidence, and a
+stronger default model class for the Brother agents.
+
+**Migration:** none. New settings only (all documented in `.env.example`);
+the trading connector is inert until `TRADING_PLATFORM_URL` and
+`TRADING_PLATFORM_API_KEY` are set.
+
+### Added
+
+- **`market_news` tool** (`app/tools/live.py`) — reads the ForexFactory weekly
+  calendar, the one news source the v7 bot and the v18 brain already read, and
+  renders the platform's three-state news risk (HIGH within 60 min of a
+  high-impact event, ELEVATED within 240, LOW otherwise). UNKNOWN whenever the
+  feed cannot be read, the week is empty, the feed is dead, or the last good
+  reading is older than `MARKET_NEWS_MAX_AGE_HOURS`; UNKNOWN is never LOW.
+  Every reading carries source, fetch time and age.
+- **`trading_status` tool** — reads the Sniper-System platform's API v1
+  (portfolio, stats, open trades, last signals) with a user API key. Read-only
+  by the platform's Iron Rule 1; a failed section reads UNKNOWN rather than
+  vanishing; the key never enters output or errors; DEMO is stated; a low
+  sample is labelled as such.
+- **Tool intents** — a `ToolSpec` may carry an `intent` matcher. A direct
+  match answers at level 0 for free ("news today?", "bot status"); a context
+  match runs the tool and hands its reading to the model as fenced, untrusted
+  evidence ("should we be careful with gold this session given the news?").
+  New permission `tool:live_data`, in the default set; an agent's narrowed
+  tool list still applies.
+- **Agent model role** — `AgentSpec.model_role`; the four Brother agents
+  prefer the `STRONG_LOCAL_MODEL` and fall back to the task's class when it is
+  not installed. Pull `qwen2.5:7b` to use it.
+- **Dashboard chat** shows whether each connector is on.
+
+### Verification
+
+New tests in `tests/unit/test_live_tools.py` cover the verdict windows, the
+cache and max-age behaviour, partial failures, key non-disclosure, intents,
+narrowing, and the router path with a mock transport. The conftest disables
+both connectors so no test reaches the network.
+
 ## 1.1.0 — 2026-09-16
 
 Brother: the personal assistant layer. AI Helper now knows who it works for.

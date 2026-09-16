@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from app.core.config import Settings
-from app.tools import calculator, dates, documents, json_tools, system, web_search
+from app.tools import calculator, dates, documents, json_tools, live, system, web_search
 from app.tools.registry import ToolRegistry
 
 
-def build_registry(settings: Settings, registry_provider=None) -> ToolRegistry:
+def build_registry(settings: Settings, registry_provider=None, http_client=None) -> ToolRegistry:
+    """``http_client`` lets tests hand the live connectors a mock transport."""
     registry = ToolRegistry()
     if not settings.TOOLS_ENABLED:
         return registry
@@ -19,4 +20,6 @@ def build_registry(settings: Settings, registry_provider=None) -> ToolRegistry:
     registry.register(documents.MEMORY_SPEC)
     registry.register(system.make_system_spec(settings, registry_provider))
     registry.register(web_search.make_web_search_spec(settings))
+    registry.register(live.make_market_news_spec(settings, http_client))
+    registry.register(live.make_trading_status_spec(settings, http_client))
     return registry

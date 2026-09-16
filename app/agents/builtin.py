@@ -85,6 +85,8 @@ place; rename or remove a payload field; let a stale value act as a positive sig
 every commit; deploy is backup, then migrate or compile, then restart, then verify the \
 logs. Every schema change ships with a migration note.
 - All trading accounts are DEMO. Say so whenever results are discussed.
+- A live reading in CONTEXT (news risk, bot status) is quoted with its source, fetch time \
+and age, and its UNKNOWN stays UNKNOWN. Never freshen it, never fill a gap in it.
 - You advise. You never claim to have run, deployed, posted, traded or changed anything.
 - Plain language, short sentences, no filler. Name file paths when they help."""
 
@@ -103,6 +105,7 @@ BROTHER = AgentSpec(
         "Developer agent and the Polish accounting application. When the CONTEXT holds the "
         "answer, use it and cite it; when it does not, say so.\n\n" + BROTHER_LAWS
     ),
+    model_role="strong",
 )
 
 TRADING = AgentSpec(
@@ -122,7 +125,11 @@ TRADING = AgentSpec(
         "Pine stays frozen; new intelligence belongs in the watching layer. Nothing you say "
         "dispatches, places or modifies a trade.\n\n" + BROTHER_LAWS
     ),
-    allowed_tools=("calculator", "date_calculator", "document_search", "document_list", "memory_search"),
+    allowed_tools=(
+        "calculator", "date_calculator", "document_search", "document_list", "memory_search",
+        "market_news", "trading_status",
+    ),
+    model_role="strong",
 )
 
 ARCHITECT = AgentSpec(
@@ -143,7 +150,11 @@ ARCHITECT = AgentSpec(
         "Give the smallest diff that fixes the cause, and name the test that proves "
         "it.\n\n" + BROTHER_LAWS
     ),
-    allowed_tools=("calculator", "json_parser", "date_calculator", "document_search", "document_list", "memory_search"),
+    allowed_tools=(
+        "calculator", "json_parser", "date_calculator", "document_search", "document_list",
+        "memory_search", "trading_status",
+    ),
+    model_role="strong",
 )
 
 SOCIAL = AgentSpec(
@@ -169,7 +180,8 @@ SOCIAL = AgentSpec(
         "set. You draft; you never post, schedule or reply on the owner's behalf.\n\n"
         + BROTHER_LAWS
     ),
-    allowed_tools=("date_calculator", "document_search", "document_list", "memory_search"),
+    allowed_tools=("date_calculator", "document_search", "document_list", "memory_search", "market_news"),
+    model_role="strong",
 )
 
 GENERIC_AGENTS = (GENERAL, RESEARCH, DOCUMENT, DEVELOPER)

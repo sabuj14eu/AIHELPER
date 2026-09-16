@@ -28,8 +28,22 @@ PERM_READ_DOCUMENTS = "tool:read_documents"
 PERM_READ_MEMORY = "tool:read_memory"
 PERM_NETWORK = "tool:network"
 PERM_SYSTEM_INFO = "tool:system_info"
+# Read-only, operator-configured live feeds (market news, the trading
+# platform's mirror). Fixed URLs from settings, never a URL from a request.
+PERM_LIVE_DATA = "tool:live_data"
 
-DEFAULT_PERMISSIONS = {PERM_COMPUTE, PERM_READ_DOCUMENTS, PERM_READ_MEMORY, PERM_SYSTEM_INFO}
+DEFAULT_PERMISSIONS = {
+    PERM_COMPUTE, PERM_READ_DOCUMENTS, PERM_READ_MEMORY, PERM_SYSTEM_INFO, PERM_LIVE_DATA
+}
+
+
+@dataclass
+class IntentMatch:
+    """A tool's own reading of a message: the arguments it would run with, and
+    whether it can answer outright (level 0) or should only supply context."""
+
+    arguments: dict = field(default_factory=dict)
+    direct: bool = False
 
 
 @dataclass
@@ -63,6 +77,11 @@ class ToolSpec:
     # A tool that can fully answer a request on its own (level 0 of the
     # routing ladder) rather than merely assisting the model.
     answers_directly: bool = True
+    # Optional: the tool's own matcher. Returns an IntentMatch when the message
+    # is about what the tool knows, None otherwise. The dispatcher consults it
+    # after the built-in shapes; a direct match answers at level 0, a context
+    # match runs the tool and hands its display to the model as evidence.
+    intent: Callable[[str], IntentMatch | None] | None = None
 
     def as_dict(self) -> dict:
         return {

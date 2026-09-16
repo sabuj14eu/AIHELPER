@@ -504,6 +504,14 @@ def chat_page(
             "embedder_semantic": runtime.embedder.semantic,
             "local_available": bool(local_health and local_health.available),
             "local_models": list(local_health.models) if local_health else [],
+            "live": {
+                "market_news": settings.MARKET_NEWS_ENABLED,
+                "trading_status": bool(
+                    settings.TRADING_STATUS_ENABLED
+                    and settings.TRADING_PLATFORM_URL
+                    and settings.TRADING_PLATFORM_API_KEY
+                ),
+            },
         },
     )
 

@@ -32,6 +32,9 @@ class AgentSpec:
     system_prompt: str = ""
     allowed_tools: tuple[str, ...] | None = None   # None = the client's own set
     enabled: bool = True
+    # "small" | "default" | "strong" | None. A preferred local model class;
+    # resolved against settings by the router and honoured only if installed.
+    model_role: str | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -40,6 +43,7 @@ class AgentSpec:
             "default_task_type": self.default_task_type.value,
             "allowed_tools": list(self.allowed_tools) if self.allowed_tools else None,
             "enabled": self.enabled,
+            "model_role": self.model_role,
         }
 
 

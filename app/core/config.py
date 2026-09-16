@@ -147,6 +147,19 @@ class Settings(BaseSettings):
     PERSONAL_AGENT: str = "brother"
     KNOWLEDGE_PACK_DIR: str = "knowledge"
 
+    # ------------------------------------------------------ live connectors
+    # Read-only feeds Brother may quote. The news feed is the public weekly
+    # calendar the v7 bot and the v18 brain already read; the trading
+    # connector needs the platform's URL and a user API key (bb_...) and is
+    # inert until both are set. Neither can write anything anywhere.
+    MARKET_NEWS_ENABLED: bool = True
+    MARKET_NEWS_URL: str = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+    MARKET_NEWS_REFRESH_SECONDS: int = 600
+    MARKET_NEWS_MAX_AGE_HOURS: float = 3.0
+    TRADING_STATUS_ENABLED: bool = True
+    TRADING_PLATFORM_URL: str = ""
+    TRADING_PLATFORM_API_KEY: str = ""
+
     @model_validator(mode="after")
     def _production_must_not_run_on_defaults(self) -> Settings:
         """Refuse to start a production deployment on placeholder secrets.

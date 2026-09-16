@@ -78,7 +78,12 @@ docker compose exec ai-helper python -m app.cli bootstrap-brother   # once
 ```
 
 The pack is data (`knowledge/`), loaded through the ordinary document
-pipeline; nothing is imported from any other repository. Every answer still
+pipeline; nothing is imported from any other repository. Two read-only
+connectors let it talk about now: the economic calendar the bots already read
+(`market_news`) and the platform's mirror of accounts, open trades and signals
+(`trading_status`, needs a platform API key). Ask "news today?" or "bot
+status" for a free level-0 answer, or fold them into a question and the model
+reasons over the live reading. Every answer still
 walks the same ladder and shows its route, confidence, cost and sources.
 `docs/BROTHER.md` has the design, the agents, and how to keep the pack
 current.
@@ -165,7 +170,7 @@ python -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m pytest tests/test_acceptance.py -s   # the acceptance scenario
 ```
 
-469 tests at the time of writing. They run against a real database, the real
+497 tests at the time of writing. They run against a real database, the real
 gateway, the real validation pipeline and the real cost tracker; only the two
 model providers are fakes.
 `tests/gateway/test_critical_regressions.py` holds the ten guarantees from the
