@@ -298,7 +298,7 @@ class TestSeeding:
 
         # Re-seeding never duplicates, and never resurrects a decision.
         again = seed_solutions(db, client_row.client_id, discover(root), pipeline=pipeline)
-        assert again == {"seeded": 0, "skipped": 2, "promoted": 0, "validated": 0, "rejected": 0}
+        assert again == {"seeded": 0, "skipped": 2, "promoted": 0, "validated": 0, "rejected": 0, "remaining": 0}
 
     def test_a_seeded_solution_answers_the_exact_question_without_a_model_call_for_free(
         self, runtime, db, client_row, settings, local_provider, paid_provider, tmp_path
@@ -319,6 +319,35 @@ class TestSeeding:
         assert response.solution_id is not None
         assert response.route is Route.LOCAL and response.cost_usd == 0.0
         assert paid_provider.call_count == 0
+
+    def test_seeding_is_resumable_in_batches_with_progress(
+        self, runtime, db, client_row, settings, local_provider, tmp_path
+    ):
+        root = write_pack(tmp_path / "pack")
+        services = runtime.for_session(db, client_row.client_id)
+        pipeline = PromotionPipeline(
+            db, client_row.client_id, settings=settings, local_provider=local_provider,
+            retriever=services.retriever,
+        )
+        seen: list[tuple[int, int]] = []
+        first = seed_solutions(
+            db, client_row.client_id, discover(root), pipeline=pipeline,
+            commit_each=True, limit=1, progress=lambda d, t, c: seen.append((d, t)),
+        )
+        assert first["seeded"] == 1 and first["remaining"] == 1
+        assert seen == [(1, 2)]
+        # Committed on its own: a fresh session sees the promoted row already.
+        from app.database.session import get_session_factory
+
+        other = get_session_factory()()
+        try:
+            assert SolutionStore(other, client_row.client_id).counts()["PROMOTED"] == 1
+        finally:
+            other.close()
+        second = seed_solutions(
+            db, client_row.client_id, discover(root), pipeline=pipeline, commit_each=True
+        )
+        assert second["seeded"] == 1 and second["skipped"] == 1 and second["remaining"] == 0
 
     def test_without_a_local_model_seeds_are_held_at_validated_not_promoted(
         self, runtime, db, client_row, settings, tmp_path
@@ -390,6 +419,21 @@ class TestCli:
         assert out["created"] is False and "api_key" not in out
         assert out["pack"]["unchanged"] == 2 and out["pack"]["ingested"] == 0
         assert out["pack"]["solutions"]["skipped"] == 2
+
+    def test_seed_limit_batches_and_the_pack_commits_before_seeding(
+        self, runtime, engine, capsys, pack
+    ):
+        from app import cli
+
+        assert cli.main(["bootstrap-brother", "--path", str(pack), "--seed-limit", "1"]) == 0
+        captured = capsys.readouterr()
+        out = json.loads(captured.out)
+        assert out["pack"]["solutions"]["seeded"] == 1
+        assert out["pack"]["solutions"]["remaining"] == 1
+        assert "seed 1/2" in captured.err and "min left" in captured.err
+        assert cli.main(["load-knowledge", "--path", str(pack)]) == 0
+        out = json.loads(capsys.readouterr().out)
+        assert out["solutions"]["seeded"] == 1 and out["solutions"]["skipped"] == 1
 
     def test_load_knowledge_needs_the_client(self, runtime, engine, capsys, pack):
         from app import cli

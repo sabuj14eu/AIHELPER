@@ -126,6 +126,23 @@ docker compose exec ai-helper python -m app.cli bootstrap-brother
 # then sign in at /admin and open  /admin/chat
 ```
 
+Timing matters on a CPU box. The documents load in a few minutes and are
+committed first, so the chat works from that moment. Seeding the validated
+solutions is slower: every solution is one local model call through the
+reproduction gate, tens of seconds each, so all of them take an hour or two
+on a 3B model without a GPU. Seeding commits one solution at a time and is
+resumable, so you can run it in batches whenever the box is idle:
+
+```bash
+python -m app.cli bootstrap-brother --no-seed        # documents only, fast
+python -m app.cli load-knowledge --seed-limit 40     # a batch; re-run to continue
+nohup python -m app.cli load-knowledge > seed.log 2>&1 &   # or all of it, in the background
+```
+
+Progress is printed to stderr as `seed 12/278: promoted 11 … about 95 min left`.
+A seed that is not yet promoted costs nothing: the same facts are already in
+the pack documents; promotion only adds the free exact-question memory hit.
+
 `bootstrap-brother` creates the client named by `PERSONAL_CLIENT_ID`
 (default `brother`) with escalation OFF and an external ceiling of INTERNAL:
 the pack describes the owner's own systems, and sending them to a paid

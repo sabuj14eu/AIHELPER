@@ -231,8 +231,20 @@ def _pack_root(args) -> Path:
     return Path(args.path or get_settings().KNOWLEDGE_PACK_DIR)
 
 
-def _load_pack_for(client_id: str, root, *, prune: bool, seed: bool) -> dict:
-    """Load a pack for one client through the ordinary runtime. Shared by two commands."""
+def _load_pack_for(
+    client_id: str, root, *, prune: bool, seed: bool, seed_limit: int | None = None
+) -> dict:
+    """Load a pack for one client through the ordinary runtime. Shared by two commands.
+
+    Two transactions on purpose. The documents commit first, so the assistant
+    can answer from them the moment the load finishes and an interrupted seed
+    run cannot take them down with it. Seeding then commits one solution at a
+    time: the reproduction gate is one local model call per solution, tens of
+    seconds each on a CPU box, so a run is resumable and can be batched with
+    ``--seed-limit``.
+    """
+    import time
+
     from app.knowledge.pack import KnowledgePackLoader, discover, seed_solutions
     from app.learning.promotion import PromotionPipeline
     from app.runtime import get_runtime
@@ -245,22 +257,42 @@ def _load_pack_for(client_id: str, root, *, prune: bool, seed: bool) -> dict:
         services = runtime.for_session(session, client_id)
         loader = KnowledgePackLoader(session, client_id, ingestor=services.ingestor)
         report = loader.load(root, prune=prune)
-        if seed:
-            pipeline = PromotionPipeline(
-                session,
-                client_id,
-                settings=settings,
-                local_provider=runtime.providers.local,
-                retriever=services.retriever,
-            )
-            report.solutions = seed_solutions(
-                session,
-                client_id,
-                discover(root),
-                pipeline=pipeline,
-                ttl_days=None,
-            )
+    if not seed:
         return report.as_dict()
+
+    started = time.monotonic()
+
+    def progress(done: int, total: int, counts: dict) -> None:
+        elapsed = time.monotonic() - started
+        per = elapsed / max(1, counts["seeded"])
+        left = total - done
+        print(
+            f"seed {done}/{total}: promoted {counts['promoted']} · validated {counts['validated']} "
+            f"· rejected {counts['rejected']} · skipped {counts['skipped']} "
+            f"· {per:.0f}s each · about {int(per * left / 60)} min left",
+            file=sys.stderr,
+        )
+
+    with session_scope() as session:
+        services = runtime.for_session(session, client_id)
+        pipeline = PromotionPipeline(
+            session,
+            client_id,
+            settings=settings,
+            local_provider=runtime.providers.local,
+            retriever=services.retriever,
+        )
+        report.solutions = seed_solutions(
+            session,
+            client_id,
+            discover(root),
+            pipeline=pipeline,
+            ttl_days=None,
+            commit_each=True,
+            limit=seed_limit,
+            progress=progress,
+        )
+    return report.as_dict()
 
 
 def cmd_load_knowledge(args) -> int:
@@ -271,7 +303,8 @@ def cmd_load_knowledge(args) -> int:
     client_id = args.client or get_settings().PERSONAL_CLIENT_ID
     try:
         report = _load_pack_for(
-            client_id, _pack_root(args), prune=args.prune, seed=not args.no_seed
+            client_id, _pack_root(args), prune=args.prune, seed=not args.no_seed,
+            seed_limit=args.seed_limit,
         )
     except LookupError:
         print(
@@ -328,7 +361,9 @@ def cmd_bootstrap_brother(args) -> int:
             issued = key.plaintext
     root = _pack_root(args)
     try:
-        report = _load_pack_for(client_id, root, prune=False, seed=not args.no_seed)
+        report = _load_pack_for(
+            client_id, root, prune=False, seed=not args.no_seed, seed_limit=args.seed_limit
+        )
     except PackError as exc:
         print(f"client ready, but the pack was refused: {exc}", file=sys.stderr)
         return 2
@@ -410,6 +445,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.add_argument("--path", help="pack directory (default: KNOWLEDGE_PACK_DIR)")
         parser.add_argument(
             "--no-seed", action="store_true", help="do not seed validated solutions"
+        )
+        parser.add_argument(
+            "--seed-limit", type=int, default=None,
+            help="seed at most N new solutions this run (resumable; re-run to continue)",
         )
 
     bootstrap = sub.add_parser(

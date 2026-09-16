@@ -352,6 +352,19 @@ class KnowledgePackLoader:
 
 
 # ------------------------------------------------------------------ seeding
+def pending_seeds(files: list[PackFile]) -> list[tuple[PackFile, SeedSolution]]:
+    """Every solution block in the pack, in file order."""
+    out: list[tuple[PackFile, SeedSolution]] = []
+    for pack_file in files:
+        if not pack_file.is_solutions_file:
+            continue
+        for seed in parse_solutions(
+            pack_file.body, source_file=pack_file.relative, domain=pack_file.header.domain
+        ):
+            out.append((pack_file, seed))
+    return out
+
+
 def seed_solutions(
     session: Session,
     client_id: str,
@@ -359,51 +372,60 @@ def seed_solutions(
     *,
     pipeline=None,
     ttl_days: int | None = None,
+    commit_each: bool = False,
+    limit: int | None = None,
+    progress=None,
 ) -> dict[str, int]:
     """Turn validated-solution blocks into candidates and run them through the gate.
 
     Returns counts by outcome. A question already known to the store — in any
     status — is skipped, so reloading never duplicates a row or resurrects a
-    rejection.
+    rejection. That skip is also what makes seeding RESUMABLE: with
+    ``commit_each`` every processed solution is committed on its own, so an
+    interrupted run keeps what it did and the next run carries on. ``limit``
+    stops after that many new seeds (a batch); ``progress(done, total, counts)``
+    is called after each one, because the reproduction gate costs one local
+    model call per solution and on a CPU box that is tens of seconds each.
     """
     store = SolutionStore(session, client_id)
-    counts = {"seeded": 0, "skipped": 0, "promoted": 0, "validated": 0, "rejected": 0}
-    for pack_file in files:
-        if not pack_file.is_solutions_file:
+    counts = {
+        "seeded": 0, "skipped": 0, "promoted": 0, "validated": 0, "rejected": 0, "remaining": 0
+    }
+    todo = pending_seeds(files)
+    total = len(todo)
+    for index, (pack_file, seed) in enumerate(todo, start=1):
+        if store.by_fingerprint(seed.question):
+            counts["skipped"] += 1
             continue
-        for seed in parse_solutions(
-            pack_file.body, source_file=pack_file.relative, domain=pack_file.header.domain
-        ):
-            if store.by_fingerprint(seed.question):
-                counts["skipped"] += 1
-                continue
-            solution = store.create(
-                question=seed.question,
-                answer=seed.answer,
-                task_type="general",
-                provider=PACK_SOURCE,
-                model=pack_file.header.repo or seed.domain,
-                failure_reason=None,
-                local_attempt=None,
-                validation_result={
-                    "seed": {
-                        "title": seed.title,
-                        "evidence": seed.evidence,
-                        "source_file": seed.source_file,
-                        "verified_on": pack_file.header.verified_on,
-                    }
-                },
-                confidence=0.0,
-                classification=pack_file.header.classification,
-                context={
-                    "texts": [f"{seed.title}\n{seed.answer}\nEvidence: {seed.evidence}"],
-                    "sources": [{"source": PACK_SOURCE, "ref": seed.source_file}],
-                },
-                ttl_days=ttl_days,
-            )
-            counts["seeded"] += 1
-            if pipeline is None:
-                continue
+        if limit is not None and counts["seeded"] >= limit:
+            counts["remaining"] = total - index + 1
+            break
+        solution = store.create(
+            question=seed.question,
+            answer=seed.answer,
+            task_type="general",
+            provider=PACK_SOURCE,
+            model=pack_file.header.repo or seed.domain,
+            failure_reason=None,
+            local_attempt=None,
+            validation_result={
+                "seed": {
+                    "title": seed.title,
+                    "evidence": seed.evidence,
+                    "source_file": seed.source_file,
+                    "verified_on": pack_file.header.verified_on,
+                }
+            },
+            confidence=0.0,
+            classification=pack_file.header.classification,
+            context={
+                "texts": [f"{seed.title}\n{seed.answer}\nEvidence: {seed.evidence}"],
+                "sources": [{"source": PACK_SOURCE, "ref": seed.source_file}],
+            },
+            ttl_days=ttl_days,
+        )
+        counts["seeded"] += 1
+        if pipeline is not None:
             outcome = pipeline.process(solution)
             if outcome.status is SolutionStatus.PROMOTED:
                 counts["promoted"] += 1
@@ -411,4 +433,8 @@ def seed_solutions(
                 counts["validated"] += 1
             else:
                 counts["rejected"] += 1
+        if commit_each:
+            session.commit()
+        if progress is not None:
+            progress(index, total, dict(counts))
     return counts

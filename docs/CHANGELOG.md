@@ -46,6 +46,13 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **Bootstrap was one transaction and seeding was unbounded.** The pack
+  documents and all 278 seeds committed together at the very end, so the
+  chat page said "not loaded" for the whole run and an interrupt rolled
+  everything back. On a CPU box the reproduction gate is tens of seconds per
+  seed, about two hours in total. Now the documents commit first, seeding
+  commits one solution at a time (resumable), prints progress with a time
+  estimate, and `--seed-limit N` runs a batch.
 - **Knowledge pack missing from the image.** `bootstrap-brother` inside the
   container refused with "knowledge pack directory not found" because the
   Dockerfile did not copy `knowledge/`. It is copied now, next to `app/` and
