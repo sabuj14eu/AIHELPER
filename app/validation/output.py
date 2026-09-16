@@ -17,11 +17,22 @@ from app.local_ai.prompts import INSUFFICIENT_MARKER
 # context" about as often as the exact token; it is the same declaration.
 _INSUFFICIENT_LOOSE = re.compile(r"(?i)\binsufficient[ _-]context\b")
 
+# Two different things used to live in one list, and the difference matters
+# more than it looks. "I cannot help with that" is a model declining to work.
+# "I don't have enough information" is a model doing its work and reporting
+# what it found: that the evidence is not there. The constitution asks for the
+# second on every question about the owner's systems -- say UNKNOWN and name
+# what is missing -- so scoring it as a refusal punished the assistant for
+# following its own rules. Both still block a PASS; they are now told apart.
 REFUSAL_PATTERNS = [
     re.compile(r"(?i)\bI (?:can(?:no|')t|am unable to|cannot) (?:help|assist|answer|provide)"),
     re.compile(r"(?i)\bas an (?:AI|artificial intelligence)\b.{0,60}\b(?:cannot|can't|unable)"),
-    re.compile(r"(?i)\bI (?:don'?t|do not) have (?:enough|sufficient|any) (?:information|context|data)"),
     re.compile(r"(?i)\bI'?m (?:not able|unable) to\b"),
+]
+
+# A report about the evidence, not about willingness.
+LACKS_EVIDENCE_PATTERNS = [
+    re.compile(r"(?i)\bI (?:don'?t|do not) have (?:enough|sufficient|any) (?:information|context|data)"),
     re.compile(r"(?i)\bno (?:relevant )?information (?:is )?(?:available|provided|found)\b"),
 ]
 
@@ -41,6 +52,7 @@ class OutputCheck:
     empty: bool = False
     too_short: bool = False
     declared_insufficient: bool = False
+    lacks_evidence: bool = False
     refused: bool = False
     truncated: bool = False
     repetitive: bool = False
@@ -57,6 +69,7 @@ class OutputCheck:
         return not (
             self.empty
             or self.declared_insufficient
+            or self.lacks_evidence
             or self.refused
             or not self.format_ok
             or self.repetitive
@@ -68,6 +81,7 @@ class OutputCheck:
             "empty": self.empty,
             "too_short": self.too_short,
             "declared_insufficient": self.declared_insufficient,
+            "lacks_evidence": self.lacks_evidence,
             "refused": self.refused,
             "truncated": self.truncated,
             "repetitive": self.repetitive,
@@ -136,6 +150,10 @@ def check_output(
     if any(p.search(stripped) for p in REFUSAL_PATTERNS):
         result.refused = True
         result.failures.append("model_refused")
+
+    if any(p.search(stripped) for p in LACKS_EVIDENCE_PATTERNS):
+        result.lacks_evidence = True
+        result.failures.append("model_lacks_evidence")
 
     result.hedge_count = sum(len(p.findall(stripped)) for p in HEDGE_PATTERNS)
 

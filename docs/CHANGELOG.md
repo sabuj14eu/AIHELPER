@@ -3,6 +3,49 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.3.0 — 2026-09-16
+
+Phase 1 of the Brother architecture work (see the audit): a turn is now one of
+four things, and only one of them is a fault.
+
+**Migration:** none. `state` is response-only and is not persisted.
+
+### Added
+
+- **Four answer states** (`app/validation/states.py`): VERIFIED · USEFUL ·
+  INSUFFICIENT · FAILED, on every `GatewayResponse` as `state`. Validation's
+  boolean is unchanged and still decides escalation and promotion; `success`
+  keeps its old meaning. What changes is that the three ways of *not* passing
+  stop looking identical to the reader.
+  - **INSUFFICIENT is a successful outcome.** "The evidence for this is not
+    available" is what the constitution asks for on every question about the
+    owner's systems. It reaches the reader as an answer, not as a failure.
+  - **FAILED means no answer can be shown** — either nothing came back, or a
+    veto says what came back must not be served.
+
+### Fixed
+
+- **"I don't have enough information" was scored as a refusal.** It is a report
+  about the evidence, not a refusal to work — and the Brother laws *require* it
+  ("say UNKNOWN and name what is missing"). The validator was punishing the
+  assistant for following its own rules. `REFUSAL_PATTERNS` now covers only a
+  model declining to work; `LACKS_EVIDENCE_PATTERNS` is its own finding and its
+  own veto. Both still block a PASS — nothing here lowers a bar.
+  Tests: `tests/unit/test_validation.py::TestOutputChecks::test_lacking_evidence_is_not_a_refusal`.
+- **An empty bubble no longer stands in for a reason.** A FAILED turn renders a
+  sentence built from its cause. The chat leads with the answer and a one-word
+  state; route, model, confidence, sources and notes moved behind a "why"
+  disclosure. Machinery is no longer the headline.
+
+### Changed — this one tightens the bar
+
+- **An answer vetoed for contradicting its sources, for a safety finding, for a
+  degenerate loop, for an invalid format, or for disagreeing with a
+  deterministic tool is now withheld**, with the reason named. It used to be
+  handed over with an "unverified" label. There is no reading of those vetoes
+  under which the text is worth showing.
+  Test: `TestTheFourStates::test_a_withholding_veto_produces_failed_not_a_labelled_answer`.
+
 ## 1.2.1 — 2026-09-16
 
 **Migration:** none.

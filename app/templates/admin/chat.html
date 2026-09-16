@@ -79,6 +79,24 @@
     conversationId = null; log.innerHTML = '';
   });
 
+  // What the reader is told, per state. The four states come from the gateway;
+  // only the last one is a fault, and only the last one may show machinery.
+  const STATES = {
+    verified:     {label: 'verified',           color: 'var(--ok, #2c6349)'},
+    useful:       {label: 'unverified',         color: 'var(--warn, #8e6520)'},
+    insufficient: {label: 'not enough evidence', color: 'var(--accent, #1c5b50)'},
+    failed:       {label: 'system problem',     color: 'var(--bad, #98392a)'}
+  };
+
+  // A failed turn owes the reader a sentence, not an empty bubble. The first
+  // note is the cause -- the gateway puts it there deliberately.
+  function failureSentence(meta) {
+    const first = (meta.notes && meta.notes.length) ? meta.notes[0] : '';
+    const why = first.replace(/^no answer:\s*/i, '').trim();
+    if (!why) return "Brother could not produce an answer, and did not say why.";
+    return "Brother has no answer for this one. " + why.charAt(0).toUpperCase() + why.slice(1) + ".";
+  }
+
   function bubble(role, text, meta) {
     const box = document.createElement('div');
     box.style.cssText = 'border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;max-width:92%;white-space:pre-wrap;' +
@@ -87,25 +105,55 @@
     who.className = 'muted'; who.style.cssText = 'font-size:.72rem;margin-bottom:.25rem;text-transform:uppercase;letter-spacing:.05em';
     who.textContent = role === 'user' ? 'you' : (meta && meta.agent ? meta.agent : 'brother');
     box.appendChild(who);
-    const body = document.createElement('div'); body.textContent = text; box.appendChild(body);
+
+    const state = meta && meta.state ? STATES[meta.state] : null;
+    let shown = text;
+    if (meta && meta.state === 'failed' && !(meta.answer || '').trim()) shown = failureSentence(meta);
+
+    const body = document.createElement('div');
+    body.textContent = shown;
+    box.appendChild(body);
+
     if (meta) {
-      const m = document.createElement('div');
-      m.className = 'muted'; m.style.cssText = 'font-size:.74rem;margin-top:.4rem';
-      const bits = [];
-      bits.push('route ' + meta.route);
-      if (meta.confidence !== null && meta.confidence !== undefined) bits.push('confidence ' + meta.confidence.toFixed(2));
-      if (meta.cost_usd) bits.push('cost $' + meta.cost_usd.toFixed(4));
-      if (meta.memory_hit) bits.push('memory hit');
-      if (!meta.success) bits.push('UNVERIFIED');
-      if (meta.sources && meta.sources.length) bits.push('sources: ' + meta.sources.map(s => s.source + ':' + s.ref).join(', '));
-      m.textContent = bits.join(' · ');
-      box.appendChild(m);
-      if (meta.notes && meta.notes.length) {
-        const n = document.createElement('div');
-        n.className = 'muted'; n.style.cssText = 'font-size:.72rem;margin-top:.2rem';
-        n.textContent = meta.notes.join(' · ');
-        box.appendChild(n);
+      if (state) {
+        const chip = document.createElement('div');
+        chip.style.cssText = 'font-size:.68rem;margin-top:.5rem;text-transform:uppercase;letter-spacing:.06em;color:' + state.color;
+        chip.textContent = state.label;
+        box.appendChild(chip);
       }
+
+      // Everything below is transport, not answer. It stays available and
+      // stops being the headline.
+      if (meta.route !== 'error') {
+        const bits = [];
+        bits.push('route ' + meta.route);
+        if (meta.model) bits.push('model ' + meta.model);
+        if (meta.confidence !== null && meta.confidence !== undefined) bits.push('confidence ' + meta.confidence.toFixed(2));
+        if (meta.cost_usd) bits.push('cost $' + meta.cost_usd.toFixed(4));
+        if (meta.memory_hit) bits.push('memory hit');
+        if (meta.latency_ms) bits.push((meta.latency_ms / 1000).toFixed(1) + 's');
+
+        const det = document.createElement('details');
+        det.style.cssText = 'margin-top:.45rem';
+        const sum = document.createElement('summary');
+        sum.className = 'muted';
+        sum.style.cssText = 'font-size:.72rem;cursor:pointer;list-style:revert';
+        sum.textContent = 'why';
+        det.appendChild(sum);
+
+        const inner = document.createElement('div');
+        inner.className = 'muted';
+        inner.style.cssText = 'font-size:.72rem;margin-top:.35rem;line-height:1.55';
+        const lines = [bits.join(' · ')];
+        if (meta.sources && meta.sources.length) {
+          lines.push('sources: ' + meta.sources.map(s => s.source + ':' + s.ref).join(', '));
+        }
+        if (meta.notes && meta.notes.length) lines.push(meta.notes.join(' · '));
+        inner.textContent = lines.filter(Boolean).join('\n');
+        det.appendChild(inner);
+        box.appendChild(det);
+      }
+
       if (meta.route !== 'error' && meta.question) {
         const t = document.createElement('a');
         t.href = '#'; t.style.cssText = 'font-size:.74rem;display:inline-block;margin-top:.35rem';
@@ -210,7 +258,7 @@
       if (data === null) { bubble('assistant', 'still running after 20 minutes; check docker compose logs ai-helper', {route: 'error', success: false, notes: []}); return; }
       conversationId = data.conversation_id || conversationId;
       data.question = text;
-      bubble('assistant', data.answer || '(no answer)', data);
+      bubble('assistant', data.answer || '', data);
     } catch (e) {
       done();
       bubble('assistant', 'network error: ' + e, {route: 'error', success: false, notes: []});

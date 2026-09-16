@@ -60,6 +60,7 @@ from app.tools.dispatcher import try_dispatch
 from app.tools.registry import ToolRegistry
 from app.validation import ValidationReport, validate_answer
 from app.validation.safety import check_input
+from app.validation.states import AnswerState, derive_state, withholding_reason
 
 log = get_logger("gateway")
 
@@ -88,6 +89,22 @@ def _system_prompt(task_type: TaskType, response_format: str, agent: AgentSpec |
     if agent is not None and agent.system_prompt:
         prompt = f"{prompt}\n\n{agent.system_prompt}"
     return prompt
+
+
+def _validation_of(base: GatewayResponse) -> ValidationReport | None:
+    """The validation report for this response, if one was produced.
+
+    The router stores it as a dict on the response; the state machine wants
+    the two fields it decides on. Rebuilding those two beats threading the
+    object through four call sites.
+    """
+    if not base.validation:
+        return None
+    return ValidationReport(
+        passed=bool(base.validation.get("passed")),
+        confidence=float(base.validation.get("confidence") or 0.0),
+        vetoes=list(base.validation.get("vetoes") or []),
+    )
 
 
 def _no_answer_reason(local_result: GatewayRouter._LocalResult) -> str:
@@ -141,6 +158,10 @@ class GatewayResponse:
     solution_id: str | None = None
     agent: str | None = None
     success: bool = True
+    # Which of the four situations this turn was. `success` keeps its old
+    # meaning (it passed validation) because callers and the audit trail
+    # depend on it; this says what to show the reader.
+    state: AnswerState = AnswerState.FAILED
     validation: dict = field(default_factory=dict)
     retrieval: dict = field(default_factory=dict)
     sources: list[dict] = field(default_factory=list)
@@ -169,6 +190,7 @@ class GatewayResponse:
             "solution_id": self.solution_id,
             "agent": self.agent,
             "success": self.success,
+            "state": self.state.value,
             "sources": self.sources,
             "validation": self.validation,
             "retrieval": self.retrieval,
@@ -287,6 +309,7 @@ class GatewayRouter:
             base.model = dispatch.tool
             base.confidence = 1.0
             base.success = True
+            base.state = AnswerState.VERIFIED
             base.notes.append("answered by a deterministic tool; no model was consulted")
             self._remember_answer(short_term, conversation, base.answer, request_id, base)
             return base
@@ -356,6 +379,7 @@ class GatewayRouter:
                 base.provider = local_result.response.provider
                 base.model = local_result.response.model
                 base.success = True
+                base.state = AnswerState.VERIFIED
                 if retrieval.solution is not None:
                     base.solution_id = retrieval.solution.id
                     self._mark_solution_used(retrieval, client.client_id)
@@ -463,6 +487,14 @@ class GatewayRouter:
         base.success = paid_validation.passed or (
             not paid_validation.vetoes and bool(paid_response.text.strip())
         )
+        base.state = derive_state(
+            has_text=bool(paid_response.text.strip()), validation=paid_validation
+        )
+        if base.state is AnswerState.FAILED:
+            reason = withholding_reason(paid_validation)
+            if reason:
+                base.answer = ""
+                base.notes.insert(0, f"the paid answer was not shown: {reason}")
         if not paid_validation.passed:
             base.notes.append(
                 f"the paid answer also failed validation: {paid_validation.primary_failure}"
@@ -689,18 +721,44 @@ class GatewayRouter:
         conversation,
         request_id: str,
     ) -> GatewayResponse:
-        """Return the best available answer, honestly labelled as not validated."""
-        if local_result.response is not None and local_result.response.text.strip():
+        """Say which of the four situations this was, and show what fits it.
+
+        Nothing here relaxes validation: `success` still means "passed", and
+        every veto still blocks it. What changes is that the three ways of not
+        passing stop looking identical to the reader -- an answer with its
+        gaps named, a report that the evidence is missing, and a fault are
+        three different things and only the last one is a failure.
+        """
+        report = _validation_of(base)
+        text = ""
+        if local_result.response is not None:
+            text = local_result.response.text.strip()
+        state = derive_state(has_text=bool(text), validation=report)
+
+        if state is not AnswerState.FAILED:
             base.answer = local_result.response.text
             base.route = Route.LOCAL
             base.provider = local_result.response.provider
             base.model = local_result.response.model
             base.success = False
-            base.notes.append(
-                "returned the local answer, which did not pass validation — treat it as unverified"
-            )
+            base.state = state
+            if state is AnswerState.INSUFFICIENT:
+                base.notes.append(
+                    "the model reported that the evidence for this is not available — "
+                    "that is an answer, not a fault"
+                )
+            else:
+                base.notes.append(
+                    "returned the local answer, which did not pass validation — "
+                    "treat it as unverified"
+                )
             self._remember_answer(short_term, conversation, base.answer, request_id, base)
             return base
+
+        # Nothing showable. Either the model produced nothing, or it produced
+        # something a veto says must not be served.
+        withheld = withholding_reason(report) if text else None
+        base.state = AnswerState.FAILED
         base.route = Route.FAILED
         base.success = False
         base.answer = ""
@@ -711,7 +769,7 @@ class GatewayRouter:
         # left with an empty bubble and no way to tell a local timeout from an
         # Ollama that is down. The cause goes first, ahead of the notes that
         # only say what did not rescue it.
-        base.notes.insert(0, _no_answer_reason(local_result))
+        base.notes.insert(0, withheld or _no_answer_reason(local_result))
         return base
 
     def _remember_answer(

@@ -17,6 +17,7 @@ from app.database.enums import EscalationBlockReason, EscalationReason, Route
 from app.database.models import CostRecord
 from app.gateway.router import GatewayRequest
 from app.local_ai.ollama_client import OllamaClient
+from app.validation.states import AnswerState
 from tests.fakes import HARD_MARKER
 
 HARD = f"Explain the {HARD_MARKER} rule."
@@ -295,3 +296,88 @@ class TestDatabaseFailure:
         database = next(c for c in components if c.name == "database")
         assert database.status == "DOWN"
         assert health_module._overall(components) == "down"
+
+
+class TestTheFourStates:
+    """A turn is one of four things, and only one of them is a fault.
+
+    Before this, validation answered a boolean and the router turned it into
+    "answer" or "route failed", so a careful answer that named its gaps, a
+    report that the evidence does not exist, and a crashed model all reached
+    the reader looking the same. These fix the difference.
+    """
+
+    def test_a_validated_answer_is_verified(self, runtime, db, client_row, local_provider):
+        response = ask(runtime, db, client_row, "What is the capital of France?")
+        assert response.state is AnswerState.VERIFIED
+        assert response.success is True
+
+    def test_a_model_that_lacks_evidence_is_insufficient_not_failed(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        """The outcome the constitution calls successful must not read as a fault."""
+        local_provider.answer_override = (
+            "I don't have enough information about the current structure to call this."
+        )
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the plan for gold today?")
+        assert response.state is AnswerState.INSUFFICIENT
+        assert response.route is Route.LOCAL
+        assert response.answer, "an insufficiency report is an answer; it must reach the reader"
+        assert any("not available" in note for note in response.notes)
+
+    def test_the_insufficient_marker_is_insufficient_not_failed(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        local_provider.answer_override = "INSUFFICIENT_CONTEXT — the outlook board is missing."
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the plan for gold today?")
+        assert response.state is AnswerState.INSUFFICIENT
+        assert response.answer
+
+    def test_a_low_confidence_answer_is_useful_and_still_reaches_the_reader(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        # Enough hedging to land under the threshold without tripping a veto:
+        # this is the "answered, but not confidently" case, not a refusal.
+        local_provider.answer_override = (
+            "I'm not sure. Possibly Paris, though I think it might be somewhere "
+            "near there, probably."
+        )
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the capital of France?")
+        assert response.state is AnswerState.USEFUL
+        assert response.success is False, "useful is not verified; the bar has not moved"
+        assert response.answer
+
+    def test_a_dead_local_model_is_a_system_failure_that_names_itself(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        local_provider.timeout = True
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the capital of France?")
+        assert response.state is AnswerState.FAILED
+        assert response.answer == ""
+        assert "fake local model timed out" in response.notes[0]
+
+    def test_a_withholding_veto_produces_failed_not_a_labelled_answer(self):
+        """This case tightens the bar rather than relaxing it.
+
+        An answer vetoed for contradicting its own sources used to be handed
+        to the reader with an "unverified" note. There is no reading of that
+        veto under which the text is worth showing.
+        """
+        from app.validation.confidence import ValidationReport
+        from app.validation.states import derive_state, withholding_reason
+
+        contradicted = ValidationReport(
+            passed=False, confidence=0.2, vetoes=["contradicts_context"]
+        )
+        assert derive_state(has_text=True, validation=contradicted) is AnswerState.FAILED
+        assert "contradicted" in withholding_reason(contradicted)
+
+        lacking = ValidationReport(
+            passed=False, confidence=0.2, vetoes=["model_lacks_evidence"]
+        )
+        assert derive_state(has_text=True, validation=lacking) is AnswerState.INSUFFICIENT
+        assert withholding_reason(lacking) is None

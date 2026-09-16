@@ -29,11 +29,35 @@ class TestOutputChecks:
             "I cannot help with that request.",
             "I'm unable to answer this.",
             "As an AI I cannot provide that.",
-            "I don't have enough information.",
         ],
     )
     def test_refusals_are_caught(self, refusal):
+        """A model declining to work. Note what is no longer in this list."""
         assert check_output(refusal).refused is True
+        assert check_output(refusal).lacks_evidence is False
+
+    @pytest.mark.parametrize(
+        "report",
+        [
+            "I don't have enough information.",
+            "I do not have sufficient data on the current structure.",
+            "No relevant information is available in the context.",
+        ],
+    )
+    def test_lacking_evidence_is_not_a_refusal(self, report):
+        """"I don't have enough information" is the model doing its job.
+
+        The constitution asks for exactly this on every question about the
+        owner's systems -- say UNKNOWN and name what is missing -- so scoring
+        it as a refusal punished the assistant for following its own rules.
+        It still blocks a PASS; what changes is that it is now a distinct
+        finding the presentation layer can read as INSUFFICIENT rather than
+        as a fault.
+        """
+        checked = check_output(report)
+        assert checked.lacks_evidence is True
+        assert checked.refused is False
+        assert checked.usable is False, "it still cannot be served as a verified answer"
 
     def test_invalid_json_fails_when_json_was_requested(self):
         assert check_output("here you go: not json", response_format="json").format_ok is False

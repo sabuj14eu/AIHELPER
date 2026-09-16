@@ -152,6 +152,8 @@ def evaluate(
         vetoes.append("empty_output")
     if output.declared_insufficient:
         vetoes.append("model_declared_insufficient_context")
+    if output.lacks_evidence:
+        vetoes.append("model_lacks_evidence")
     if output.refused:
         vetoes.append("model_refused")
     if not output.format_ok:
