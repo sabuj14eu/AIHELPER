@@ -333,22 +333,34 @@ def audit_page(
 def solutions_page(
     request: Request,
     status: str | None = None,
+    origin: str | None = None,
     session: dict = Depends(admin_session),
     db: Session = Depends(db_dep),
 ) -> HTMLResponse:
     from app.database.models import SolutionCandidate
+    from app.learning.origin import LABELS, SolutionOrigin, origin_of
 
     stmt = select(SolutionCandidate).order_by(SolutionCandidate.created_at.desc()).limit(200)
     if status:
         stmt = stmt.where(SolutionCandidate.status == status)
+    rows = list(db.scalars(stmt))
+    # Filtering on origin happens here rather than in the query because origin
+    # is derived from `provider` rather than stored -- and the list is capped
+    # at 200 rows, so there is nothing to gain by pushing it down.
+    if origin:
+        rows = [r for r in rows if origin_of(r.provider).value == origin]
     return request.app.state.templates.TemplateResponse(
         request,
         "admin/solutions.html",
         {
-            "solutions": list(db.scalars(stmt)),
+            "solutions": rows,
+            "origin_of": lambda row: origin_of(row.provider).value,
+            "origin_labels": {o.value: LABELS[o] for o in SolutionOrigin},
             "user": session.get("sub"),
             "status": status or "",
+            "origin": origin or "",
             "statuses": [s.value for s in SolutionStatus],
+            "origins": [o.value for o in SolutionOrigin],
         },
     )
 

@@ -126,11 +126,17 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
 - Seeded vs taught vs self vs paid, and Brother keeps its own verified answers → `tests/unit/test_learning_origin.py`, commit 196e79e.
 - Teach refuses a fragment, a shrug or a loop → `TestTeachRefusesWhatIsNotAnAnswer`, same commit.
 
-- **AIH-14 Confirming a self-captured candidate has no one-click path.**
-  `_keep_own_answer` writes CANDIDATE rows on purpose and the owner is meant
-  to confirm them, but the dashboard's solutions page has no confirm button
-  yet — it must be done through the API or the CLI. Small, and the feature is
-  half-useful without it. Opened 2026-09-16. OPEN.
+- **AIH-14 ~~Confirming a self-captured candidate has no one-click path.~~
+  WRONG WHEN WRITTEN — it always had one.** `/admin/solutions/{id}/promote`
+  has existed since 1.0, runs the full `PromotionPipeline` and writes an audit
+  row; `reject` likewise. The real gap was narrower: the page listed
+  `provider` but not **origin**, so a self-captured row waiting for the owner
+  looked exactly like one of the 229 seeds, and there was no way to filter to
+  "what is waiting for me". Fixed in 1.7.1: origin column, origin filter, and
+  the button reads *Confirm* rather than *Promote* on a `self` row, because
+  the gate cannot judge that one and the owner is being asked to.
+  DONE — `tests/integration/test_api.py::TestBrotherChat` (the review-queue
+  block), commit below. Proof: filter origin=self, status=CANDIDATE.
 
 - Four answer states; "lacks evidence" is no longer scored as a refusal → `tests/integration/test_failures.py::TestTheFourStates`, `tests/unit/test_validation.py::TestOutputChecks::test_lacking_evidence_is_not_a_refusal`, commit d6a91f5.
 - The system prompt stops ordering a refusal it elsewhere forbids → `TestBrotherAgents::test_the_brother_agents_do_not_carry_the_unconditional_refusal_order`, commit ce1fa76.

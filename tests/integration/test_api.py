@@ -348,3 +348,46 @@ class TestBrotherChat:
         db.commit()
         answer = signed_in.post("/admin/chat/ask-now", json={"message": "What is 2 + 2?"})
         assert answer.status_code == 200 and answer.json()["answer"] == "4"
+
+    # --- the review queue. Confirming a candidate already worked; *finding*
+    # one did not: the solutions page listed provider but not origin, so a
+    # self-captured row waiting for the owner looked exactly like one of the
+    # 229 seeds.
+
+    def test_the_page_shows_origin_and_filters_on_it(self, signed_in):
+        page = signed_in.get("/admin/solutions")
+        assert page.status_code == 200
+        body = page.text
+        assert "Origin" in body
+        for origin in ("seeded", "taught", "self", "paid"):
+            assert f'value="{origin}"' in body, origin
+
+    def test_filtering_to_what_is_waiting_for_the_owner_is_one_click(self, signed_in):
+        filtered = signed_in.get("/admin/solutions", params={"origin": "self", "status": "CANDIDATE"})
+        assert filtered.status_code == 200
+        assert 'value="self" selected' in filtered.text
+        assert 'value="CANDIDATE" selected' in filtered.text
+
+    def test_a_self_row_offers_confirm_rather_than_promote(self, signed_in, db, settings):
+        """Different word for a different act: the gate cannot judge this one,
+        so the button is asking the owner to, not asking the gate to."""
+        from app.learning.origin import SELF_PROVIDER
+        from app.learning.solution_store import SolutionStore
+        from tests.conftest import make_client
+
+        make_client(db, settings.PERSONAL_CLIENT_ID)
+        SolutionStore(db, settings.PERSONAL_CLIENT_ID).create(
+            question="What is the v7 bot?",
+            answer="It is the mechanical arm of the system and its accounts are DEMO.",
+            task_type="general",
+            provider=SELF_PROVIDER,
+            model="qwen2.5:7b",
+            failure_reason=None,
+            local_attempt=None,
+            validation_result={},
+            confidence=0.8,
+            classification="INTERNAL",
+        )
+        db.commit()
+        page = signed_in.get("/admin/solutions", params={"origin": "self"})
+        assert "Confirm" in page.text

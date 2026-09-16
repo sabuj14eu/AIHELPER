@@ -1,10 +1,15 @@
 {% extends "admin/base.html" %}
 {% block title %}Solutions — AI Helper{% endblock %}
 {% block content %}
-<h1>Learned solutions</h1>
-<p class="note">A paid answer becomes a CANDIDATE. It reaches PROMOTED only after it passes
-validation and the local model demonstrates it can answer the question with that solution in
-front of it. Only PROMOTED rows are offered back as context.</p>
+<h1>Solutions</h1>
+<p class="note"><b>Status</b> says how far a solution got. <b>Origin</b> says where it started,
+and the two are different questions: a <em>seeded</em> row was written into the pack by hand,
+a <em>self</em> row is an answer Brother produced and validated on its own. Only PROMOTED rows
+are offered back as context.</p>
+<p class="note">Brother's own answers are held at CANDIDATE on purpose — the reproduction gate
+asks whether the local model can restate an answer with that answer in front of it, which a
+local answer passes by construction. <b>Filter origin to <em>self</em> and status to
+CANDIDATE to see what is waiting for you.</b></p>
 <form class="filters" method="get">
   <label>Status
     <select name="status" onchange="this.form.submit()">
@@ -12,18 +17,24 @@ front of it. Only PROMOTED rows are offered back as context.</p>
       {% for s in statuses %}<option value="{{ s }}" {% if s == status %}selected{% endif %}>{{ s }}</option>{% endfor %}
     </select>
   </label>
+  <label>Origin
+    <select name="origin" onchange="this.form.submit()">
+      <option value="">all</option>
+      {% for o in origins %}<option value="{{ o }}" {% if o == origin %}selected{% endif %}>{{ o }}</option>{% endfor %}
+    </select>
+  </label>
   <noscript><button type="submit">Filter</button></noscript>
 </form>
 <div class="panel scroll"><table>
-<tr><th>When</th><th>Client</th><th>Question</th><th>Failure</th><th>Provider</th><th>Conf.</th>
+<tr><th>When</th><th>Client</th><th>Question</th><th>Origin</th><th>Failure</th><th>Conf.</th>
     <th>Status</th><th>Reused</th><th>Reproduced</th><th></th></tr>
 {% for s in solutions %}
 <tr>
   <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at }}</td>
   <td>{{ s.client_id }}</td>
   <td class="wrap" title="{{ s.status_reason or '' }}">{{ s.question[:180] }}</td>
+  <td title="{{ origin_labels[origin_of(s)] }}">{{ origin_of(s) }}</td>
   <td>{{ s.failure_reason or '—' }}</td>
-  <td>{{ s.provider }}</td>
   <td>{{ '%.2f'|format(s.confidence) }}</td>
   <td class="{% if s.status=='PROMOTED' %}ok{% elif s.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ s.status }}</td>
   <td>{{ s.reuse_count }}</td>
@@ -34,13 +45,15 @@ front of it. Only PROMOTED rows are offered back as context.</p>
   </td>
   <td>
     {% if s.status != 'PROMOTED' %}
-    <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/promote"><button>Promote</button></form>
+    <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/promote">
+      <button title="Runs validation and the reproduction gate, then promotes if both pass">
+        {{ 'Confirm' if origin_of(s) == 'self' else 'Promote' }}</button></form>
     {% endif %}
     {% if s.status != 'REJECTED' %}
     <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/reject"><button>Reject</button></form>
     {% endif %}
   </td>
 </tr>
-{% else %}<tr><td colspan="10" class="muted">No solutions recorded yet.</td></tr>{% endfor %}
+{% else %}<tr><td colspan="10" class="muted">Nothing matches that filter.</td></tr>{% endfor %}
 </table></div>
 {% endblock %}

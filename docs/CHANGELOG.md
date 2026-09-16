@@ -3,6 +3,34 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.7.1 — 2026-09-16
+
+**Migration:** none.
+
+### Fixed
+
+- **The review queue was unreadable, not missing.** 1.7.0's open item claimed
+  there was no one-click way to confirm a self-captured candidate. That was
+  wrong when it was written: `/admin/solutions/{id}/promote` has existed since
+  1.0, runs the full `PromotionPipeline` and writes an audit row. The actual
+  gap was that the page listed `provider` but not **origin**, so a row of
+  Brother's own waiting for the owner looked exactly like one of the 229
+  seeds, and nothing let you filter to what was waiting. The page now shows
+  origin, filters on it, and labels the button **Confirm** rather than
+  *Promote* on a `self` row — a different word for a different act, because
+  the reproduction gate cannot judge that one and the owner is being asked to.
+
+### Note on `ollama/ollama` (read at `66c3238`)
+
+`llm/llama_server.go:1576` sets `CachePrompt: true` on every completion, so
+llama.cpp reuses the KV cache for a repeated prompt prefix. The Brother system
+prompt is ~1,165 tokens and identical for a given agent, which means it should
+only be evaluated once per loaded model rather than on every request. **The
+19.8 tok/s measured in 1.6.0 was taken with three different prompts and so
+measured a cold cache every time** — steady-state repeated use may be
+materially cheaper. Untested on the box; do not quote a number until it is.
+`OLLAMA_NUM_PARALLEL` defaults to 1, so the context window is not being split.
+
 ## 1.7.0 — 2026-09-16
 
 Phase 6, the part that answers "should it not learn by itself?". It should,

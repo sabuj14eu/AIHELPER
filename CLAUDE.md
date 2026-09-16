@@ -62,7 +62,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 585 tests; conftest disables the live connectors so no test
+- `tests/` 588 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)

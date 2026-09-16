@@ -178,3 +178,4 @@ class TestBrotherKeepsItsOwnVerifiedAnswers:
         self._ask(runtime, db, client_row, seeded_context["question"])
         store = SolutionStore(db, client_row.client_id)
         assert [r for r in store.list(limit=50) if origin_of(r.provider) is SolutionOrigin.SELF] == []
+
