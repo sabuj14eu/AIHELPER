@@ -129,6 +129,42 @@ names verified against Sniper-System `3257184` for AIH-5, which turned up two
 rendering defects (`win_rate` had lost its `%`; a null statistic vanished
 instead of reading UNKNOWN). Version 1.2.1, 522 tests, ruff clean.
 
+## 6c. The architecture audit, and Phases 1-3 (2026-09-16, later)
+
+The owner read the failed plan answer and asked for an audit rather than a
+patch. It found two failures stacked on one another: the local model raised
+(proximate), and **even a perfect answer would probably have been discarded**
+(structural). He then authorised Phases 1-3, which are built and pushed.
+
+| | Shipped | What it fixes |
+|---|---|---|
+| Phase 1 | 1.3.0 `d6a91f5` | Four answer states. "The evidence is not available" stops rendering as a failure. "I don't have enough information" stops being scored as a refusal. The chat leads with the answer; route, sources and cost move behind *why*. |
+| Phase 2 | 1.3.1 `ce1fa76` | BASE_SYSTEM stops ordering a refusal that BROTHER_LAWS forbids. The plan procedure moves into the prompts of the agents that answer plan questions. |
+| Phase 3 | 1.4.0 `5acbdec` | A deterministic agent router — the gold question now reaches the *trading* agent. Per-message task classification works again in the chat. |
+
+565 tests, ruff clean, no schema change, every phase reverts with one
+`git revert`.
+
+Traced end to end locally, with the owner's exact question:
+
+```
+QUESTION : Gold now 4265 what is trading plan. today fomc
+AGENT    : trading | matched fomc, gold, plan, trading
+POLICY   : partial          PLAN PROCEDURE IN PROMPT : yes
+REFUSAL ORDER PRESENT : no  MARKER STILL A LAST RESORT: yes
+```
+
+**What is still owed, and it is the important half.** None of this has run on
+the box, and Phases 1-3 do not fix the proximate failure: if the local call
+raises, the request still ends. It now *says why* and says it in a sentence,
+but a timeout is still a dead end. **Phase 5 — streaming, model routing by
+turn shape, and one cheap local retry — is what actually resolves that**, and
+it should not be designed before the tokens/sec measurement in §7 exists.
+
+Read `docs/OPEN_ITEMS.md` AIH-13 for Phases 4-7. The audit report itself is
+the artifact linked in that conversation; its findings are numbered F1-F12 and
+the open items reference them.
+
 ## 7. Commands for Shyam, in order
 
 Each block is one line at a time. Run them on the box, in
@@ -259,11 +295,13 @@ AIH-5 stays open until a real payload has been through it.
 ```
 Read /home/user/AIHELPER/CLAUDE.md, then docs/HANDOFF_BROTHER_SESSION.md,
 then docs/OPEN_ITEMS.md. Branch claude/epic-euler-4k1gl1 (HEAD: git log --oneline -1),
-522 tests green, version 1.2.1. The box ai.signalmesh.dev runs qwen2.5:7b with
+565 tests green, version 1.4.0. The box ai.signalmesh.dev runs qwen2.5:7b with
 the pack loaded; paid providers stay OFF by the owner's decision.
 AIH-2 is IN PROGRESS and blocked on the box: the plan question returned no
-answer at all, level 2 raised, and the fix that makes the cause visible is in
-but has not been run there. Handoff §7 has the commands for Shyam; start by
+answer at all, level 2 raised, and the architecture work (Phases 1-3, AIH-13)
+is in but has NOT been run there. Phases 1-3 make the failure legible and get
+the question to the trading agent; they do not stop a local timeout ending the
+request -- that is Phase 5. Handoff §7 has the commands for Shyam; start by
 asking him for their output, and do not move LOCAL_MAX_TOKENS or
 LOCAL_TIMEOUT_SECONDS until the measured tokens/sec is in hand. Then AIH-3
 (built, not yet run) and AIH-1. Findings first, small verified diffs, pytest

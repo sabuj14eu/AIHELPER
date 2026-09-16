@@ -48,8 +48,10 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `app/gateway/` router (the ladder), escalation, provider manager.
 - `app/tools/` closed tool set; `live.py` = market news + trading mirror;
   `registry.py` carries `IntentMatch`; `dispatcher.py` = level 0.
-- `app/agents/builtin.py` generic agents + the four Brother agents and
-  `BROTHER_LAWS`.
+- `app/agents/builtin.py` generic agents + the four Brother agents,
+  `BROTHER_LAWS` and `TRADING_PLAN_PROCEDURE`; `router.py` picks the
+  specialist from the message.
+- `app/validation/states.py` the four answer states.
 - `app/knowledge/pack.py` pack loader, seeding, `secret_probe`.
 - `app/learning/` capture, promotion (the gate), `teaching.py`.
 - `app/api/routes/admin.py` dashboard incl. `/admin/chat` (queued job +
@@ -59,7 +61,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 522 tests; conftest disables the live connectors so no test
+- `tests/` 565 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -93,6 +95,40 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
   trades); dropping the key turns a fact into "not reported". Render it
   UNKNOWN rather than guessing which it was -- the Freshness Law's
   MISSING NEWS rule, applied to a mirror.
+
+## WHAT THE ARCHITECTURE AUDIT CHANGED (2026-09-16, Phases 1-3)
+The owner asked why a plan question returned nothing. The answer was two
+failures, and the second outlived the first. These are now laws.
+- **A turn is one of four things, and only one is a fault.** VERIFIED ·
+  USEFUL · INSUFFICIENT · FAILED (`app/validation/states.py`). "The
+  evidence is not available" is a successful outcome and must never render
+  as a failure. Validation's boolean is unchanged and still gates
+  escalation and promotion; the states decide only what the reader sees.
+- **A report about the evidence is not a refusal.** "I don't have enough
+  information" is what the laws *require*; scoring it as a refusal punished
+  the assistant for obeying its own constitution. Refusal and
+  lack-of-evidence are separate findings.
+- **One system message may not carry two incompatible orders.** BASE_SYSTEM
+  ordered INSUFFICIENT_CONTEXT unconditionally while BROTHER_LAWS forbade
+  refusing a plan question. A small model follows the blunt rule that came
+  first. The rule is now `context_policy` on the agent: strict is the
+  default, the Brother agents are partial.
+- **Iron Rule 5 draws its line at facts, not at method.** A number, level or
+  threshold belongs in the pack and is reloaded. The *order Brother thinks
+  in* is the way of working and belongs in the prompt — which is why the
+  plan procedure moved there. A test enforces this across every Brother
+  prompt.
+- **Routing is a control decision, so it is deterministic** (Iron Rule 2).
+  `app/agents/router.py` is regex and a test asserts it cannot reach a
+  provider. Being wrong must stay cheap: the fallback is `brother`, which
+  carries the client's whole tool set — never "no agent", never a refusal.
+  Accuracy is measured against `tests/unit/test_agent_router.py::LABELLED`;
+  grow that set when it gets something wrong, do not argue with it.
+- **An explicit choice is never second-guessed.** Only `auto` routes.
+- **A classification at confidence 1.0 silences everything below it.** An
+  agent's `default_task_type` was passed as `declared` and disabled
+  per-message classification entirely. Anything that short-circuits a
+  classifier deserves the same suspicion.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

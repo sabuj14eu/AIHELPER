@@ -57,6 +57,17 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   why the local model is not answering. Command in the handoff §7.
   Opened 2026-09-16. IN PROGRESS.
 
+- **AIH-13 The architecture work: Phases 1–3 are built, Phases 4–7 are not.**
+  The audit (2026-09-16) found six blocking defects. Phases 1–3 fixed five of
+  them and shipped in 1.3.0, 1.3.1 and 1.4.0 — four states, prompt coherence,
+  the agent router. **Phase 4** (scoped retrieval and reranking, F8) wants the
+  AIH-4 evals set built first so the change is measured. **Phase 5** (model
+  routing, streaming, a local retry before giving up) is what actually
+  resolves F6 and F7 — until it lands, a failed local call is still the end of
+  the road. **Phase 6** (thread summarisation and capturing real outcomes,
+  F9/F11/F12). **Phase 7** (paid teacher) is design only and must not be built
+  without an explicit decision. None of these has been run on the box. OPEN.
+
 ## P2 — quality and robustness
 
 - **AIH-4 Retrieval quality for pack questions is unmeasured.** The semantic
@@ -113,6 +124,11 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   done. The box now has real models, so this is runnable. Same as AIH-4. OPEN.
 
 ## Done this session (proof)
+
+- Four answer states; "lacks evidence" is no longer scored as a refusal → `tests/integration/test_failures.py::TestTheFourStates`, `tests/unit/test_validation.py::TestOutputChecks::test_lacking_evidence_is_not_a_refusal`, commit d6a91f5.
+- The system prompt stops ordering a refusal it elsewhere forbids → `TestBrotherAgents::test_the_brother_agents_do_not_carry_the_unconditional_refusal_order`, commit ce1fa76.
+- Deterministic agent router; the gold question reaches the trading agent → `tests/unit/test_agent_router.py` (24-message labelled set), commit 5acbdec.
+- Per-message task classification restored in the chat → same commit.
 
 - A failed request names its cause → `tests/integration/test_failures.py::TestLocalModelDown::test_the_reason_there_is_no_answer_survives_the_escalation_blocked_note`, commit 443e8a5.
 - `load-knowledge --retry-rejected` → `tests/unit/test_knowledge_pack.py::TestRetryingRejectedSeeds`, commit ff8d268.
