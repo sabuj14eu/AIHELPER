@@ -236,6 +236,15 @@ class TestBrotherChat:
 
     def test_the_page_needs_a_session(self, api):
         assert api.get("/admin/chat", follow_redirects=False).status_code == 401
+        # A browser asking for HTML is sent to the sign-in form instead.
+        for page in ("/admin", "/admin/chat", "/admin/solutions"):
+            browser = api.get(page, headers={"accept": "text/html,*/*"}, follow_redirects=False)
+            assert browser.status_code == 303 and browser.headers["location"] == "/admin/login", page
+        # The chat's own fetch() call does not accept HTML and keeps its JSON 401.
+        assert api.post(
+            "/admin/chat/ask", json={"message": "hi"}, headers={"accept": "text/html"},
+            follow_redirects=False,
+        ).status_code == 401
         assert (
             api.post("/admin/chat/ask", json={"message": "hi"}, follow_redirects=False).status_code
             == 401

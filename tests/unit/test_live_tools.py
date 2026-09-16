@@ -246,6 +246,8 @@ class TestTradingStatusTool:
         assert intent("last signals").direct
         why = intent("why did the bot skip the last gold signal?")
         assert why is not None and not why.direct
+        plan = intent("Gold now 4351 so what is your trading plan boss today big news day")
+        assert plan is not None and not plan.direct
         assert intent("what is 2 + 2") is None
 
 
@@ -276,8 +278,10 @@ class TestDispatchAndRouting:
             "should we be careful trading gold this session given the news?", live_registry
         )
         assert not dispatch.matched
-        assert [i.source for i in dispatch.context_items] == ["tool:market_news"]
-        assert dispatch.context_items[0].ref == "HIGH"
+        # "trading" and "news" both matched: the model gets both readings.
+        assert {i.source for i in dispatch.context_items} == {"tool:market_news", "tool:trading_status"}
+        news = next(i for i in dispatch.context_items if i.source == "tool:market_news")
+        assert news.ref == "HIGH"
 
     def test_a_narrowed_client_cannot_reach_a_live_tool(self, live_registry):
         dispatch = try_dispatch("news today?", live_registry, allowed_tools=["calculator"])

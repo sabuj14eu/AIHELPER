@@ -38,6 +38,17 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   not installed. Pull `qwen2.5:7b` to use it.
 - **Dashboard chat** shows whether each connector is on.
 
+### Fixed
+
+- **Dashboard 401 shown as JSON.** A browser opening `/admin` or `/admin/chat`
+  without a session received `{"error": "administrator sign-in required"}`
+  instead of the sign-in form. A GET on an `/admin` page whose `Accept`
+  names HTML now redirects to `/admin/login`; API calls and the chat's own
+  `fetch()` keep their JSON 401. Reported on the first real deployment
+  (ai.signalmesh.dev, 2026-09-16).
+- A "trading plan" question is treated as reasoning (live readings become
+  context for the model) rather than a bare status request.
+
 ### Verification
 
 New tests in `tests/unit/test_live_tools.py` cover the verdict windows, the

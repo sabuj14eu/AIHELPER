@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app import __version__
@@ -128,6 +128,16 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
     # ------------------------------------------------------- error handling
     @application.exception_handler(AIHelperError)
     async def domain_error(request: Request, exc: AIHelperError):
+        # A person navigating to a dashboard page without a session is sent to
+        # the sign-in form, not shown a JSON 401: the browser asked for HTML.
+        # API calls, and the dashboard's own fetch() calls, still get JSON.
+        if (
+            exc.status_code == 401
+            and request.url.path.startswith("/admin")
+            and request.method == "GET"
+            and "text/html" in request.headers.get("accept", "")
+        ):
+            return RedirectResponse(url="/admin/login", status_code=303)
         # The message is written for the caller; the detail never carries a
         # prompt, an answer or a credential.
         return JSONResponse(

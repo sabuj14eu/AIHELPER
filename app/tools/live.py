@@ -50,7 +50,7 @@ _NEWS_WORDS = re.compile(
 )
 _TRADING_WORDS = re.compile(
     r"\b(bot|v7|v18|executor|mt5|accounts?|portfolio|equity|balance|drawdown|floating|"
-    r"open trades?|positions?|signals?|trades?|heartbeat)\b",
+    r"open trades?|positions?|signals?|trades?|trading|plan|setup|heartbeat)\b",
     re.I,
 )
 _STATUS_WORDS = re.compile(
@@ -60,7 +60,7 @@ _STATUS_WORDS = re.compile(
 )
 _REASONING_WORDS = re.compile(
     r"\b(why|how (?:do|does|did|would|should|can)|should|explain|compare|strategy|"
-    r"if|whether|opinion|think|recommend|draft|write)\b",
+    r"if|whether|opinion|think|recommend|draft|write|plan|setup|idea|view|outlook|careful)\b",
     re.I,
 )
 _DIRECT_MAX_CHARS = 90
