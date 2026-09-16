@@ -237,6 +237,41 @@ class Retriever:
                 out.append((solution, hit.score))
         return out, near_miss
 
+    def similar_promoted(
+        self, text: str, *, limit: int = 5, min_score: float | None = None
+    ) -> list[tuple[SolutionCandidate, float]]:
+        """Promoted solutions similar to arbitrary text, at a caller's bar.
+
+        `_solutions` exists to answer "may I serve this instead of asking the
+        model?", so it applies the reuse threshold and searches by question.
+        This answers two different questions -- "have we stored this already?"
+        and "does this disagree with something we stored?" -- which need a
+        lower bar and, for the second, a search by the ANSWER rather than the
+        question. Same index, same embedder, different purpose.
+        """
+        bar = self.thresholds.solution_duplicate if min_score is None else min_score
+        vector = self.embedder.embed_one(text)
+        hits = self.store.search(
+            collection=collection_name("solutions", self.embedder),
+            client_id=self.client_id,
+            vector=vector,
+            limit=limit + 2,
+            min_score=bar,
+            ref_type=REF_SOLUTION,
+            extra_filter={"status": SolutionStatus.PROMOTED.value},
+        )
+        out: list[tuple[SolutionCandidate, float]] = []
+        for hit in hits:
+            solution = self.session.get(SolutionCandidate, hit.ref_id)
+            if solution is None or solution.client_id != self.client_id:
+                continue
+            if solution.status != SolutionStatus.PROMOTED.value or _expired(solution.expires_at):
+                continue
+            out.append((solution, hit.score))
+            if len(out) >= limit:
+                break
+        return out
+
     def retrieve(
         self,
         question: str,

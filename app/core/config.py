@@ -144,6 +144,13 @@ class Settings(BaseSettings):
     # serve both. The pair in use is chosen from the embedder that is active.
     MEMORY_SIMILARITY_THRESHOLD: float = 0.72
     SOLUTION_REUSE_THRESHOLD: float = 0.80
+    # Below the reuse bar on purpose. Above SOLUTION_REUSE a stored answer is
+    # served instead of asking the model, so nothing new is ever captured
+    # there. This is the band underneath: similar enough that storing it again
+    # would be a second copy of the same thing, not similar enough to answer
+    # with. Observed on the box: a near-miss at 0.6776 against a reuse bar of
+    # 0.80 -- exactly the gap where duplicates were accumulating.
+    SOLUTION_DUPLICATE_THRESHOLD: float = 0.72
     # Measured on the hashing embedder over a sample of question/passage
     # pairs: genuinely related pairs score 0.18-0.40, unrelated pairs 0.00-0.11.
     # 0.15 sits in that gap. Re-measure before changing it — a threshold set by
@@ -154,6 +161,7 @@ class Settings(BaseSettings):
     # the answer), so it keeps a wider margin, and is corroborated by lexical
     # overlap in Retriever._similar_solutions before it is acted on.
     LEXICAL_SOLUTION_REUSE_THRESHOLD: float = 0.55
+    LEXICAL_SOLUTION_DUPLICATE_THRESHOLD: float = 0.48
     MEMORY_TOP_K: int = 5
     KNOWLEDGE_TOP_K: int = 5
     CHUNK_SIZE: int = 900

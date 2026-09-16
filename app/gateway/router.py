@@ -47,6 +47,7 @@ from app.database.models import Client, RequestLog
 from app.gateway import task_classifier
 from app.gateway.escalation import may_escalate, why_escalate
 from app.gateway.provider_manager import PaidProviderManager
+from app.learning.conflicts import check_against_known
 from app.learning.fallback_capture import capture
 from app.learning.origin import SELF_PROVIDER
 from app.learning.promotion import PromotionPipeline
@@ -779,6 +780,17 @@ class GatewayRouter:
             return  # nothing was consulted; there is nothing to be right *about*
         if validation.confidence < self.settings.SELF_LEARNING_MIN_CONFIDENCE:
             return
+
+        # Steps 4 and 5 of the learning pipeline, before anything is written.
+        known = check_against_known(self.retriever, question=question, answer=response.answer)
+        if known.is_duplicate:
+            # Retrieval serves anything above the reuse bar, so this is the band
+            # underneath it: near enough that a second row is a second copy.
+            response.notes.append(
+                "not kept: this is already known "
+                f"(similar to a promoted solution at {known.duplicate_score:.2f})"
+            )
+            return
         decision = capture(
             self.session,
             client.client_id,
@@ -799,10 +811,34 @@ class GatewayRouter:
         )
         if decision.captured and decision.solution is not None:
             response.solution_id = decision.solution.id
-            response.notes.append(
-                "kept as a candidate to confirm — Brother answered this one itself "
-                "and it passed validation; it is not reused until you confirm it"
-            )
+            if known.has_conflict:
+                # The most interesting thing that can happen to a knowledge
+                # store: one of the two is stale and the system has just found
+                # out. Dropping it loses the discovery; storing it quietly
+                # leaves two answers that cannot both be true. So it is stored,
+                # marked, and put in front of the person who can say which.
+                decision.solution.validation_result = {
+                    **(decision.solution.validation_result or {}),
+                    "knowledge_check": known.as_dict(),
+                }
+                decision.solution.status_reason = (
+                    "disagrees with "
+                    f"{len(known.conflicts)} promoted solution(s) — needs a decision"
+                )[:300]
+                response.notes.append(
+                    "kept, and flagged: this answer disagrees with something already "
+                    "promoted. One of them is out of date — open /admin/solutions to say which"
+                )
+                log.warning(
+                    "knowledge_conflict",
+                    solution_id=decision.solution.id,
+                    conflicts=[c.solution_id for c in known.conflicts],
+                )
+            else:
+                response.notes.append(
+                    "kept as a candidate to confirm — Brother answered this one itself "
+                    "and it passed validation; it is not reused until you confirm it"
+                )
 
     def _mark_solution_used(self, retrieval: RetrievalResult, client_id: str) -> None:
         from app.learning.solution_store import SolutionStore

@@ -36,7 +36,11 @@ CANDIDATE to see what is waiting for you.</b></p>
   <td title="{{ origin_labels[origin_of(s)] }}">{{ origin_of(s) }}</td>
   <td>{{ s.failure_reason or '—' }}</td>
   <td>{{ '%.2f'|format(s.confidence) }}</td>
-  <td class="{% if s.status=='PROMOTED' %}ok{% elif s.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ s.status }}</td>
+  <td class="{% if s.status=='PROMOTED' %}ok{% elif s.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ s.status }}
+    {% if s.validation_result and s.validation_result.get('knowledge_check', {}).get('conflicts') %}
+      <div class="bad" style="font-size:.7rem" title="{{ s.status_reason or '' }}">DISAGREES</div>
+    {% endif %}
+  </td>
   <td>{{ s.reuse_count }}</td>
   <td class="muted">
     {% if s.reproduction and s.reproduction.get('attempted') %}

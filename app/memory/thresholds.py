@@ -12,6 +12,7 @@ from app.memory.embeddings import Embedder
 class Thresholds:
     memory: float
     solution_reuse: float
+    solution_duplicate: float
     embedder_id: str
     semantic: bool
 
@@ -21,6 +22,7 @@ class Thresholds:
             "semantic": self.semantic,
             "memory_similarity": self.memory,
             "solution_reuse": self.solution_reuse,
+            "solution_duplicate": self.solution_duplicate,
         }
 
 
@@ -29,12 +31,14 @@ def for_embedder(embedder: Embedder, settings: Settings) -> Thresholds:
         return Thresholds(
             memory=settings.MEMORY_SIMILARITY_THRESHOLD,
             solution_reuse=settings.SOLUTION_REUSE_THRESHOLD,
+            solution_duplicate=settings.SOLUTION_DUPLICATE_THRESHOLD,
             embedder_id=embedder.id,
             semantic=True,
         )
     return Thresholds(
         memory=settings.LEXICAL_MEMORY_SIMILARITY_THRESHOLD,
         solution_reuse=settings.LEXICAL_SOLUTION_REUSE_THRESHOLD,
+        solution_duplicate=settings.LEXICAL_SOLUTION_DUPLICATE_THRESHOLD,
         embedder_id=embedder.id,
         semantic=False,
     )

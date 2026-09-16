@@ -54,7 +54,8 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `app/validation/states.py` the four answer states.
 - `app/knowledge/pack.py` pack loader, seeding, `secret_probe`.
 - `app/learning/` capture, promotion (the gate), `teaching.py`,
-  `origin.py` (seeded / taught / self / paid).
+  `origin.py` (seeded / taught / self / paid), `conflicts.py`
+  (duplicate and contradiction checks before a candidate is written).
 - `app/api/routes/admin.py` dashboard incl. `/admin/chat` (queued job +
   poll), `/admin/chat/teach`, `/admin/chat/ask-now`.
 - `app/cli.py` bootstrap-brother, load-knowledge, knowledge-status, ask,
@@ -62,7 +63,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 588 tests; conftest disables the live connectors so no test
+- `tests/` 594 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -163,6 +164,19 @@ failures, and the second outlived the first. These are now laws.
   own "I don't have enough information" (a gap to fill, not to teach away)
   and refuses a degenerate loop. It never judges whether an answer is right:
   that is the owner's call and the point of the form.
+
+- **A duplicate is a reason not to store; a conflict is not.** When a new
+  answer disagrees with something already promoted, one of the two is stale
+  and the system has just found out. Dropping it loses the discovery; storing
+  it quietly leaves two answers that cannot both be true. Store it, mark it,
+  and put it in front of the owner. `app/learning/conflicts.py`.
+- **Search by the answer, not only the question.** A stale solution that
+  contradicts a new one may be filed under a question nothing like it, which
+  is exactly what a question-based search cannot see.
+- **A quality gate fails open; a safety gate fails closed.** A broken vector
+  store loses the duplicate check, not the lesson — a missed check costs a
+  duplicate row, refusing to capture costs what was being learned. Know which
+  kind each gate is before choosing its failure mode.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

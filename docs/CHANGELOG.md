@@ -3,6 +3,58 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.8.0 — 2026-09-16
+
+Steps 4 and 5 of the learning pipeline. The store now checks a candidate
+against what it already knows, in both directions.
+
+**Migration:** none. Two new thresholds, documented in `.env.example`.
+
+### Added
+
+- **Semantic duplicate detection** (`app/learning/conflicts.py`, step 4).
+  Capture checked one thing: is this *exact* question already stored. Above
+  `SOLUTION_REUSE_THRESHOLD` (0.80) retrieval serves the stored answer, so
+  nothing is ever captured up there — but underneath it sits a band where a
+  paraphrase is similar enough that a second row is a second copy, and every
+  question asked in that band quietly added one. Measured on the box: a
+  near-miss at **0.6776** against a reuse bar of 0.80, which is exactly the
+  gap. `SOLUTION_DUPLICATE_THRESHOLD` (0.72 semantic, 0.48 lexical) closes it,
+  and a test asserts it can never be set above the reuse bar — if they crossed,
+  the check would cover a band that cannot occur.
+
+- **Contradiction against stored knowledge** (step 5). Nothing compared a new
+  answer against what was already promoted. Validation checks an answer against
+  the context retrieved *for that question*, which is a different set: a stale
+  solution that contradicts the new answer need not rank for the new question
+  at all. So two answers that cannot both be true could sit in memory together,
+  and whichever one retrieval happened to surface is what Brother would say.
+
+  The search is by the **answer**, not the question, precisely because the
+  question-based search is what cannot see this.
+
+  **A conflict does not block capture.** It is the most interesting thing that
+  can happen to a knowledge store — one of the two is stale and the system has
+  just found out. Dropping it loses the discovery; storing it silently leaves
+  the contradiction in place. So the row is stored, marked `DISAGREES` in the
+  review queue with the reason, logged as `knowledge_conflict`, and put in
+  front of the only party who can say which is wrong.
+
+  Both checks are deterministic (Iron Rule 2): vector similarity over an index
+  that already exists, plus `factuality.check`, which is text analysis. No
+  model is asked to judge anything.
+
+- **`Retriever.similar_promoted(text, …)`** — the same index and embedder as
+  reuse, at a caller's bar, searchable by arbitrary text rather than only by a
+  question.
+
+### Note
+
+A broken vector store loses the check, not the lesson: `check_against_known`
+returns empty on any retrieval error. This is a quality gate, not a safety
+gate — a missed check costs a duplicate row, while refusing to capture would
+cost the thing the system was trying to learn.
+
 ## 1.7.1 — 2026-09-16
 
 **Migration:** none.

@@ -179,3 +179,119 @@ class TestBrotherKeepsItsOwnVerifiedAnswers:
         store = SolutionStore(db, client_row.client_id)
         assert [r for r in store.list(limit=50) if origin_of(r.provider) is SolutionOrigin.SELF] == []
 
+
+
+class TestStepsFourAndFive:
+    """Steps 4 and 5 of the pipeline: duplicates, and disagreement with what is known.
+
+    Capture used to ask one question — is this exact sentence already stored?
+    Two failures got past that, and they fail in opposite directions: the same
+    thing worded differently, and the opposite thing stored beside it.
+    """
+
+    class FakeRetriever:
+        """Stands in for the vector index; the thresholds are the real ones' job."""
+
+        def __init__(self, rows=(), raises=False):
+            self.rows = list(rows)
+            self.raises = raises
+
+        def similar_promoted(self, text, *, limit=5, min_score=None):
+            if self.raises:
+                raise RuntimeError("qdrant is having a moment")
+            return self.rows[:limit]
+
+    def _row(self, db, client_row, question, answer):
+        from app.learning.origin import SELF_PROVIDER
+
+        return SolutionStore(db, client_row.client_id).create(
+            question=question,
+            answer=answer,
+            task_type="general",
+            provider=SELF_PROVIDER,
+            model="m",
+            failure_reason=None,
+            local_attempt=None,
+            validation_result={},
+            confidence=0.9,
+            classification="INTERNAL",
+        )
+
+    def test_a_reworded_duplicate_is_recognised(self, db, client_row):
+        from app.learning.conflicts import check_against_known
+
+        stored = self._row(
+            db, client_row, "What port does the v7 bridge use?", "The bridge is on port 5001."
+        )
+        check = check_against_known(
+            self.FakeRetriever([(stored, 0.74)]),
+            question="which port is the v7 bridge on",
+            answer="The bridge listens on port 5001.",
+        )
+        assert check.is_duplicate and check.duplicate.id == stored.id
+        assert check.duplicate_score == 0.74
+
+    def test_an_answer_that_disagrees_with_stored_knowledge_is_flagged(self, db, client_row):
+        """The case validation cannot see.
+
+        Validation checks an answer against the context retrieved *for that
+        question*. A stale solution filed under a different question need not
+        rank for it at all — so the two can sit in memory together, and
+        whichever one retrieval surfaces is what Brother says.
+        """
+        from app.learning.conflicts import check_against_known
+
+        stale = self._row(
+            db, client_row,
+            "Is a stale bias usable?",
+            "A stale bias is neutral and used.",
+        )
+        check = check_against_known(
+            self.FakeRetriever([(stale, 0.8)]),
+            question="how does the system treat a stale bias",
+            answer="A stale bias is invalid and unused, not neutral.",
+        )
+        assert check.has_conflict, "the two cannot both be true"
+        assert check.conflicts[0].solution_id == stale.id
+        assert check.conflicts[0].detail
+
+    def test_agreeing_with_stored_knowledge_is_not_a_conflict(self, db, client_row):
+        from app.learning.conflicts import check_against_known
+
+        stored = self._row(
+            db, client_row, "What is the v7 bot?", "The v7 bot is the mechanical arm."
+        )
+        check = check_against_known(
+            self.FakeRetriever([(stored, 0.75)]),
+            question="describe the v7 bot",
+            answer="The v7 bot is the mechanical arm of the system.",
+        )
+        assert not check.has_conflict
+
+    def test_a_broken_index_loses_the_check_not_the_lesson(self, db, client_row):
+        """A quality gate, not a safety gate.
+
+        Losing a check costs a duplicate row. Refusing to capture because the
+        vector store blinked costs the thing the system was trying to learn.
+        """
+        from app.learning.conflicts import check_against_known
+
+        check = check_against_known(
+            self.FakeRetriever(raises=True), question="anything", answer="anything at all"
+        )
+        assert not check.is_duplicate and not check.has_conflict
+
+    def test_no_retriever_is_handled(self, db, client_row):
+        from app.learning.conflicts import check_against_known
+
+        assert not check_against_known(None, question="q", answer="a").is_duplicate
+
+    def test_the_duplicate_bar_sits_below_the_reuse_bar(self, settings):
+        """Above the reuse bar a stored answer is served instead of asking the
+        model, so nothing is ever captured up there. If these ever crossed, the
+        duplicate check would cover a band that cannot occur."""
+        assert settings.SOLUTION_DUPLICATE_THRESHOLD < settings.SOLUTION_REUSE_THRESHOLD
+        assert (
+            settings.LEXICAL_SOLUTION_DUPLICATE_THRESHOLD
+            < settings.LEXICAL_SOLUTION_REUSE_THRESHOLD
+        )
