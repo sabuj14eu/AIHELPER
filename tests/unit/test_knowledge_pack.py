@@ -456,6 +456,22 @@ class TestCli:
         assert status["pack"]["missing_from_client"] == []
         assert status["solutions"]["PROMOTED"] == 0
 
+    def test_ask_talks_to_brother_from_the_terminal(self, runtime, engine, capsys, pack, local_provider):
+        from app import cli
+
+        assert cli.main(["ask", "hello"]) == 2  # no client yet
+        assert "bootstrap-brother" in capsys.readouterr().err
+        assert cli.main(["bootstrap-brother", "--path", str(pack), "--no-seed"]) == 0
+        capsys.readouterr()
+        assert cli.main(["ask", "What", "is", "the", "capital", "of", "France?"]) == 0
+        captured = capsys.readouterr()
+        assert "Paris" in captured.out
+        assert "[local · confidence" in captured.err and "agent brother" in captured.err
+        assert "Never infer from silence" in local_provider.calls[-1].messages[0].content
+        assert cli.main(["ask", "What is 2 + 2?", "--agent", "trading"]) == 0
+        captured = capsys.readouterr()
+        assert captured.out.strip() == "4" and "[tool" in captured.err
+
     def test_a_missing_pack_directory_is_refused_with_a_reason(self, runtime, engine, capsys, tmp_path):
         from app import cli
 

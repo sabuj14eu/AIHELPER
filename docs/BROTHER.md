@@ -156,6 +156,14 @@ local model is running and whether the embedder is semantic. Without
 not meaning, and a reworded question may miss. The page says so; install the
 model and run `python -m app.cli calibrate`.
 
+From the terminal, bypassing any reverse proxy (the first thing to try when
+the chat page shows a proxy error):
+
+```bash
+docker compose exec ai-helper python -m app.cli ask "news today?"
+docker compose exec ai-helper python -m app.cli ask --agent trading "bot status"
+```
+
 Every reply shows its route (tool, memory, local, paid), its confidence, its
 cost, the sources it used and the validation notes. A reply marked UNVERIFIED
 did not pass validation and is a draft, not a fact.

@@ -8,6 +8,7 @@
     python -m app.cli bootstrap-brother          # create the personal client and load the pack
     python -m app.cli load-knowledge             # (re)load the knowledge pack; idempotent
     python -m app.cli knowledge-status           # what the assistant currently holds
+    python -m app.cli ask "news today?"          # talk to Brother from the terminal
 """
 
 from __future__ import annotations
@@ -380,6 +381,56 @@ def cmd_bootstrap_brother(args) -> int:
     return 0 if not report["failed"] else 1
 
 
+def cmd_ask(args) -> int:
+    """Ask Brother from the terminal, as the personal client, through the same ladder.
+
+    The operator's bypass of the reverse proxy: if this answers and the chat
+    page does not, the proxy is the problem. Prints the answer, then the route,
+    confidence, latency and sources on stderr.
+    """
+    import time
+
+    from app.api.deps import resolve_agent
+    from app.gateway.router import GatewayRequest
+    from app.runtime import get_runtime
+
+    create_all(get_engine())
+    settings = get_settings()
+    client_id = args.client or settings.PERSONAL_CLIENT_ID
+    runtime = get_runtime()
+    started = time.monotonic()
+    with session_scope() as session:
+        client = session.get(Client, client_id)
+        if client is None:
+            print(f"client '{client_id}' does not exist — run: python -m app.cli bootstrap-brother",
+                  file=sys.stderr)
+            return 2
+        services = runtime.for_session(session, client_id)
+        result = services.router.handle(
+            GatewayRequest(
+                message=" ".join(args.message),
+                client=client,
+                agent=resolve_agent(args.agent or settings.PERSONAL_AGENT),
+                store_conversation=False,
+            )
+        )
+        payload = result.as_dict()
+    elapsed = time.monotonic() - started
+    print(payload["answer"] or "(no answer)")
+    print(
+        f"\n[{payload['route']} · confidence {payload['confidence']} · {elapsed:.1f}s · "
+        f"cost ${payload['cost_usd']:.4f} · agent {payload['agent']} · "
+        f"{'ok' if payload['success'] else 'UNVERIFIED'}]",
+        file=sys.stderr,
+    )
+    if payload["sources"]:
+        print("sources: " + ", ".join(f"{s['source']}:{s['ref']}" for s in payload["sources"][:6]),
+              file=sys.stderr)
+    if payload["notes"]:
+        print("notes: " + " · ".join(payload["notes"]), file=sys.stderr)
+    return 0 if payload["success"] else 1
+
+
 def cmd_knowledge_status(args) -> int:
     from app.knowledge.pack import KnowledgePackLoader
     from app.runtime import get_runtime
@@ -467,6 +518,12 @@ def main(argv: list[str] | None = None) -> int:
         "--prune", action="store_true", help="also remove documents whose pack file is gone"
     )
     load.set_defaults(func=cmd_load_knowledge)
+
+    ask = sub.add_parser("ask", help="ask Brother from the terminal, bypassing any reverse proxy")
+    ask.add_argument("message", nargs="+")
+    ask.add_argument("--client", help="client id (default: PERSONAL_CLIENT_ID)")
+    ask.add_argument("--agent", help="agent name (default: PERSONAL_AGENT)")
+    ask.set_defaults(func=cmd_ask)
 
     status = sub.add_parser("knowledge-status", help="what the assistant currently holds")
     pack_args(status)

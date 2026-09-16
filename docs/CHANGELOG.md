@@ -46,6 +46,9 @@ the trading connector is inert until `TRADING_PLATFORM_URL` and
   names HTML now redirects to `/admin/login`; API calls and the chat's own
   `fetch()` keep their JSON 401. Reported on the first real deployment
   (ai.signalmesh.dev, 2026-09-16).
+- **`python -m app.cli ask "…"`** — talk to Brother from the terminal as the
+  personal client, through the same ladder, bypassing any reverse proxy.
+  Prints the answer, then route, confidence, latency, cost and sources.
 - **Chat page showed "SyntaxError: Unexpected token '<'" on a proxy error.**
   When nginx answered with its own HTML (a 504 after its 60 s default
   `proxy_read_timeout`, or a 502 during a restart) the page tried to parse
