@@ -115,7 +115,36 @@ class TestLocalModelDown:
         assert response.success is False
         assert response.answer == ""
         assert response.escalation_blocked_reason is EscalationBlockReason.NOT_CONFIGURED
-        assert response.notes, "a failed request must say why"
+        # Not merely "there are notes": the note that matters is the one that
+        # says what went wrong at level 2. Asserting only that the list is
+        # non-empty is what let the cause go missing for a release.
+        assert "fake local model is not running" in response.notes[0]
+
+    def test_the_reason_there_is_no_answer_survives_the_escalation_blocked_note(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        """The owner's box: paid providers off, so a note always exists already.
+
+        A blocked escalation explains what could not rescue the request; it does
+        not explain why level 2 produced nothing. Both have to be on the
+        response, and the cause has to come first.
+        """
+        local_provider.timeout = True
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the capital of France?")
+        assert response.route is Route.FAILED
+        assert response.answer == ""
+        assert "fake local model timed out" in response.notes[0]
+        assert any("escalation blocked" in note for note in response.notes)
+
+    def test_an_empty_local_answer_with_no_paid_provider_says_it_was_empty(
+        self, runtime, db, client_row, local_provider, paid_provider
+    ):
+        local_provider.answer_override = "   "
+        paid_provider.is_enabled = False
+        response = ask(runtime, db, client_row, "What is the capital of France?")
+        assert response.route is Route.FAILED
+        assert response.notes[0] == "no answer: the local model returned an empty answer"
 
 
 class TestPaidProviderFailures:

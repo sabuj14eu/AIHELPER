@@ -3,6 +3,28 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.2.1 — 2026-09-16
+
+**Migration:** none.
+
+### Fixed
+
+- **A failed request now says why it failed.** When level 2 produced nothing
+  at all, `GatewayRouter._degraded` recorded the reason only `if not
+  base.notes` — and by the time it is reached a note almost always exists,
+  because "escalation blocked: ..." is appended on the way there. With paid
+  providers off, which is the owner's standing decision, that guard was always
+  false, so the reason was *always* dropped. The chat showed an empty bubble,
+  `route failed · UNVERIFIED`, and nothing distinguishing a local timeout from
+  an Ollama that is down. The reason is now recorded on every failed request
+  and inserted first, ahead of the notes that only say what did not rescue it.
+  Regression tests:
+  `tests/integration/test_failures.py::TestLocalModelDown::test_the_reason_there_is_no_answer_survives_the_escalation_blocked_note`,
+  `::test_an_empty_local_answer_with_no_paid_provider_says_it_was_empty`, and a
+  tightened `::test_with_the_local_model_down_and_no_paid_provider_the_request_fails_honestly`
+  — the old assertion was `assert response.notes`, which is what let the cause
+  go missing: it checked that there were notes, not that any of them said why.
+
 ## 1.2.0 — 2026-09-16
 
 Brother can now talk about *now*: two read-only live connectors, a tool

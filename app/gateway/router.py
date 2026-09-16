@@ -90,6 +90,15 @@ def _system_prompt(task_type: TaskType, response_format: str, agent: AgentSpec |
     return prompt
 
 
+def _no_answer_reason(local_result: GatewayRouter._LocalResult) -> str:
+    """Say, in one line, why level 2 produced nothing at all."""
+    if local_result.detail:
+        return f"no answer: {local_result.detail}"
+    if local_result.response is not None:
+        return "no answer: the local model returned an empty answer"
+    return "no answer: no provider could answer this request"
+
+
 @dataclass
 class GatewayRequest:
     message: str
@@ -695,8 +704,14 @@ class GatewayRouter:
         base.route = Route.FAILED
         base.success = False
         base.answer = ""
-        if not base.notes:
-            base.notes.append(local_result.detail or "no provider could answer this request")
+        # Why there is no answer at all is the most important thing on this
+        # response, and it used to be dropped whenever any earlier note
+        # existed -- which, with paid providers off, is always, because
+        # "escalation blocked: ..." is appended on the way here. The owner was
+        # left with an empty bubble and no way to tell a local timeout from an
+        # Ollama that is down. The cause goes first, ahead of the notes that
+        # only say what did not rescue it.
+        base.notes.insert(0, _no_answer_reason(local_result))
         return base
 
     def _remember_answer(
