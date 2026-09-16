@@ -12,19 +12,50 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   status" answers "not configured". Needs a USER key from the platform's
   `/api-access` page, then `docker compose restart ai-helper`. Owner action.
   Opened 2026-09-16. OPEN.
-- **AIH-2 The plan answer under qwen2.5:7b has not been observed.** The
-  recipe document and the plan law were added after the last observed
-  answer (a refusal from llama3.2:3b). qwen2.5:7b was pulled 2026-09-16
-  19:35 UTC and the Brother agents prefer it automatically. Nobody has yet
-  seen an answer from it. Ask the gold plan question and read the result;
-  if it still refuses, teach the correct plan through the chat form and
-  re-ask. Opened 2026-09-16. OPEN.
+- **AIH-2 The plan answer under qwen2.5:7b failed to arrive at all.** The
+  observation has now happened, and it was not the expected refusal. Asked
+  "Gold now 4265 what is trading plan. today fomc", the chat returned an
+  empty bubble:
+
+      route failed · UNVERIFIED · sources: tool:market_news:ELEVATED, document:…×5
+      live data supplied by tool:market_news · escalation blocked: this client
+      is not permitted to use paid providers
+
+  Read what that line says: levels 0 and 1 worked. The news tool fetched and
+  returned ELEVATED, retrieval found five pack chunks. **Level 2 produced
+  nothing** — no confidence appears on the response, and confidence is only
+  set when the local call returns, so the call raised rather than answering.
+  A timeout and an Ollama that is down look identical from here, which was
+  itself a defect: the reason was being dropped. Fixed in 1.2.1 (commit
+  443e8a5) — a failed request now names its cause first.
+
+  **Remaining, and it needs the box:** re-ask and read the new first note.
+  The two candidates and what settles each:
+  1. *A local timeout.* `LOCAL_TIMEOUT_SECONDS` may still read 60 in the
+     box's `.env` while the code default is 180 (the handoff flagged this).
+     Even at 180 the arithmetic is tight: `LOCAL_MAX_TOKENS` is 1024, so a
+     full-length answer clears 180 s only above ~5.7 tokens/s, and a 7B model
+     on a CPU VPS is commonly slower than that. Measure the rate before
+     touching any threshold — do not move one on a guess.
+  2. *Ollama unreachable or the model not loaded.* qwen2.5:7b was pulled
+     hours before this and `keep_alive` is 60m, so a cold load of ~5 GB may
+     have been inside the timeout window on the first call.
+
+  The commands are in `docs/HANDOFF_BROTHER_SESSION.md` §7. If it turns out
+  to be a timeout, the answer is thrown away whole — the call is not
+  streamed — which is the real cost of AIH-9 and should be weighed there.
+  Opened 2026-09-16. IN PROGRESS.
 - **AIH-3 48 seeded solutions were REJECTED by llama3.2:3b's reproduction
   gate** (229 promoted, 1 validated, 48 rejected on 2026-09-16 ~17:30 UTC).
-  Their facts are still in the documents. Under qwen2.5:7b many would pass.
-  Re-seeding skips known fingerprints, so a re-run cannot retry them; a
-  `--retry-rejected` option (delete the REJECTED knowledge-pack rows, then
-  re-seed) is the smallest change. Opened 2026-09-16. OPEN.
+  The mechanism is built: `load-knowledge --retry-rejected`, commit ff8d268,
+  tests `tests/unit/test_knowledge_pack.py::TestRetryingRejectedSeeds`. It
+  supersedes rather than deletes, which is what this item first proposed —
+  Iron Rule 4 keeps the record of what the gate refused and why, so the
+  rejection is EXPIRED with its reason and the retry earns its own status.
+  **Not yet run on the box**, and it costs one local model call per seed, so
+  it wants `--seed-limit` batches and it is worth doing after AIH-2 settles
+  why the local model is not answering. Command in the handoff §7.
+  Opened 2026-09-16. IN PROGRESS.
 
 ## P2 — quality and robustness
 
@@ -34,10 +65,26 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   Then a fixed question set (10–20 questions about the six repos with
   expected sources) run through `python -m app.cli ask` is the evals harness
   the 1.0 handover named as the biggest gap. OPEN.
-- **AIH-5 The trading mirror's `stats` keys are assumed.** `trading_status`
-  renders `win_rate`, `profit_factor` etc. only if present; the platform's
-  `core_stats` field names were not read. Verify against
-  `Sniper-System/app/services/analytics.py` once AIH-1 is done. OPEN.
+- **AIH-5 The trading mirror's field names are verified; a live read is not.**
+  Every key `trading_status` renders was checked against Sniper-System
+  `3257184` (`app/routers/api_v1.py`, `app/services/analytics.py`). All match;
+  nothing was renamed. Two rendering defects found and fixed while checking
+  (commit 7198c5c): `win_rate` is a percentage and now carries its `%`, and a
+  present-but-null statistic now reads `UNKNOWN` instead of vanishing —
+  `profit_factor` is null exactly when there were no losing trades, so
+  dropping it turned a fact into a silence. Proof:
+  `tests/unit/test_live_tools.py::TestTradingStatusTool::test_the_win_rate_carries_its_unit`
+  and `::test_a_null_statistic_reads_unknown_rather_than_vanishing`.
+  **Still open for the other half:** this is an audit against source, not a
+  live read. No real payload has been through the connector because it is
+  unconfigured (AIH-1). Confirm against a real response once AIH-1 is done.
+  IN PROGRESS.
+
+- **AIH-12 `trading_status` does not render `expectancy` or `avg_rr`.** Both
+  are in the platform's `core_stats` and both are more informative than the
+  raw totals already shown. Not a defect — nothing is wrong with the line as
+  it stands — so it was left alone rather than widened while fixing AIH-5.
+  Opened 2026-09-16. OPEN.
 - **AIH-6 Outlook board is not readable.** The plan recipe says "restate
   the posted outlook" but no connector reads the platform's outlook board
   (its API v1 has no outlook endpoint; the desk page is session-authed).
@@ -66,6 +113,10 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   done. The box now has real models, so this is runnable. Same as AIH-4. OPEN.
 
 ## Done this session (proof)
+
+- A failed request names its cause → `tests/integration/test_failures.py::TestLocalModelDown::test_the_reason_there_is_no_answer_survives_the_escalation_blocked_note`, commit 443e8a5.
+- `load-knowledge --retry-rejected` → `tests/unit/test_knowledge_pack.py::TestRetryingRejectedSeeds`, commit ff8d268.
+- Trading mirror field names verified against the platform's source → commit 7198c5c (rendering fixes have tests; the live read is still owed, AIH-5).
 
 - Login redirect for browsers → `tests/integration/test_api.py::TestBrotherChat::test_the_page_needs_a_session`, commit 7e989e7.
 - Pack shipped in the image → `tests/unit/test_container_build.py::TestKnowledgePackShipsInTheImage`, commit 04df5f0.

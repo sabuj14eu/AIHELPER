@@ -59,7 +59,7 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 514 tests; conftest disables the live connectors so no test
+- `tests/` 522 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -79,6 +79,20 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - **What ships in the image is what runs.** `knowledge/` was missing from
   the Dockerfile once; a test now checks every copied path exists and is
   not docker-ignored.
+- **A diagnostic guarded by "only if we have nothing else to say" says
+  nothing, in the case that matters.** `_degraded` recorded why level 2
+  produced no answer only `if not base.notes` -- and with paid providers
+  off, a note is always already there ("escalation blocked: ..."), so the
+  cause was suppressed by the owner's own configuration. A failed request
+  states its cause unconditionally, first.
+- **`assert response.notes` is not a test.** It asserts that something was
+  said, not that anything said why, and that is how the defect above shipped.
+  Assert the content of the message a human will read.
+- **Absence is not silence.** A statistic the platform sends as null means
+  something specific (`profit_factor` is null when there were no losing
+  trades); dropping the key turns a fact into "not reported". Render it
+  UNKNOWN rather than guessing which it was -- the Freshness Law's
+  MISSING NEWS rule, applied to a mirror.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the
