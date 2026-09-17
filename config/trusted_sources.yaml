@@ -1,0 +1,167 @@
+# Trusted sources for web research — DATA, not code.
+#
+# Adding or removing a source is an edit to this file and nothing else. No
+# domain, tier or routing rule appears anywhere in app/; the research agent
+# reads this and knows nothing about the Federal Reserve.
+#
+# WHAT A TIER IS, AND WHAT IT IS NOT
+# ----------------------------------
+# A tier says *who wrote it*, not *whether it is true*. Tier 1 is not
+# automatically correct and never becomes knowledge automatically. The chain
+# is unchanged for every tier:
+#
+#   preferred source -> higher trust metadata -> stronger evidence
+#   -> still validated -> still CANDIDATE -> still needs human approval
+#
+# AUTO_PROMOTE is false and nothing here reaches past it.
+#
+# The tier's real job is twofold: it decides which sites are asked FIRST, and
+# it is recorded on every candidate, so that months from now "where did
+# Brother learn this?" has an answer rather than a guess.
+#
+# Verified on 2026-09-17. Every domain below is the primary publisher of the
+# data it is listed for; none is an aggregator republishing someone else.
+
+version: 1
+updated: "2026-09-17"
+
+# Below this tier, evidence does not become a learning candidate on its own.
+# 3 means: a general-web page alone is read and reported, never learned from.
+# Raise to 2 to learn only from officials and exchanges; lower to 4 to learn
+# from anything (not recommended, and it is a decision, not a default).
+min_tier_for_learning: 3
+
+tiers:
+  1:
+    name: PRIMARY_OFFICIAL
+    trust: VERIFIED
+    description: >
+      The body that produces the number. A release here is the release;
+      everyone else is quoting it.
+  2:
+    name: MARKET_DATA
+    trust: ESTABLISHED
+    description: >
+      Exchanges and institutional data providers. Authoritative for what
+      traded, at what price, and what positioning looks like.
+  3:
+    name: FINANCIAL_NEWS
+    trust: REPUTABLE
+    description: >
+      Professional financial newsrooms with corrections policies. Good for
+      what happened and how it was read; not the source of the figure.
+  4:
+    name: GENERAL_WEB
+    trust: UNVERIFIED
+    description: >
+      Everything else. Read, reported, and never learned from on its own.
+
+# Domain -> tier. Subdomains match automatically (www.bls.gov matches bls.gov),
+# so list the registrable domain only.
+domains:
+  # --- tier 1: central banks, statistical agencies, regulators --------------
+  federalreserve.gov:   {tier: 1, name: "US Federal Reserve / FOMC"}
+  bls.gov:              {tier: 1, name: "US Bureau of Labor Statistics (CPI, NFP)"}
+  bea.gov:              {tier: 1, name: "US Bureau of Economic Analysis (GDP, PCE)"}
+  treasury.gov:         {tier: 1, name: "US Treasury"}
+  cftc.gov:             {tier: 1, name: "CFTC (Commitments of Traders)"}
+  sec.gov:              {tier: 1, name: "US SEC"}
+  eia.gov:              {tier: 1, name: "US Energy Information Administration"}
+  census.gov:           {tier: 1, name: "US Census Bureau (retail sales, trade)"}
+  ecb.europa.eu:        {tier: 1, name: "European Central Bank"}
+  bankofengland.co.uk:  {tier: 1, name: "Bank of England"}
+  boj.or.jp:            {tier: 1, name: "Bank of Japan"}
+  snb.ch:               {tier: 1, name: "Swiss National Bank"}
+  rba.gov.au:           {tier: 1, name: "Reserve Bank of Australia"}
+  bankofcanada.ca:      {tier: 1, name: "Bank of Canada"}
+  rbnz.govt.nz:         {tier: 1, name: "Reserve Bank of New Zealand"}
+  imf.org:              {tier: 1, name: "International Monetary Fund"}
+  bis.org:              {tier: 1, name: "Bank for International Settlements"}
+  ons.gov.uk:           {tier: 1, name: "UK Office for National Statistics"}
+  ec.europa.eu:         {tier: 1, name: "Eurostat / European Commission"}
+  destatis.de:          {tier: 1, name: "German Federal Statistical Office"}
+
+  # --- tier 2: exchanges and institutional data ----------------------------
+  cmegroup.com:         {tier: 2, name: "CME Group (futures, FedWatch)"}
+  fred.stlouisfed.org:  {tier: 2, name: "FRED (St. Louis Fed data service)"}
+  stlouisfed.org:       {tier: 2, name: "St. Louis Fed"}
+  nasdaq.com:           {tier: 2, name: "Nasdaq"}
+  nyse.com:             {tier: 2, name: "New York Stock Exchange"}
+  ice.com:              {tier: 2, name: "Intercontinental Exchange"}
+  lbma.org.uk:          {tier: 2, name: "London Bullion Market Association (gold, silver)"}
+  lme.com:              {tier: 2, name: "London Metal Exchange"}
+  eurex.com:            {tier: 2, name: "Eurex"}
+  opec.org:             {tier: 2, name: "OPEC"}
+  iea.org:              {tier: 2, name: "International Energy Agency"}
+  worldbank.org:        {tier: 2, name: "World Bank"}
+
+  # --- tier 3: professional financial news ---------------------------------
+  reuters.com:          {tier: 3, name: "Reuters"}
+  bloomberg.com:        {tier: 3, name: "Bloomberg"}
+  ft.com:               {tier: 3, name: "Financial Times"}
+  wsj.com:              {tier: 3, name: "Wall Street Journal"}
+  apnews.com:           {tier: 3, name: "Associated Press"}
+  cnbc.com:             {tier: 3, name: "CNBC"}
+  marketwatch.com:      {tier: 3, name: "MarketWatch"}
+  barrons.com:          {tier: 3, name: "Barron's"}
+  economist.com:        {tier: 3, name: "The Economist"}
+  kitco.com:            {tier: 3, name: "Kitco (precious metals)"}
+
+# Topic routing: which sites are asked FIRST for which question.
+#
+# `match` is a list of case-insensitive regular expressions tried against the
+# question. The first rule that matches wins, and its `prefer` domains are
+# searched with a site-scoped query before the open web. A question that
+# matches nothing goes straight to the open web, which is not a failure --
+# most questions are not about a scheduled release.
+#
+# The order here is the order they are tried, so put the specific before the
+# general: "pce" must be seen before "inflation".
+routing:
+  - name: fed_policy
+    match: ['\bfomc\b', '\bfed\b', 'federal reserve', 'rate (decision|cut|hike)', 'dot plot', 'powell']
+    prefer: [federalreserve.gov, cmegroup.com, reuters.com]
+
+  - name: us_labour
+    match: ['\bnfp\b', 'non-?farm', 'payroll', 'unemployment', 'jobless claims', 'employment report']
+    prefer: [bls.gov, reuters.com]
+
+  - name: us_growth
+    match: ['\bgdp\b', '\bpce\b', 'personal income', 'personal spending']
+    prefer: [bea.gov, reuters.com]
+
+  - name: us_inflation
+    match: ['\bcpi\b', '\bppi\b', 'inflation', 'consumer price']
+    prefer: [bls.gov, bea.gov, reuters.com]
+
+  - name: energy
+    match: ['\boil\b', 'crude', '\bwti\b', '\bbrent\b', 'natural gas', '\beia\b', '\bopec\b']
+    prefer: [eia.gov, opec.org, iea.org, reuters.com]
+
+  - name: positioning
+    match: ['\bcot\b', 'commitments of traders', 'positioning', 'open interest', 'futures curve']
+    prefer: [cftc.gov, cmegroup.com]
+
+  - name: metals
+    match: ['\bgold\b', '\bsilver\b', '\bxau\b', '\bxag\b', 'bullion', 'precious metal']
+    prefer: [lbma.org.uk, cmegroup.com, reuters.com, kitco.com]
+
+  - name: treasuries
+    match: ['treasury yield', '\bbond\b', '\bauction\b', 'yield curve', '\b10-?year\b']
+    prefer: [treasury.gov, fred.stlouisfed.org, reuters.com]
+
+  - name: ecb_policy
+    match: ['\becb\b', 'european central bank', 'lagarde', 'euro ?zone rate']
+    prefer: [ecb.europa.eu, reuters.com]
+
+  - name: boe_policy
+    match: ['bank of england', '\bboe\b', 'uk rate', '\bmpc\b']
+    prefer: [bankofengland.co.uk, ons.gov.uk, reuters.com]
+
+  - name: boj_policy
+    match: ['bank of japan', '\bboj\b', 'yen intervention', 'ueda']
+    prefer: [boj.or.jp, reuters.com]
+
+  - name: market_reaction
+    match: ['why (did|is|are)', 'market reaction', 'sold off', 'rall(y|ied)', 'selloff']
+    prefer: [reuters.com, bloomberg.com, cnbc.com]

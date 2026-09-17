@@ -79,7 +79,40 @@ def register_jobs(runner: JobRunner) -> None:
                 answer["agent_routing"] = routing
             return answer
 
+    def research_job(client_id: str, payload: dict) -> dict:
+        """Search the web, read the snippets, and offer what it found.
+
+        Its own job kind, and its own session, because nothing may wait on it:
+        the local model spends minutes on a grounded answer and the chat has
+        already replied by the time this starts. It never promotes anything —
+        what it produces is a candidate for a person to confirm.
+        """
+        from app.database.models import Client
+        from app.database.session import session_scope
+        from app.learning.research import research
+        from app.runtime import get_runtime
+
+        with session_scope() as session:
+            client = session.get(Client, client_id)
+            if client is None:
+                raise ValueError(f"client '{client_id}' no longer exists")
+            runtime = get_runtime()
+            services = runtime.for_session(session, client_id)
+            outcome = research(
+                session,
+                client,
+                question=payload["question"],
+                settings=runtime.settings,
+                registry=runtime.tools,
+                local_provider=runtime.providers.local,
+                retriever=services.retriever,
+                classification=payload.get("classification")
+                or client.default_classification,
+            )
+            return outcome.as_dict()
+
     runner.register(tasks.CHAT_JOB, chat_job)
+    runner.register(tasks.RESEARCH_JOB, research_job)
 
 
 def create_app(settings: Settings | None = None, *, runtime: Runtime | None = None) -> FastAPI:

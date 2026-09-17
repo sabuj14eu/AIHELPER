@@ -165,11 +165,23 @@
       }
 
       if (meta.route !== 'error' && meta.question) {
+        const row = document.createElement('div');
+        row.style.cssText = 'margin-top:.35rem;display:flex;gap:.9rem;flex-wrap:wrap';
         const t = document.createElement('a');
-        t.href = '#'; t.style.cssText = 'font-size:.74rem;display:inline-block;margin-top:.35rem';
+        t.href = '#'; t.style.cssText = 'font-size:.74rem';
         t.textContent = 'Teach Brother the right answer';
         t.addEventListener('click', (e) => { e.preventDefault(); teachForm(box, meta.question, t); });
-        box.appendChild(t);
+        row.appendChild(t);
+        {% if web_search_enabled %}
+        // Queued, never awaited: a search plus a grounded local answer is
+        // minutes of work and the reply above has already arrived.
+        const r = document.createElement('a');
+        r.href = '#'; r.style.cssText = 'font-size:.74rem';
+        r.textContent = 'Look this up on the web';
+        r.addEventListener('click', (e) => { e.preventDefault(); research(box, meta.question, r); });
+        row.appendChild(r);
+        {% endif %}
+        box.appendChild(row);
       }
     }
     log.appendChild(box); log.scrollTop = log.scrollHeight;
@@ -197,6 +209,63 @@
     if (status === 502) why = 'the reverse proxy could not reach AI Helper (is the container up or restarting?)';
     if (status === 401 || status === 403) why = 'your admin session has expired; sign in again';
     return 'HTTP ' + status + ': ' + why + (text ? ' — ' + text : '');
+  }
+
+  async function research(box, question, link) {
+    link.textContent = 'Queued — searching…';
+    const note = document.createElement('div');
+    note.className = 'muted';
+    note.style.cssText = 'font-size:.74rem;margin-top:.3rem';
+    box.appendChild(note);
+    try {
+      const r = await fetch('/admin/chat/research', {
+        method: 'POST', headers: {'content-type': 'application/json'},
+        body: JSON.stringify({question: question})
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) { note.textContent = (data.error || 'research could not be queued'); link.textContent = 'Look this up on the web'; return; }
+      note.textContent = 'Researching in the background. Nothing here waits on it — what it finds becomes a candidate on /admin/solutions for you to confirm.';
+      pollResearch(data.task_id, note, link);
+    } catch (err) {
+      note.textContent = 'network error: ' + err;
+      link.textContent = 'Look this up on the web';
+    }
+  }
+
+  async function pollResearch(taskId, note, link) {
+    for (let i = 0; i < 240; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+      let data;
+      try {
+        const r = await fetch('/admin/chat/task/' + taskId);
+        data = await r.json();
+      } catch (err) { continue; }
+      if (data.status === 'SUCCEEDED') {
+        const out = data.result || {};
+        const c = out.counters || {};
+        // Every number, including the zeros: "it ran" is not a result.
+        note.textContent = (out.ok ? '✓ ' : '· ') + (out.reason || '') +
+          ' — ' + (c.web_searches_performed || 0) + ' searches, ' +
+          (c.useful_sources || 0) + ' usable sources (best tier ' +
+          (c.best_source_tier ?? '?') + '), ' +
+          (c.candidates_created || 0) + ' candidate(s) awaiting your approval.';
+        if (out.solution_id) {
+          const a = document.createElement('a');
+          a.href = '/admin/solutions?origin=self_web';
+          a.style.cssText = 'font-size:.74rem;margin-left:.4rem';
+          a.textContent = 'review it';
+          note.appendChild(a);
+        }
+        link.remove();
+        return;
+      }
+      if (data.status === 'FAILED') {
+        note.textContent = 'research failed: ' + (data.error || 'unknown');
+        link.remove();
+        return;
+      }
+    }
+    note.textContent = 'still researching; check /admin/solutions later';
   }
 
   function teachForm(box, question, link) {

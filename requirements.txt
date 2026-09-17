@@ -27,6 +27,12 @@ httpx>=0.27,<1.0
 pypdf>=5.0
 python-docx>=1.1,<2.0
 
+# --- configuration data ----------------------------------------------------
+# config/trusted_sources.yaml is read at runtime. PyYAML already arrives
+# through uvicorn[standard], and a runtime dependency that is only there
+# transitively is a dependency that disappears the day an upstream drops it.
+pyyaml>=6.0,<7.0
+
 # --- logging ---------------------------------------------------------------
 structlog>=24.1
 

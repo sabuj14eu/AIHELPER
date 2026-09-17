@@ -53,6 +53,7 @@ COPY --chown=aihelper:aihelper scripts ./scripts
 # The knowledge pack is data the assistant is loaded with; it ships in the image
 # so `bootstrap-brother` works inside the container without a bind mount.
 COPY --chown=aihelper:aihelper knowledge ./knowledge
+COPY --chown=aihelper:aihelper config ./config
 
 RUN chmod +x scripts/*.sh
 USER aihelper

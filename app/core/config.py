@@ -185,6 +185,17 @@ class Settings(BaseSettings):
     WEB_SEARCH_URL: str | None = None
     WEB_SEARCH_API_KEY: str | None = None
 
+    # ------------------------------------------------------------ research
+    # The trusted-source list: domains, tiers, routing rules and the tier
+    # below which evidence is read but never learned from. It is DATA — a new
+    # source is an edit to this file, never a change to the research agent.
+    TRUSTED_SOURCES_FILE: str = "config/trusted_sources.yaml"
+    # How many searches one research run may make. A routed question spends
+    # one per preferred domain plus one on the open web, and this is the
+    # ceiling on the whole run, not on the routing.
+    RESEARCH_MAX_SEARCHES: int = 4
+    RESEARCH_RESULTS_PER_SEARCH: int = 5
+
     # ---------------------------------------------------------- workers
     WORKER_CONCURRENCY: int = 2
 

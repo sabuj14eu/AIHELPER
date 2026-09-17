@@ -14,6 +14,10 @@ from app.database.models import Client, Job
 router = APIRouter(prefix="/api/v1", tags=["tasks"])
 
 CHAT_JOB = "chat"
+# Web research. A separate kind because it is a separate promise: the chat
+# answers now with what it has, and this runs afterwards without anyone
+# waiting on it. See app/learning/research.py.
+RESEARCH_JOB = "research"
 
 
 @router.post("/tasks", response_model=TaskCreated, status_code=202, summary="Queue a task")

@@ -477,6 +477,12 @@ class AdminChatBody(BaseModel):
     conversation_id: str | None = Field(default=None, max_length=64)
 
 
+class ResearchBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question: str = Field(min_length=3, max_length=500)
+
+
 def _personal_client(db: Session, settings: Settings) -> Client | None:
     client = db.get(Client, settings.PERSONAL_CLIENT_ID)
     if client is None or not client.enabled or client.revoked_at is not None:
@@ -533,6 +539,15 @@ def chat_page(
             "embedder_semantic": runtime.embedder.semantic,
             "local_available": bool(local_health and local_health.available),
             "local_models": list(local_health.models) if local_health else [],
+            # Whether the "look this up on the web" action exists at all. It
+            # needs the endpoint AND the personal client's tool list to name a
+            # network tool: a switch alone never grants the internet.
+            "web_search_enabled": bool(
+                settings.WEB_SEARCH_ENABLED
+                and settings.WEB_SEARCH_URL
+                and client is not None
+                and "web_search" in (client.allowed_tools or [])
+            ),
             "live": {
                 "market_news": settings.MARKET_NEWS_ENABLED,
                 "trading_status": bool(
@@ -661,6 +676,54 @@ def chat_ask_now(
     if routing is not None:
         answer["agent_routing"] = routing
     return answer
+
+
+@ui_router.post("/chat/research", status_code=202)
+def chat_research(
+    request: Request,
+    body: ResearchBody,
+    session: dict = Depends(admin_session),
+    db: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict:
+    """Queue a web-research run and return at once.
+
+    Queued rather than run here for the same reason the chat is: a search plus
+    a grounded local answer is minutes of work, and no reader and no reverse
+    proxy should be holding a connection open for it. The chat has already
+    answered with what it had.
+
+    What comes back is never an answer that has been adopted. It is a
+    candidate, with its sources and their tiers, waiting on /admin/solutions
+    for a person to confirm or reject.
+    """
+    from app.api.routes.tasks import RESEARCH_JOB
+
+    if not settings.WEB_SEARCH_ENABLED:
+        raise ValidationError(
+            "web search is disabled in this deployment (WEB_SEARCH_ENABLED=false)"
+        )
+    client = _personal_client(db, settings)
+    if client is None:
+        raise ProviderUnavailableError(
+            f"the personal client '{settings.PERSONAL_CLIENT_ID}' does not exist — "
+            "run: python -m app.cli bootstrap-brother"
+        )
+    job_id = request.app.state.jobs.submit(
+        client_id=client.client_id,
+        kind=RESEARCH_JOB,
+        payload={"question": body.question},
+    )
+    audit.record(
+        db,
+        actor=str(session.get("sub")),
+        action=audit.ADMIN_ACTION,
+        actor_type="admin",
+        resource_type="job",
+        resource_id=job_id,
+        detail={"action": "research", "question": body.question[:200]},
+    )
+    return {"task_id": job_id, "status": "queued"}
 
 
 @ui_router.post("/chat/teach")
