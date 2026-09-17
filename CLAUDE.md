@@ -7,6 +7,17 @@ brother-brain-v2, brother_sniper_v7, brother-developer, Accounting-) from a
 knowledge pack. It runs at ai.signalmesh.dev on the Contabo box next to the
 v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 
+## WHAT AI HELPER IS (owner's position, 2026-09-17)
+**AI Helper is not a second trading bot.** It is a read-only market-data
+consumer and a reasoning and explanation layer. **SignalMesh remains the
+trading authority and the executor.** Brother reads what SignalMesh already
+decided and already measured, reasons about it, explains it and learns from
+it. It never places, modifies, routes, cancels or dispatches anything, and it
+never becomes a competing second opinion beside the desk.
+Where a concept exists in SignalMesh, Brother mirrors it rather than
+inventing its own — `docs/METHODOLOGY_MAPPING.md` is the contract, and every
+row that reads DIFFERENT is declared there and labelled wherever it shows.
+
 ## IRON RULES — NEVER VIOLATE
 1. **Local first is control flow, not preference.** Every request walks the
    ladder in `app/gateway/router.py`: tools, retrieval, local model,
@@ -61,7 +72,12 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
   list loader), `report.py` (the loop in numbers).
 - `app/trading/` `plan.py` (the twelve-step order, the four statuses,
   `unsourced_prices`) and `knowledge.py` (source fact vs interpretation,
-  and the n=1 rule). It reasons; it never trades.
+  and the n=1 rule). It reasons; it never trades. Any market concept it
+  computes must appear in `docs/METHODOLOGY_MAPPING.md` first.
+- `docs/MARKET_DATA_INSPECTION.md` where the market data is, what is
+  VERIFIED / NOT VERIFIED / MISSING, and what AIH-1 must expose.
+- `docs/METHODOLOGY_MAPPING.md` SignalMesh → AI Helper, concept by concept,
+  SAME or DIFFERENT with the reason. The contract for `app/trading/`.
 - `app/tools/egress.py` the one gate that lets a request reach the internet.
 - `config/trusted_sources.yaml` domains, tiers, routing and the learning
   floor. DATA: adding a source never touches `app/`.

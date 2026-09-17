@@ -106,13 +106,25 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   in principle but **not built** — the owner scoped that turn to inspection
   and review. Three NOT VERIFIED items remain, each with the command that
   settles it, in the report's last section. Opened 2026-09-17. OPEN.
-- **AIH-18 Two swing definitions inside SignalMesh.** Pine uses
-  `ta.pivothigh(high, 5, 5)`; the platform's `scanner.structure_state` uses
-  `swing = 3`. They disagree about which bars are swings and therefore about
-  structure, range edges and equilibrium on the same chart at the same
-  moment. Not introduced here and not touched here — but Brother cannot
-  "mirror SignalMesh" without someone choosing which one it mirrors.
-  Found during the market-data inspection. Opened 2026-09-17. OPEN.
+- **AIH-18 Two swing definitions inside SignalMesh — decided for Brother,
+  still true of SignalMesh.** Pine uses `ta.pivothigh(high, 5, 5)`; the
+  platform's `scanner.structure_state` uses `swing = 3`. They disagree about
+  which bars are swings, and therefore about structure, range edges and
+  equilibrium, on the same chart at the same moment.
+  **Owner's decision 2026-09-17: AI Helper's canonical read is Pine's 5, and
+  `scanner.py` is not modified.** Recorded as row C1 in
+  `docs/METHODOLOGY_MAPPING.md`. That settles what Brother does; it does not
+  settle the platform's internal disagreement, which is SignalMesh's to
+  decide and is left untouched here. OPEN (for SignalMesh).
+- **AIH-19 Pine and the platform also disagree about ATR.** Found while
+  writing the mapping: Pine's `ta.atr(14)` is **Wilder's RMA smoothing**;
+  the platform's `scanner.atr` is a **14-period simple mean** of true range.
+  The same bars give two different ATRs, and ATR scales almost everything —
+  Pine's impulse thresholds (1.2/1.8), its zone tolerance, its fake-breakout
+  test, and the platform's SL distance and every "distance in ATR" reading.
+  Brother follows Pine for Pine-defined concepts and quotes the platform's
+  own ATR whenever it quotes a platform number (row C2). Not introduced here
+  and not touched here. Opened 2026-09-17. OPEN (for SignalMesh).
 
 ## P2 — quality and robustness
 
