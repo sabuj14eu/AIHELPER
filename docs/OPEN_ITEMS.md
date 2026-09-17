@@ -94,6 +94,26 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   AIH-6 (the outlook board), which are the two real inputs that exist.
   Opened 2026-09-17. OPEN.
 
+- **AIH-17 Market-data mirror: inspected, not built.**
+  `docs/MARKET_DATA_INSPECTION.md` (2026-09-17, read-only) found that the
+  platform already holds one disciplined market-data truth — candles, the
+  level engine, per-timeframe structure and ATR, freshness on `bar_clock-v1`
+  — and that **no API key can read any of it**: `/chart/candles.json` and
+  `/chart/levels.json` authenticate with a browser session, and the
+  API-key surface is `/me /portfolio /stats /trades /signals` only.
+  AIH-1 and AIH-6 are blocked on four read-only GETs in Sniper-System
+  (`/api/v1/market/{candles,snapshot,desk}` and `/api/v1/outlook`), approved
+  in principle but **not built** — the owner scoped that turn to inspection
+  and review. Three NOT VERIFIED items remain, each with the command that
+  settles it, in the report's last section. Opened 2026-09-17. OPEN.
+- **AIH-18 Two swing definitions inside SignalMesh.** Pine uses
+  `ta.pivothigh(high, 5, 5)`; the platform's `scanner.structure_state` uses
+  `swing = 3`. They disagree about which bars are swings and therefore about
+  structure, range edges and equilibrium on the same chart at the same
+  moment. Not introduced here and not touched here — but Brother cannot
+  "mirror SignalMesh" without someone choosing which one it mirrors.
+  Found during the market-data inspection. Opened 2026-09-17. OPEN.
+
 ## P2 — quality and robustness
 
 - **AIH-4 Retrieval quality for pack questions is unmeasured.** The semantic
