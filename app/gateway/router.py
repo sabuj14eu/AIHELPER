@@ -59,6 +59,7 @@ from app.privacy.classification import classify as classify_sensitivity
 from app.providers.base import CompletionRequest, CompletionResponse, Message, Provider
 from app.providers.provider_registry import ProviderRegistry
 from app.tools.dispatcher import try_dispatch
+from app.tools.egress import permissions_for
 from app.tools.registry import ToolRegistry
 from app.validation import ValidationReport, validate_answer
 from app.validation.safety import check_input
@@ -322,12 +323,22 @@ class GatewayRouter:
             short_term.append(conversation, "user", message, request_id=request_id)
 
         # ================================================== LEVEL 0: tools
+        # A web search is an egress path: the question text goes to a third
+        # party. That is the same class of act as a paid call, so it is gated
+        # by the same function -- one policy, not two that can drift apart.
+        granted, egress = permissions_for(
+            classification=classification,
+            settings=self.settings,
+            client_allowed_tools=allowed_tools,
+            client_max_classification=client.max_external_classification,
+            registry=self.tools,
+        )
         dispatch = try_dispatch(
             message,
             self.tools,
             task_type=task_type,
             allowed_tools=allowed_tools,
-            granted_permissions=None,
+            granted_permissions=granted,
             context={"session": self.session, "client_id": client.client_id},
         )
         tool_value: str | None = None
@@ -349,6 +360,9 @@ class GatewayRouter:
             tool_value = str(dispatch.result.value)
         if dispatch.error:
             base.notes.append(f"tool declined: {dispatch.error}")
+        if not egress.allowed and self.settings.WEB_SEARCH_ENABLED:
+            # Only worth saying when a search could otherwise have happened.
+            base.notes.append(egress.reason)
 
         # ============================================ LEVEL 1: retrieval
         if is_small_talk(message):

@@ -138,7 +138,12 @@ class TestComposeFile:
         )
 
     def test_secrets_have_no_usable_default(self):
-        for variable in ("POSTGRES_PASSWORD", "N8N_ENCRYPTION_KEY", "WEBUI_SECRET_KEY"):
+        for variable in (
+            "POSTGRES_PASSWORD",
+            "N8N_ENCRYPTION_KEY",
+            "WEBUI_SECRET_KEY",
+            "SEARXNG_SECRET",
+        ):
             assert f"${{{variable}:?" in self.COMPOSE, (
                 f"{variable} has a silent default; compose should refuse to start without it"
             )
@@ -152,3 +157,53 @@ class TestKnowledgePackShipsInTheImage:
         assert re.search(r"^COPY\b.*\bknowledge\b", DOCKERFILE, re.M)
         ignored = (ROOT / ".dockerignore").read_text().splitlines()
         assert not any(line.strip().rstrip("/") == "knowledge" for line in ignored)
+
+
+class TestSearxngIsConfiguredTheWayTheToolAssumes:
+    """The search backend, and the two settings that are off by default.
+
+    `web_search` sends `?format=json` and parses the reply. A SearXNG instance
+    that does not list `json` under `search.formats` answers HTTP 200 with a
+    web page, and one with the bot limiter on answers 429 to a server-side
+    caller. Both are configuration, both live in a file nothing imports, and
+    both fail at runtime in a way that looks like the tool is broken.
+    """
+
+    COMPOSE = (ROOT / "docker-compose.yml").read_text()
+    SETTINGS_PATH = ROOT / "deploy" / "searxng" / "settings.yml"
+
+    @property
+    def settings(self) -> dict:
+        import yaml
+
+        return yaml.safe_load(self.SETTINGS_PATH.read_text())
+
+    def test_the_settings_file_the_compose_mounts_exists(self):
+        assert "./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro" in self.COMPOSE
+        assert self.SETTINGS_PATH.exists()
+
+    def test_json_is_an_enabled_output_format(self):
+        assert "json" in self.settings["search"]["formats"], (
+            "SearXNG will answer HTML to ?format=json, and web_search will "
+            "report a non-JSON body as though the instance were broken"
+        )
+
+    def test_the_bot_limiter_is_off_for_this_private_instance(self):
+        assert self.settings["server"]["limiter"] is False
+        assert self.settings["server"]["public_instance"] is False
+
+    def test_it_is_not_reachable_from_outside_the_compose_network(self):
+        """Which is the entire reason the limiter may be off. If this service
+        ever publishes a port, the limiter has to come back on with it."""
+        block = self.COMPOSE[self.COMPOSE.index("  searxng:"):]
+        block = block[: block.index("\n  n8n:")]
+        assert "ports:" not in block, (
+            "searxng publishes a port, so it is an open search relay AND its "
+            "bot limiter is disabled"
+        )
+
+    def test_the_committed_settings_file_holds_no_secret(self):
+        """The key comes from the environment (Iron Rule 7). An empty string
+        here is correct; a value here would be a committed credential."""
+        assert self.settings["server"]["secret_key"] == ""
+        assert "SEARXNG_SECRET: ${SEARXNG_SECRET" in self.COMPOSE

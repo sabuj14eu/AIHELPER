@@ -19,7 +19,7 @@ def build_registry(settings: Settings, registry_provider=None, http_client=None)
     registry.register(documents.SEARCH_SPEC)
     registry.register(documents.MEMORY_SPEC)
     registry.register(system.make_system_spec(settings, registry_provider))
-    registry.register(web_search.make_web_search_spec(settings))
+    registry.register(web_search.make_web_search_spec(settings, http_client))
     registry.register(live.make_market_news_spec(settings, http_client))
     registry.register(live.make_trading_status_spec(settings, http_client))
     return registry

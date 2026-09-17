@@ -11,6 +11,8 @@ and never executed or followed.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import httpx
 
 from app.core.config import Settings
@@ -38,7 +40,12 @@ def make_web_search_spec(settings: Settings, client: httpx.Client | None = None)
         try:
             response = http.get(
                 settings.WEB_SEARCH_URL,
-                params={"q": needle, "limit": min(limit, MAX_RESULTS)},
+                # `format=json` is what SearXNG needs: without it the endpoint
+                # answers HTML and the parse below fails on a body that was
+                # never JSON. It is ignored by backends that do not know it,
+                # so it costs nothing to send always. (SearXNG must also list
+                # json under `search.formats` -- see deploy/searxng/settings.yml.)
+                params={"q": needle, "format": "json", "limit": min(limit, MAX_RESULTS)},
                 headers=headers,
                 timeout=TIMEOUT,
             )
@@ -58,23 +65,46 @@ def make_web_search_spec(settings: Settings, client: httpx.Client | None = None)
         if not isinstance(raw, list):
             return ToolResult(ok=False, error="web search returned an unexpected shape")
 
+        fetched_at = datetime.now(UTC).isoformat()
         results = []
-        for item in raw[: min(limit, MAX_RESULTS)]:
+        seen_urls: set[str] = set()
+        for item in raw:
             if not isinstance(item, dict):
                 continue
+            url = str(item.get("url", ""))[:1000]
+            # Two engines returning the same page is one source, not two, and
+            # counting it twice would make a single claim look corroborated.
+            key = url.rstrip("/").lower()
+            if not url or key in seen_urls:
+                continue
+            seen_urls.add(key)
             results.append(
                 {
                     "title": str(item.get("title", ""))[:300],
-                    "url": str(item.get("url", ""))[:1000],
+                    "url": url,
                     "snippet": str(item.get("snippet") or item.get("content") or "")[:1000],
+                    "engine": str(item.get("engine") or item.get("source") or "")[:80],
+                    "published": str(item.get("publishedDate") or "")[:40],
+                    "fetched_at": fetched_at,
                 }
             )
-        display = "\n\n".join(f"{r['title']}\n{r['url']}\n{r['snippet']}" for r in results)
+            if len(results) >= min(limit, MAX_RESULTS):
+                break
+        display = "\n\n".join(
+            f"{r['title']}\n{r['url']}\n{r['snippet']}" for r in results
+        )
         return ToolResult(
             ok=True,
             value=results,
             display=display or "no results",
-            meta={"count": len(results), "untrusted": True},
+            meta={
+                "count": len(results),
+                "untrusted": True,
+                "fetched_at": fetched_at,
+                # Snippets only, by explicit decision (2026-09-17). The URLs
+                # below are recorded as provenance; they are never fetched.
+                "snippets_only": True,
+            },
         )
 
     return ToolSpec(

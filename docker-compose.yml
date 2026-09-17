@@ -85,6 +85,23 @@ services:
     #           count: all
     #           capabilities: [gpu]
 
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    environment:
+      # Overrides `server.secret_key` in the mounted settings file, so the
+      # secret lives in .env and never in the repository (Iron Rule 7).
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_BIND_ADDRESS: 0.0.0.0
+    volumes:
+      - ./deploy/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - searxng_data:/var/cache/searxng
+    networks: [ai-helper]
+    # NO published port, on purpose. This instance is reachable only from the
+    # compose network, which is what makes `server.limiter: false` safe and
+    # what keeps it from becoming an open search relay for the internet.
+
   n8n:
     image: n8nio/n8n:latest
     restart: unless-stopped
@@ -137,6 +154,7 @@ volumes:
   n8n_data:
   open_webui_data:
   ai_helper_uploads:
+  searxng_data:
 
 networks:
   ai-helper:

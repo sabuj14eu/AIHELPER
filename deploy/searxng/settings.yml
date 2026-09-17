@@ -1,0 +1,53 @@
+# SearXNG — the self-hosted metasearch engine behind `web_search`.
+#
+# It is a *fixed, operator-configured endpoint* (Iron Rule 3), reachable only
+# on the compose network: no published port, so nothing outside the host can
+# query it and it is not an open relay.
+#
+# Two settings here are the ones that actually matter, and both are off in
+# SearXNG's own defaults:
+#
+#   search.formats must list `json`. Without it the endpoint answers HTML to
+#   `?format=json` and the tool's parse fails on a body that was never JSON.
+#
+#   server.limiter must be false. The limiter is bot detection meant for a
+#   public instance; it reads a missing browser fingerprint as a bot and
+#   returns 429 to exactly the caller this file exists to serve. It is safe
+#   to disable ONLY because this instance has no route from outside.
+
+use_default_settings: true
+
+general:
+  instance_name: "AI Helper"
+  # No public instance, so no contact page and nothing to donate to.
+  donation_url: false
+  contact_url: false
+  # Errors go to the log, never to the caller: a stack trace is a disclosure.
+  enable_metrics: false
+
+server:
+  # Read from the environment so the secret is never in the repository
+  # (Iron Rule 7). Compose passes SEARXNG_SECRET through.
+  secret_key: ""
+  limiter: false
+  public_instance: false
+  image_proxy: false
+  method: "GET"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "en"
+  # `json` is the line this file exists for.
+  formats:
+    - html
+    - json
+
+ui:
+  static_use_hash: true
+
+outgoing:
+  request_timeout: 6.0
+  max_request_timeout: 10.0
+  pool_connections: 20
+  pool_maxsize: 10

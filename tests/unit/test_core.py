@@ -196,6 +196,9 @@ class TestConfigurationIsDocumented:
     COMPOSE_ONLY = {
         "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB",
         "N8N_ENCRYPTION_KEY", "WEBUI_SECRET_KEY", "TZ",
+        # SearXNG's session key. The search endpoint is WEB_SEARCH_URL, which
+        # the application does read; the secret belongs to the container.
+        "SEARXNG_SECRET",
     }
 
     def _documented(self) -> set[str]:
