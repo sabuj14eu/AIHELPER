@@ -53,7 +53,9 @@ row that reads DIFFERENT is declared there and labelled wherever it shows.
    error.
 8. **Every schema change ships with a migration note in docs/CHANGELOG.md.**
    Deploy on the box: `git pull` → `docker compose up -d --build ai-helper`
-   → verify with `python -m app.cli ask "news today?"` and the logs.
+   → **check `app.__version__` inside the container first** (a failed build
+   leaves the old image running and every new symbol reads as a code bug)
+   → then verify with `python -m app.cli ask "news today?"` and the logs.
 
 ## LAYOUT
 - `app/gateway/` router (the ladder), escalation, provider manager.
@@ -328,6 +330,16 @@ something up is not the same as believing it.
   optional.** New services are the upgrade path's problem, not only the
   fresh install's. Every release that adds one carries the one-line
   upgrade step in the CHANGELOG.
+- **A failed build is silent afterwards.** When `up --build` aborts, the
+  OLD container keeps running and every new symbol becomes a
+  `ModuleNotFoundError` that reads like a code bug. It is not: it is
+  yesterday's image. This happened within minutes of the variable failure
+  above — the same aborted command, two different-looking symptoms.
+  **So the first step after any rebuild is the version INSIDE the
+  container**, before anything that uses the new code:
+  `docker compose exec -T ai-helper python -c "import app; print(app.__version__)"`
+  One line, and it separates "the code is wrong" from "the code is not
+  there", which have nothing to do with each other.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the
