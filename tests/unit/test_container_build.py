@@ -175,6 +175,48 @@ class TestComposeFile:
                 "set by hand."
             )
 
+    @pytest.mark.parametrize("name", ["docker-compose.yml", "docker-compose.dev.yml"])
+    def test_the_compose_file_is_valid_yaml(self, name):
+        """The test that was missing, and it is the obvious one.
+
+        Every compose assertion in this file was a regex over the TEXT, so
+        nothing ever parsed the document. On 2026-09-17 an improved `:?`
+        message — `missing. Generate one and append it: openssl rand -hex 32`
+        — put an unquoted `": "` inside a scalar, which YAML reads as a
+        nested mapping. `docker compose` then refused every command with
+        `yaml: line 94: mapping values are not allowed in this context`, and
+        the box was blocked by a message meant to unblock it.
+
+        A regex can check what a file SAYS. Only a parser checks that the
+        file is a file.
+        """
+        import yaml
+
+        path = ROOT / name
+        if not path.exists():  # dev overlay is optional
+            pytest.skip(f"{name} is not present")
+        document = yaml.safe_load(path.read_text())
+        assert isinstance(document, dict) and document.get("services")
+
+    def test_a_required_variable_survives_being_parsed(self):
+        """Not just present in the text — present in the parsed value.
+
+        This is the half the regex could not see: an interpolation whose
+        message contains `: ` parses as a mapping and the variable silently
+        stops being a string at all.
+        """
+        import re
+
+        import yaml
+
+        document = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
+        for service in document["services"].values():
+            for value in (service.get("environment") or {}).values():
+                if not isinstance(value, str):
+                    continue
+                for variable, message in re.findall(r"\$\{([A-Z0-9_]+):\?([^}]*)\}", value):
+                    assert message.strip(), f"{variable} has an empty :? message"
+
     def test_a_required_variables_message_says_how_to_fix_it(self):
         """"set X in .env" names the problem; it does not hand over the fix.
         The person reading it is at a shell, mid-deploy, with everything
@@ -252,5 +294,15 @@ class TestSearxngIsConfiguredTheWayTheToolAssumes:
     def test_the_committed_settings_file_holds_no_secret(self):
         """The key comes from the environment (Iron Rule 7). An empty string
         here is correct; a value here would be a committed credential."""
+        import yaml
+
         assert self.settings["server"]["secret_key"] == ""
-        assert "SEARXNG_SECRET: ${SEARXNG_SECRET" in self.COMPOSE
+        # Read from the PARSED value, not from the raw text. The text form of
+        # this line changed the moment its `:?` message needed quoting, and a
+        # string match on compose source breaks on formatting rather than on
+        # meaning — which is the whole reason the YAML break got through.
+        document = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
+        value = document["services"]["searxng"]["environment"]["SEARXNG_SECRET"]
+        assert value.startswith("${SEARXNG_SECRET"), (
+            "the secret must come from the environment, never from the file"
+        )

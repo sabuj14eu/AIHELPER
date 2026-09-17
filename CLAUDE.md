@@ -330,6 +330,13 @@ something up is not the same as believing it.
   optional.** New services are the upgrade path's problem, not only the
   fresh install's. Every release that adds one carries the one-line
   upgrade step in the CHANGELOG.
+- **A regex checks what a file says; only a parser checks that it is a
+  file.** Every compose assertion here was a text match, so a
+  `docker-compose.yml` that was not valid YAML passed all of them — and the
+  break was introduced BY an improved error message, whose `": "` YAML reads
+  as a nested mapping. Config files are parsed in tests, and assertions read
+  the parsed value, never the source text: a string match breaks on
+  formatting instead of on meaning.
 - **A failed build is silent afterwards.** When `up --build` aborts, the
   OLD container keeps running and every new symbol becomes a
   `ModuleNotFoundError` that reads like a code bug. It is not: it is

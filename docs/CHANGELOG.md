@@ -3,6 +3,41 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.10.2 — 2026-09-17
+
+**Migration:** none. Fixes 1.10.1, which did not load.
+
+### Fixed — the improved error message broke the compose file
+
+1.10.1 changed the `SEARXNG_SECRET` guard's message to say how to fix it. The
+new message contained `": "`, and an unquoted YAML scalar containing `": "`
+is a nested mapping:
+
+```
+yaml: line 94: mapping values are not allowed in this context
+```
+
+So `docker compose` refused **every** command — the same wall as 1.9.0, moved
+one line along, caused by the line written to remove it. The value is now
+quoted, and the message uses an em dash before the command.
+
+**The real gap: nothing ever parsed `docker-compose.yml`.** Every compose
+assertion in `test_container_build.py` was a regex over the *text*, so a file
+that was not valid YAML passed all of them. Two tests now parse it —
+`test_the_compose_file_is_valid_yaml` (which fails with the exact
+`mapping values are not allowed here`, checked by reverting the line) and
+`test_a_required_variable_survives_being_parsed`, which reads interpolations
+from the parsed value rather than from source text.
+
+`test_the_committed_settings_file_holds_no_secret` was asserting the literal
+string `SEARXNG_SECRET: ${SEARXNG_SECRET` and broke on the added quote. It now
+reads the parsed value too — a string match on compose source breaks on
+formatting rather than on meaning, which is how the YAML error got through in
+the first place.
+
+Verified with `docker compose config` both ways: it refuses with the message
+when the variable is unset, and renders when it is set.
+
 ## 1.10.1 — 2026-09-17
 
 **Migration:** none. **Upgrade step: one line, and 1.9.0/1.10.0 cannot deploy
