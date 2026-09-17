@@ -1,5 +1,19 @@
 # Handoff — the Brother session (2026-09-16)
 
+## THE BOX — VERIFIED 2026-09-17
+
+```
+/home/shyam/ai-helper            # the checkout AND the compose project
+/home/shyam/ai-helper/docker-compose.yml
+```
+
+Confirmed by `docker compose ls` on the box: project `ai-helper`, running(6).
+This is the one place the path is recorded; every other doc points here. It
+was wrong in two docs before this line existed — a session invented
+`/home/shyam/AIHELPER` from the repository name, `docs/deployment.md` says
+`/opt/ai-helper` because that is where the *install guide* puts it, and only
+the box knows which is true.
+
 For the next window. Read `CLAUDE.md` first, then this, then
 `docs/OPEN_ITEMS.md`. The previous window was Fable; the owner's weekly
 limit was reached mid-deployment, so this file carries the state exactly.

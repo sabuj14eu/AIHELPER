@@ -7,9 +7,18 @@ not a reason to skip ahead** — the later steps assume the earlier ones.
 Nothing here is a PASS from reading code. Until this has been run, the feature
 is `AIH-15` in `docs/OPEN_ITEMS.md` and it stays there.
 
-Everything runs on the Contabo box, in `/home/shyam/AIHELPER` (adjust if your
-checkout is elsewhere). No paid API is enabled at any point, and nothing is
-promoted without you.
+Everything runs on the Contabo box. No paid API is enabled at any point, and
+nothing is promoted without you.
+
+> **The checkout directory.** Every `cd` below uses
+> `/home/shyam/ai-helper`, which is what `docs/HANDOFF_BROTHER_SESSION.md`
+> recorded from the box. If that path does not exist, find it once and use
+> what it prints instead:
+>
+> ```
+> ls -d ~/ai-helper /opt/ai-helper ~/AIHELPER 2>/dev/null; docker compose ls | grep -i ai-helper
+> ```
+
 
 ---
 
@@ -22,7 +31,7 @@ flips by accident.
 **1. Generate the SearXNG secret and put it in `.env`:**
 
 ```
-cd /home/shyam/AIHELPER
+cd /home/shyam/ai-helper
 ```
 ```
 echo "SEARXNG_SECRET=$(openssl rand -hex 32)" >> .env

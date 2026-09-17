@@ -382,6 +382,16 @@ on the same bars.
 
 Three commands, all read-only, run on the boxes:
 
+> **The checkout directory.** Every `cd` below uses
+> `/home/shyam/ai-helper`, which is what `docs/HANDOFF_BROTHER_SESSION.md`
+> recorded from the box. If that path does not exist, find it once and use
+> what it prints instead:
+>
+> ```
+> ls -d ~/ai-helper /opt/ai-helper ~/AIHELPER 2>/dev/null; docker compose ls | grep -i ai-helper
+> ```
+
+
 **On the Contabo box** — is there any candle data at all, and how fresh:
 
 ```
@@ -397,7 +407,7 @@ type C:\<reporter dir>\.env | findstr BB_CANDLE
 **On the Contabo box** — does AI Helper have a platform key yet:
 
 ```
-cd /home/shyam/AIHELPER && grep -c "^TRADING_PLATFORM_API_KEY=.\+" .env
+cd /home/shyam/ai-helper && grep -c "^TRADING_PLATFORM_API_KEY=.\+" .env
 ```
 
 Expect `1` if a key is set, `0` if it is empty. **Do not paste the key.**

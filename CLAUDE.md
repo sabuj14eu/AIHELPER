@@ -321,6 +321,15 @@ forgotten. Delete an entry only when it is done and verified, and say where
 the proof is.
 
 ## HOW TO WORK HERE
+**Never invent a path on the box.** The checkout is
+`/home/shyam/ai-helper` (verified 2026-09-17, recorded at the top of
+`docs/HANDOFF_BROTHER_SESSION.md`). `docs/deployment.md` says
+`/opt/ai-helper` because that is where the install guide puts a fresh one —
+that is the guide's path, not this box's. A paste-ready command with a
+guessed directory is not paste-ready; it is a `cd: No such file or
+directory` in the owner's terminal, and he has to debug our documentation
+before he can run our instructions.
+
 Findings first, then code. Small verified diffs over rewrites. Run
 `.venv/bin/python -m pytest -p no:cacheprovider` (without `-q`: the project
 already sets it, and a second one hides the summary line) and
