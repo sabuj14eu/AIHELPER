@@ -117,7 +117,12 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   AIH-6 (the outlook board), which are the two real inputs that exist.
   Opened 2026-09-17. OPEN.
 
-- **AIH-17 Market-data mirror: inspected, not built.**
+- **AIH-17 ~~Market-data mirror: inspected, not built.~~ BUILT.** Superseded
+  by AIH-1 above: both halves shipped the same day this was written (platform
+  v5.46 `011d1f5`, AI Helper 1.10.x). What remains is the live read, tracked
+  in AIH-1, not here. The inspection itself stands and is still the reference
+  for where the data is. Entry kept for its findings. ORIGINAL:
+  **AIH-17 Market-data mirror: inspected, not built.**
   `docs/MARKET_DATA_INSPECTION.md` (2026-09-17, read-only) found that the
   platform already holds one disciplined market-data truth — candles, the
   level engine, per-timeframe structure and ATR, freshness on `bar_clock-v1`
