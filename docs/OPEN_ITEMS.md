@@ -7,7 +7,24 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
 
 ## P1 — affects what the owner sees today
 
-- **AIH-1 The endpoints exist; the key does not.** The code half is DONE:
+- **AIH-1 Both halves written, both keys/branches settled, nothing verified
+  live yet.** Carried across two sessions, so the provenance matters:
+  - **Platform half: `572e0c3` was CHERRY-PICKED, not merged.** The platform
+    session put it onto v5.45 as **v5.46, commit `011d1f5`**, resolving the
+    `api_v1.py` conflict as two additions (both kept) and correcting the
+    docstring's version label, which I had written as a guess. **v5.46 is the
+    thing to deploy. Do NOT check out `Sniper-System/claude/epic-euler-4k1gl1`
+    on the box** — that branch is v5.45-based and superseded, and deploying it
+    would drop the platform's other work. The 61 tests pass on v5.46.
+  - **The key: done.** Read-only, no permission ticked (a no-permission key
+    reads the mirror, which a test asserts). The key from the `printf`
+    attempt is burned; the replacement was entered with `read -rs` so it is
+    not in shell history.
+  - **Still open:** the platform deploy is pending Shyam's paste, and **no
+    live read has happened**. Until one does, this item stays OPEN and the
+    mirror is unproven end to end.
+  (Original entry follows for context.) **AIH-1 The endpoints exist; the key
+  does not.** The code half is DONE:
   Sniper-System serves `/api/v1/market/{candles,snapshot,desk}` and
   `/api/v1/outlook` on the read-only `api_user` dependency (`572e0c3`,
   61 tests), and AI Helper consumes them (`app/market/mirror.py`, 58 tests).

@@ -1,5 +1,13 @@
 # Handoff — the Brother session (2026-09-16)
 
+## THE PLATFORM SIDE OF THE MIRROR — v5.46 (`011d1f5`)
+
+The four market GETs reached the platform by CHERRY-PICK, not merge.
+`Sniper-System/claude/epic-euler-4k1gl1` is v5.45-based and **superseded**;
+deploying it would roll the platform back. **Deploy v5.46.** An earlier
+instruction in this session told Shyam to check that branch out on the
+platform box — that instruction is wrong and is corrected here.
+
 ## THE BOX — VERIFIED 2026-09-17
 
 ```

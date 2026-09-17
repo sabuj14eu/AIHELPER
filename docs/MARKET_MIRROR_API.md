@@ -16,6 +16,16 @@ decides anything from one.
 
 ---
 
+## Which platform version carries this
+
+**v5.46, commit `011d1f5`.** `572e0c3` on
+`Sniper-System/claude/epic-euler-4k1gl1` was cherry-picked onto v5.45 by the
+platform session rather than merged, so that branch is **superseded** — it is
+v5.45-based, and deploying it would drop the platform's later work. Deploy
+v5.46. The `api_v1.py` conflict was two additions and both were kept; the
+docstring's version label was corrected there (I had written it as a guess
+before v5.46 existed).
+
 ## Platform side (`Sniper-System/app/routers/api_v1.py`)
 
 Auth: `Authorization: Bearer bb_...` via `api_user` — the **read** dependency.
