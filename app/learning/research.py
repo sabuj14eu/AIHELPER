@@ -55,6 +55,7 @@ from app.learning.sources import GENERAL_WEB_TIER, SourceRating, load_trusted_so
 from app.local_ai.prompts import ContextItem, build_system_prompt, build_user_prompt
 from app.providers.base import CompletionRequest, Message
 from app.tools.egress import may_use_network
+from app.trading.knowledge import from_research, is_market_question
 from app.validation import validate_answer
 
 log = get_logger("research")
@@ -429,6 +430,24 @@ def research(
     # not ask for an exception: `promoted` stays 0 here by construction.
     counters.awaiting_approval += 1
     best = evidence[0]
+    # A market question gets a structured record, with the seam between what a
+    # publisher said and what the local model made of it kept visible. The
+    # split is made structurally — published text is the evidence, the model's
+    # own words are the interpretation — because that line is knowable without
+    # asking anyone to judge which half is which.
+    trading = (
+        from_research(
+            question=question, answer=answer, sources=sources,
+            confidence=report.confidence, origin=SELF_WEB_PROVIDER,
+        )
+        if is_market_question(question)
+        else None
+    )
+    if trading is not None:
+        # The stored answer is the rendered pair, not the bare paragraph. What
+        # comes back out of memory months from now must still show which half
+        # had a publisher — the citation must not be inherited by the reading.
+        decision.solution.answer = trading.render()
     # Everything an audit needs to answer "where did Brother learn this?"
     # without re-running anything: the source, its tier and trust, the query
     # that found it, when it was read, what was extracted, how it validated,
@@ -436,6 +455,7 @@ def research(
     decision.solution.validation_result = {
         **(decision.solution.validation_result or {}),
         "knowledge_check": known.as_dict(),
+        **({"trading": trading.as_dict()} if trading is not None else {}),
         "research": {
             "origin": SELF_WEB_PROVIDER,
             **best.rating.as_dict(),

@@ -412,3 +412,83 @@ class TestItCannotReachAPaidProvider:
         assert not outcome.ok
         assert outcome.counters.web_searches_performed > 0
         assert outcome.counters.useful_sources == 0
+
+
+class TestAMarketQuestionGetsAStructuredRecord:
+    """The seam, end to end: what a publisher said and what Brother made of it
+    must still be distinguishable when the row comes back out of memory."""
+
+    @pytest.fixture
+    def kept(self, db, net_client, settings, web, local_provider):
+        # Grounded in the fake pages on purpose: an answer that does not
+        # restate its evidence fails validation, which is the pipeline working.
+        local_provider.answer_override = (
+            "The Committee decided to lower the target range for the federal funds "
+            "rate. The Federal Reserve lowered its benchmark rate on Wednesday, and "
+            "a softer path would tend to support the metal."
+        )
+        outcome = research(
+            db, net_client, question="what did the FOMC decide today, gold reaction",
+            settings=settings, registry=web, local_provider=local_provider,
+        )
+        assert outcome.ok, outcome.reason
+        row = next(
+            r for r in SolutionStore(db, net_client.client_id).list(limit=50)
+            if r.id == outcome.solution_id
+        )
+        return outcome, row
+
+    def test_the_stored_answer_shows_which_half_had_a_publisher(self, kept):
+        _outcome, row = kept
+        assert "SOURCE FACT" in row.answer
+        assert "TRADING INTERPRETATION (reasoning, not a sourced fact):" in row.answer
+        assert "federalreserve.gov" in row.answer
+
+    def test_the_structured_fields_are_on_the_row(self, kept):
+        _outcome, row = kept
+        trading = row.validation_result["trading"]
+        assert trading["claim_kind"] == "observation"
+        assert trading["observations"] == 1
+        assert trading["status"] == "UNKNOWN", (
+            "research read text; it did not see the chart, the session or the levels"
+        )
+        assert trading["source_refs"][0]["source_tier"] == 1
+        assert trading["origin"] == "local-web-research"
+
+    def test_a_generalising_answer_is_marked_as_resting_on_one_observation(
+        self, db, net_client, settings, web, local_provider
+    ):
+        local_provider.answer_override = (
+            "The Committee decided to lower the target range for the federal funds "
+            "rate. Gold always goes up after an FOMC cut."
+        )
+        outcome = research(
+            db, net_client, question="what did the FOMC decide today, gold reaction",
+            settings=settings, registry=web, local_provider=local_provider,
+        )
+        assert outcome.ok
+        row = next(
+            r for r in SolutionStore(db, net_client.client_id).list(limit=50)
+            if r.id == outcome.solution_id
+        )
+        trading = row.validation_result["trading"]
+        assert trading["claim_kind"] == "general_rule"
+        assert trading["may_be_proposed_as_a_rule"] is False
+        assert "not offered as a rule" in row.answer
+
+    def test_a_non_market_question_gets_no_trading_record(
+        self, db, net_client, settings, web, local_provider
+    ):
+        """The structure is for market questions. Imposing it everywhere would
+        make every answer look like a trading claim."""
+        outcome = research(
+            db, net_client, question="who designed the Eiffel tower",
+            settings=settings, registry=web, local_provider=local_provider,
+        )
+        if not outcome.ok:
+            pytest.skip(f"no candidate to inspect: {outcome.reason}")
+        row = next(
+            r for r in SolutionStore(db, net_client.client_id).list(limit=50)
+            if r.id == outcome.solution_id
+        )
+        assert "trading" not in row.validation_result

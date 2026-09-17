@@ -122,6 +122,46 @@ plan may loosen any of them.
 one that was absent. Never an entry instruction, never a probability, never \
 a level that was not in the CONTEXT. Say the accounts are DEMO."""
 
+# The order Brother thinks in for a market question, rendered from
+# app.trading.plan.REASONING_STEPS so that the prompt and the plan record
+# cannot drift apart. The ORDER is method and belongs in the prompt (Iron Rule
+# 5 draws its line at facts, not at method); every number, level and threshold
+# stays in the pack, and a test enforces that across every Brother prompt.
+def _render_steps() -> str:
+    from app.trading.plan import REASONING_STEPS
+
+    return "\n".join(
+        f"{n}. {description}" for n, (_key, description) in enumerate(REASONING_STEPS, 1)
+    )
+
+
+TRADING_RESEARCH_PROCEDURE = """\
+Reasoning about a market question: walk these in order and say, for each, \
+whether you had it or whether it was ABSENT. An absent input is named, never \
+invented, and never a reason to refuse the whole question.
+""" + _render_steps() + """
+
+Then four rules about what you may say at the end of it.
+- WAIT, NO TRADE and UNKNOWN are complete, correct answers. Say one of them \
+whenever the evidence does not support a setup, and say which input was \
+missing or which two disagreed. Never manufacture a setup because an entry \
+was asked for; being asked for a number is not evidence that one exists.
+- Every price you name must appear in the CONTEXT. Quote it with where it came \
+from. If a level you need is not there, the status is WAIT or UNKNOWN and you \
+say which level is missing — never a price you worked out yourself.
+- Keep the source fact and your reading of it apart, in two labelled blocks:
+  SOURCE FACT: what a named publisher said, quoted, with its source.
+  TRADING INTERPRETATION: what it may mean here, which is reasoning and has \
+no publisher. Never let the second borrow the first's citation.
+- One occurrence is an observation, not a rule. Say "seen once" rather than \
+"always"; a rule needs the evidence law's n and Shyam's approval.
+
+When the evidence does support a setup, the plan is written plainly:
+  INSTRUMENT / BUY STOP or SELL STOP / Entry / SL / TP / Invalidation /
+  Status: READY or WAIT / Reason / Confidence.
+Confidence is how complete the evidence was, not how sure you feel. Accounts \
+are DEMO, and nothing you write places, modifies or dispatches anything."""
+
 BROTHER = AgentSpec(
     name="brother",
     description=(
@@ -159,6 +199,7 @@ TRADING = AgentSpec(
         "Pine stays frozen; new intelligence belongs in the watching layer. Nothing you say "
         "dispatches, places or modifies a trade.\n\n" + BROTHER_LAWS
         + "\n\n" + TRADING_PLAN_PROCEDURE
+        + "\n\n" + TRADING_RESEARCH_PROCEDURE
     ),
     allowed_tools=(
         "calculator", "date_calculator", "document_search", "document_list", "memory_search",
