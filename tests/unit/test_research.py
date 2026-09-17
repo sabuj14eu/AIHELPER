@@ -492,3 +492,94 @@ class TestAMarketQuestionGetsAStructuredRecord:
             if r.id == outcome.solution_id
         )
         assert "trading" not in row.validation_result
+
+
+class TestTheLearningReport:
+    """The numbers that answer "is this actually working?".
+
+    Which is not the same question as "what does Brother hold?", and is only
+    answerable if what fell out at each stage is counted too.
+    """
+
+    def _report(self, db, client, retriever=None):
+        from app.learning.report import learning_report
+
+        return learning_report(db, client.client_id, retriever=retriever)
+
+    def test_an_empty_store_reports_zeros_not_an_empty_object(self, db, net_client):
+        """Every origin and every status appears. A zero that is shown is a
+        fact; a zero that is omitted looks like a category nobody thought of."""
+        report = self._report(db, net_client)
+        assert report["total"] == 0
+        assert report["by_origin"]["self_web"] == 0
+        assert set(report["relation_to_existing_knowledge"]) == {
+            "new", "duplicate", "update", "contradiction"
+        }
+
+    def test_a_researched_candidate_appears_with_its_source_tier(
+        self, db, net_client, settings, web, local_provider
+    ):
+        outcome = research(
+            db, net_client, question="what did the FOMC decide today",
+            settings=settings, registry=web, local_provider=local_provider,
+        )
+        assert outcome.ok, outcome.reason
+        report = self._report(db, net_client)
+        assert report["by_origin"]["self_web"] == 1
+        assert report["by_origin"]["paid"] == 0, "free work must never count as paid"
+        assert report["web_research"]["by_source_tier"] == {"tier_1": 1}
+        assert report["web_research"]["awaiting_approval"] == 1
+        assert report["web_research"]["promoted"] == 0
+        assert report["relation_to_existing_knowledge"]["new"] == 1
+
+    def test_retrieval_is_reported_as_not_run_rather_than_zero(self, db, net_client):
+        """A gate that did not run is never a PASS — and never a fail either.
+        "0 retrievable" and "nobody asked" are opposite findings with opposite
+        fixes, which is the same defect as "timed out" not saying which timeout.
+        """
+        report = self._report(db, net_client, retriever=None)
+        assert report["retrieval_confirmed"] == "NOT RUN"
+        assert report["indexed_for_retrieval"] == "NOT RUN"
+
+    def test_a_promoted_row_that_retrieval_finds_is_counted_as_confirmed(
+        self, db, net_client
+    ):
+        """The only number in the report that means Brother can use what it
+        learned. PROMOTED is a status; this is the loop closing."""
+        from app.learning.origin import SELF_WEB_PROVIDER
+
+        store = SolutionStore(db, net_client.client_id)
+        row = store.create(
+            question="what did the FOMC decide", answer="It lowered the range.",
+            task_type="general", provider=SELF_WEB_PROVIDER, model="m",
+            failure_reason=None, local_attempt=None, validation_result={},
+            confidence=0.9, classification="INTERNAL",
+        )
+        store.set_status(row, SolutionStatus.PROMOTED, "confirmed by the owner")
+
+        class Retriever:
+            def similar_promoted(self, text, *, limit=5, min_score=None):
+                return [(row, 0.91)]
+
+        report = self._report(db, net_client, retriever=Retriever())
+        assert report["promoted"] == 1
+        assert report["retrieval_confirmed"] == 1
+
+    def test_a_broken_index_is_not_reported_as_zero_retrievable(self, db, net_client):
+        from app.learning.origin import SELF_WEB_PROVIDER
+
+        store = SolutionStore(db, net_client.client_id)
+        row = store.create(
+            question="q", answer="a", task_type="general", provider=SELF_WEB_PROVIDER,
+            model="m", failure_reason=None, local_attempt=None, validation_result={},
+            confidence=0.9, classification="INTERNAL",
+        )
+        store.set_status(row, SolutionStatus.PROMOTED, "confirmed")
+
+        class Broken:
+            def similar_promoted(self, *a, **k):
+                raise RuntimeError("qdrant is having a moment")
+
+        assert self._report(db, net_client, retriever=Broken())["retrieval_confirmed"] == (
+            "NOT RUN"
+        )

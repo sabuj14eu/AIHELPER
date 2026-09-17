@@ -65,6 +65,35 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   window (F12) and a clarifying-question state (F11). **Phase 7** (paid teacher) is design only and must not be built
   without an explicit decision. None of these has been run on the box. OPEN.
 
+- **AIH-15 Web research is built and tested; no live SearXNG query has run.**
+  1.9.0 ships the whole loop — egress gate, SearXNG service, trusted-source
+  tiers, `self_web` origin, the typed relation, the trading record and the
+  counters — against a mocked search endpoint. 740 tests pass. **Nothing has
+  been observed against a real SearXNG container.** Three things are unproven
+  and each would fail differently:
+  1. `SEARXNG_SECRET` overriding `server.secret_key`. Documented SearXNG
+     behaviour, not observed here. If it does not apply, the container logs a
+     secret-key error at startup.
+  2. Whether the engines behind SearXNG honour `site:`. If they do not, the
+     routed query returns nothing and the run falls back to the open web —
+     degraded, not broken, and visible as `tier_4` dominating
+     `sources_by_tier` in `learning-report`.
+  3. Whether snippets are long enough for the local model to answer from. If
+     they are not, the honest outcome is a validation rejection, which the
+     counters will show as `rejected_by_validation`.
+  Proof needed: the 14-step run in `docs/PROOF_WEB_RESEARCH.md`, its output
+  pasted back. Opened 2026-09-17. OPEN.
+- **AIH-16 The twelve reasoning inputs have no live feed behind them.**
+  `app/trading/plan.py` defines the order, the four statuses and the
+  price-sourcing check, and the prompt tells Brother to walk it. But the
+  inputs it walks come from whatever is in CONTEXT, and today that is the
+  pack plus web snippets: there is **no price feed, no structure read and no
+  level source**. So a real market question will honestly answer WAIT or
+  UNKNOWN naming the missing inputs — correct behaviour, and not yet a
+  trading assistant. Closing this needs AIH-1 (the platform mirror) and
+  AIH-6 (the outlook board), which are the two real inputs that exist.
+  Opened 2026-09-17. OPEN.
+
 ## P2 — quality and robustness
 
 - **AIH-4 Retrieval quality for pack questions is unmeasured.** The semantic

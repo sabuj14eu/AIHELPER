@@ -434,6 +434,75 @@ def cmd_ask(args) -> int:
     return 0 if payload["success"] else 1
 
 
+def cmd_research(args) -> int:
+    """Search the web for an answer and offer what it finds, from the terminal.
+
+    Runs the pipeline in the foreground here on purpose — this is the operator
+    watching it work, not a reader waiting on it. The dashboard queues the same
+    code as a background job so nothing in the UI ever waits minutes.
+
+    Nothing it finds is adopted. What comes back is a candidate on
+    /admin/solutions with its sources and their tiers, for a person to confirm.
+    """
+    import time
+
+    from app.learning.research import research
+    from app.runtime import get_runtime
+
+    create_all(get_engine())
+    settings = get_settings()
+    client_id = args.client or settings.PERSONAL_CLIENT_ID
+    runtime = get_runtime()
+    if not settings.WEB_SEARCH_ENABLED:
+        print("web search is disabled (set WEB_SEARCH_ENABLED=true)", file=sys.stderr)
+        return 2
+    started = time.monotonic()
+    with session_scope() as session:
+        client = session.get(Client, client_id)
+        if client is None:
+            print(f"client '{client_id}' does not exist — run: python -m app.cli "
+                  "bootstrap-brother", file=sys.stderr)
+            return 2
+        services = runtime.for_session(session, client_id)
+        outcome = research(
+            session,
+            client,
+            question=" ".join(args.question),
+            settings=settings,
+            registry=runtime.tools,
+            local_provider=runtime.providers.local,
+            retriever=services.retriever,
+        )
+        payload = outcome.as_dict()
+    print(json.dumps(payload, indent=2))
+    print(f"\n[{time.monotonic() - started:.1f}s] {payload['reason']}", file=sys.stderr)
+    return 0 if payload["ok"] else 1
+
+
+def cmd_learning_report(args) -> int:
+    """The whole learning loop in numbers, cumulative — including the zeros.
+
+    `knowledge-status` says what is held. This says what has been LEARNED and
+    how far each piece got, which is the question "is this actually working?"
+    reduces to. A report that shows only what succeeded cannot answer it.
+    """
+    from app.learning.report import learning_report
+    from app.runtime import get_runtime
+
+    create_all(get_engine())
+    client_id = args.client or get_settings().PERSONAL_CLIENT_ID
+    runtime = get_runtime()
+    with session_scope() as session:
+        if session.get(Client, client_id) is None:
+            print(f"client '{client_id}' does not exist", file=sys.stderr)
+            return 2
+        services = runtime.for_session(session, client_id)
+        print(json.dumps(
+            learning_report(session, client_id, retriever=services.retriever), indent=2
+        ))
+    return 0
+
+
 def cmd_teach(args) -> int:
     """Teach Brother the right answer to a question, through the promotion gate."""
     from app.learning.teaching import teach
@@ -583,6 +652,19 @@ def main(argv: list[str] | None = None) -> int:
     teach_cmd.add_argument("--evidence", default="", help="where the proof is (file, commit, date)")
     teach_cmd.add_argument("--client", help="client id (default: PERSONAL_CLIENT_ID)")
     teach_cmd.set_defaults(func=cmd_teach)
+
+    research_cmd = sub.add_parser(
+        "research", help="search the web and offer what it finds as a candidate"
+    )
+    research_cmd.add_argument("question", nargs="+")
+    research_cmd.add_argument("--client", default=None)
+    research_cmd.set_defaults(func=cmd_research)
+
+    report = sub.add_parser(
+        "learning-report", help="the learning loop in numbers, cumulative"
+    )
+    report.add_argument("--client", default=None)
+    report.set_defaults(func=cmd_learning_report)
 
     status = sub.add_parser("knowledge-status", help="what the assistant currently holds")
     pack_args(status)

@@ -49,21 +49,31 @@ v18 brain. It observes and advises; it never trades, deploys, posts or acts.
 - `app/tools/` closed tool set; `live.py` = market news + trading mirror;
   `registry.py` carries `IntentMatch`; `dispatcher.py` = level 0.
 - `app/agents/builtin.py` generic agents + the four Brother agents,
-  `BROTHER_LAWS` and `TRADING_PLAN_PROCEDURE`; `router.py` picks the
+  `BROTHER_LAWS`, `TRADING_PLAN_PROCEDURE` and `TRADING_RESEARCH_PROCEDURE`
+  (rendered from `app.trading.plan.REASONING_STEPS`); `router.py` picks the
   specialist from the message.
 - `app/validation/states.py` the four answer states.
 - `app/knowledge/pack.py` pack loader, seeding, `secret_probe`.
 - `app/learning/` capture, promotion (the gate), `teaching.py`,
-  `origin.py` (seeded / taught / self / paid), `conflicts.py`
-  (duplicate and contradiction checks before a candidate is written).
+  `origin.py` (seeded / taught / self / self_web / paid), `conflicts.py`
+  (NEW / DUPLICATE / UPDATE / CONTRADICTION before a candidate is written),
+  `research.py` (the web-research job), `sources.py` (the trusted-source
+  list loader), `report.py` (the loop in numbers).
+- `app/trading/` `plan.py` (the twelve-step order, the four statuses,
+  `unsourced_prices`) and `knowledge.py` (source fact vs interpretation,
+  and the n=1 rule). It reasons; it never trades.
+- `app/tools/egress.py` the one gate that lets a request reach the internet.
+- `config/trusted_sources.yaml` domains, tiers, routing and the learning
+  floor. DATA: adding a source never touches `app/`.
 - `app/api/routes/admin.py` dashboard incl. `/admin/chat` (queued job +
-  poll), `/admin/chat/teach`, `/admin/chat/ask-now`.
+  poll), `/admin/chat/teach`, `/admin/chat/ask-now`,
+  `/admin/chat/research` (queued; never awaited).
 - `app/cli.py` bootstrap-brother, load-knowledge, knowledge-status, ask,
-  teach, calibrate, expire.
+  teach, research, learning-report, calibrate, expire.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 598 tests; conftest disables the live connectors so no test
+- `tests/` 740 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -192,6 +202,65 @@ failures, and the second outlived the first. These are now laws.
   costs confidence and names itself; it does not fail an answer. The same
   signal may still raise a review flag in `conflicts.py`, because a flag is
   not a sentence.
+
+## WHAT WEB RESEARCH CHANGED (2026-09-17, v1.9.0)
+Brother can now look something up. Every law below exists because looking
+something up is not the same as believing it.
+- **A web search is an egress path, so it uses the egress gate.** Not a
+  second privacy policy — the same `may_leave_system` the paid path uses,
+  because two policies that mean the same thing drift apart and then
+  disagree. It had been called from exactly one place since 1.0, so the
+  RESTRICTED rule would never have been consulted when Brother typed a
+  question into a search box. Granting is explicit: a client's
+  `allowed_tools` must NAME a network tool. **Inheriting every tool is not
+  the same as choosing the internet.**
+- **A tier says who wrote it, not whether it is true.** It buys order (the
+  publisher is asked before the open web, and evidence is sorted
+  best-first because the context window truncates) and provenance (domain,
+  tier, trust, query and time travel with the candidate). It buys no
+  shortcut: a tier 1 page is validated, becomes a CANDIDATE and waits for a
+  person. It does buy a floor — general-web evidence alone is read and
+  reported, never learned from.
+- **The source list is data.** `app/learning/sources.py` names no domain and
+  a test enforces it. Adding a source is an edit to a YAML file and a test.
+- **Over-calling UPDATE costs a review; over-calling DUPLICATE costs a fact.**
+  So the relation ladder runs CONTRADICTION > UPDATE > DUPLICATE > NEW, and
+  DUPLICATE — the only verdict that discards anything — is the narrowest.
+  Neither UPDATE nor CONTRADICTION ever edits the row it relates to.
+- **Free work is not paid work.** `self_web` costs nothing and reaches no
+  API. A spend figure that counts it is a figure nobody can act on. Cost and
+  trust are separate questions: `is_paid` and `is_external_evidence`.
+- **A guard that reads prose instead of behaviour cries wolf and gets
+  deleted.** Two shipped in one hour here: one tripping on its own
+  docstring, one on `staticmethod` containing "cme". Assert on parsed data
+  and the import graph, never on the text of the file.
+- **File order is load-bearing in a rule list.** "PCE inflation" routed to
+  BLS because the general inflation rule was tried before the BEA one. A
+  test now holds the order that makes the specific rule win.
+
+## HOW BROTHER REASONS ABOUT A MARKET (2026-09-17, v1.9.0)
+`app/trading/`. The discipline is mostly refusals.
+- **A setup is never manufactured because an entry was asked for.** READY ·
+  WAIT · NO_TRADE · UNKNOWN, and none of them is a failure. An assistant
+  that must always produce a number will produce one on the days the
+  evidence is thinnest — which are the days it costs money. Missing or
+  conflicting core inputs is UNKNOWN; inputs without a location is WAIT.
+- **Prices are quoted, never generated.** Every price in a plan must appear
+  in the evidence. Objective, so it may veto: a plan with an invented price
+  is not a degraded plan, it is a different object.
+- **A fact and a reading of it are two objects.** Merged into one sentence,
+  the interpretation inherits the fact's citation and becomes a claim that
+  looks sourced and is not. Stored apart, rendered with the seam showing,
+  and split STRUCTURALLY (published text is evidence, the model's own words
+  are interpretation) so no model has to judge which half is which.
+- **One occurrence is not a rule.** "Gold always goes up after FOMC" seen
+  once is n=1. The observation is kept with its n; the rule is not made. The
+  refusal is about the claim's scope, never about the evidence.
+- **Confidence is evidence completeness, not certainty.** It is the share of
+  the twelve inputs that were present, less a penalty for disagreement.
+- **The order lives in one place.** `REASONING_STEPS` renders the prompt, so
+  the order Brother is told to think in and the order a record reports
+  cannot drift. The order is method (prompt); every number is a fact (pack).
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

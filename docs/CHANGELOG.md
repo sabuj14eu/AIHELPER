@@ -3,6 +3,121 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.9.0 — 2026-09-17
+
+**Migration:** none. Two new settings (`TRUSTED_SOURCES_FILE`,
+`RESEARCH_MAX_SEARCHES`, `RESEARCH_RESULTS_PER_SEARCH`) and one new compose
+service (SearXNG). No schema change: `self_web` is derived from the `provider`
+column every row has carried since 1.0.
+
+Brother can now look something up on the web, and the point of every decision
+below is that looking something up is not the same as believing it.
+
+### Added — web research, from the best sources available, spending $0
+
+- **SearXNG** in `docker-compose.yml`, self-hosted, no API key, no published
+  port. Two of its settings are off by default and both fail at runtime
+  looking like the tool is broken: without `json` in `search.formats` it
+  answers HTTP 200 with a web page, and with the bot limiter on it answers 429
+  to exactly the caller it exists to serve. `deploy/searxng/settings.yml` sets
+  both and a test reads that file rather than trusting it.
+- **Snippets only** (explicit decision). A result URL is provenance — title,
+  url, snippet, engine, published date, fetched_at, `untrusted: true` — and is
+  never fetched, so it never becomes an outbound HTTP target.
+- **`app/learning/research.py`**, run as a background job. The local model
+  generates at 5.35 tok/s and spends 86-117 s reading a prompt; a search plus a
+  grounded second pass inside a chat turn would hold a reader in front of a
+  spinner for minutes. The chat answers with what it has and this runs after.
+
+### Added — the egress gate, connected to tools for the first time
+
+`may_leave_system` has governed what may leave this machine since 1.0 and was
+called from exactly **one** place: `escalation.may_escalate`. Tools were gated
+on permissions and on the client's allow-list — on *who is asking*, never on
+*what the data is* — so the rule "RESTRICTED data may never be sent to an
+external provider" would not have been consulted when Brother typed a
+RESTRICTED question into a search box.
+
+`app/tools/egress.py` calls the same function with the same allowed set and the
+same per-client ceiling, so a change to the rule changes both paths or neither;
+a test asserts the two modules hold the same function object. Granting cannot
+happen by accident: `tool:network` is not in `DEFAULT_PERMISSIONS`, and it is
+added only when a client's `allowed_tools` **names** a network tool. A client
+with `allowed_tools = None` inherits every ordinary tool and still gets no
+internet, because inheriting everything is not choosing this.
+
+### Added — trusted sources, as data
+
+`config/trusted_sources.yaml`: 42 domains in four tiers, 12 routing rules, and
+the tier below which evidence is read but never learned from.
+`app/learning/sources.py` names no domain and a test enforces it, so adding a
+source is an edit to a YAML file and a test — never a change to the agent.
+
+**A tier says who wrote it, not whether it is true.** It buys two things.
+*Order*: a question about the FOMC asks the Fed's own site before the open web,
+and because `LOCAL_CONTEXT_CHARS` truncates, evidence is sorted best-tier-first
+so what gets cut is the general web and never the agency that published the
+number. *Provenance*: domain, tier, trust, the query that found it and when it
+was read travel with the candidate.
+
+It buys no shortcut — a tier 1 page is validated, becomes a CANDIDATE and waits
+for a person like anything else. What it does buy is a floor: general-web
+evidence alone is read and reported and never learned from.
+
+### Added — `self_web` origin, and a typed relation
+
+- **`self_web`** is its own origin. SELF rests on the owner's own pack;
+  SELF_WEB rests on third-party text nobody here vouches for, and that is what
+  a reviewer is weighing. It is **not counted as paid** — it costs nothing and
+  reaches no API, and a spend figure that counts free work is one nobody can
+  act on. `is_paid` and `is_external_evidence` are separate questions.
+- A candidate's relation to what is known is now **NEW / DUPLICATE / UPDATE /
+  CONTRADICTION**. Web research makes UPDATE the common case: an answer about a
+  moving number is *similar* to the stored one and is not a copy of it — it is
+  the same fact, later. Precedence runs CONTRADICTION > UPDATE > DUPLICATE >
+  NEW because the mistakes do not cost the same: over-calling UPDATE leaves a
+  row waiting for a person, over-calling DUPLICATE loses a newer fact in
+  silence. Neither UPDATE nor CONTRADICTION touches the row it relates to.
+
+### Added — structured trading reasoning
+
+- **READY / WAIT / NO_TRADE / UNKNOWN**, and none of them is a failure. An
+  assistant that must always produce a number will produce one on the days the
+  evidence is thinnest.
+- **`unsourced_prices`**: every price in a plan must appear in the evidence it
+  was built from. Objective, so it may veto — a plan carrying an invented price
+  is not a degraded plan, it is a different object.
+- **A fact and a reading of it are two objects**, stored apart and rendered
+  with the seam showing. The split is made structurally (published text is
+  evidence, the model's words are interpretation), so it cannot be got wrong by
+  a small model having a bad minute.
+- **One occurrence is not a rule.** A generalising sentence is kept as an
+  OBSERVATION with its n and is not offered as a rule below the evidence floor.
+  The observation is always kept; the refusal is about the claim's scope.
+- The twelve-step order lives in `app/trading/plan.py` and the prompt is
+  rendered from it, so the two cannot drift apart.
+
+### Added — `python -m app.cli research` and `learning-report`
+
+`knowledge-status` says what Brother holds. `learning-report` says what has
+been learned and how far each piece got, by origin, status, relation and source
+tier — including `retrieval_confirmed`, the only number that means Brother can
+actually use what it learned. Where no retriever ran it reads **NOT RUN**, not
+0: "0 retrievable" and "nobody asked" are opposite findings.
+
+### Changed
+
+- `pyyaml` pinned explicitly. It already arrived through `uvicorn[standard]`,
+  and a runtime dependency that is only there transitively is one that
+  disappears the day an upstream drops it.
+- `config/` ships in the image; a test checks every copied path exists.
+
+### Not verified on the box
+
+No live SearXNG query has run, and `SEARXNG_SECRET` overriding
+`server.secret_key` is documented behaviour that has not been observed here.
+Both are in `docs/OPEN_ITEMS.md`. Static inspection is not a PASS.
+
 ## 1.8.2 — 2026-09-16
 
 **Migration:** none.
