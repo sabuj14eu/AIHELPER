@@ -37,8 +37,13 @@ CANDIDATE to see what is waiting for you.</b></p>
   <td>{{ s.failure_reason or '—' }}</td>
   <td>{{ '%.2f'|format(s.confidence) }}</td>
   <td class="{% if s.status=='PROMOTED' %}ok{% elif s.status=='REJECTED' %}bad{% else %}warn{% endif %}">{{ s.status }}
-    {% if s.validation_result and s.validation_result.get('knowledge_check', {}).get('conflicts') %}
+    {% set rel = (s.validation_result or {}).get('knowledge_check', {}).get('relation') %}
+    {% if rel == 'contradiction' %}
       <div class="bad" style="font-size:.7rem" title="{{ s.status_reason or '' }}">DISAGREES</div>
+    {% elif rel == 'update' %}
+      {# Not a copy and not a conflict: the same fact, later. The promoted
+         answer is untouched until someone here decides. #}
+      <div class="warn" style="font-size:.7rem" title="{{ s.status_reason or '' }}">UPDATES</div>
     {% endif %}
   </td>
   <td>{{ s.reuse_count }}</td>
@@ -51,7 +56,7 @@ CANDIDATE to see what is waiting for you.</b></p>
     {% if s.status != 'PROMOTED' %}
     <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/promote">
       <button title="Runs validation and the reproduction gate, then promotes if both pass">
-        {{ 'Confirm' if origin_of(s) == 'self' else 'Promote' }}</button></form>
+        {{ 'Confirm' if origin_of(s) in ('self', 'self_web') else 'Promote' }}</button></form>
     {% endif %}
     {% if s.status != 'REJECTED' %}
     <form class="inline" method="post" action="/admin/solutions/{{ s.id }}/reject"><button>Reject</button></form>

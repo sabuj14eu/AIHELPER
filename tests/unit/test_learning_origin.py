@@ -12,9 +12,22 @@ import pytest
 
 from app.database.enums import SolutionStatus
 from app.gateway.router import GatewayRequest
-from app.learning.origin import SELF_PROVIDER, SolutionOrigin, origin_of, summarise
+from app.learning.origin import (
+    SELF_PROVIDER,
+    SELF_WEB_PROVIDER,
+    SolutionOrigin,
+    origin_of,
+    summarise,
+)
 from app.learning.solution_store import SolutionStore
 from app.validation.states import AnswerState
+
+
+class Row_:
+    """A stand-in for a solution row; only `provider` is ever read."""
+
+    def __init__(self, provider):
+        self.provider = provider
 
 
 class TestOriginIsDerivedNotStored:
@@ -24,6 +37,7 @@ class TestOriginIsDerivedNotStored:
             ("knowledge-pack", SolutionOrigin.SEEDED),
             ("owner", SolutionOrigin.TAUGHT),
             (SELF_PROVIDER, SolutionOrigin.SELF),
+            (SELF_WEB_PROVIDER, SolutionOrigin.SELF_WEB),
             ("anthropic", SolutionOrigin.PAID),
             ("openai", SolutionOrigin.PAID),
         ],
@@ -49,8 +63,29 @@ class TestOriginIsDerivedNotStored:
                 self.provider = provider
 
         counts = summarise([Row("knowledge-pack")] * 229 + [Row("owner")])
-        assert counts == {"seeded": 229, "taught": 1, "self": 0, "paid": 0}
+        assert counts == {
+            "seeded": 229, "taught": 1, "self": 0, "self_web": 0, "paid": 0
+        }
         assert set(counts) == {o.value for o in SolutionOrigin}
+
+    def test_web_research_is_not_counted_as_paid_or_api_usage(self):
+        """It reaches the internet, but it reaches a service we host, with no
+        key and no per-query cost. A spend figure that counts free work is a
+        spend figure nobody can act on."""
+        web = origin_of(SELF_WEB_PROVIDER)
+        assert web is SolutionOrigin.SELF_WEB
+        assert web.is_paid is False
+        assert summarise([Row_(SELF_WEB_PROVIDER)])["paid"] == 0
+
+    def test_only_paid_is_paid_and_only_two_origins_rest_on_outside_text(self):
+        """Two different questions, and they have different answers. Cost is
+        not trust: `self_web` is free and still rests on words nobody here
+        vouches for."""
+        assert [o for o in SolutionOrigin if o.is_paid] == [SolutionOrigin.PAID]
+        assert {o for o in SolutionOrigin if o.is_external_evidence} == {
+            SolutionOrigin.PAID,
+            SolutionOrigin.SELF_WEB,
+        }
 
 
 class TestTeachRefusesWhatIsNotAnAnswer:
@@ -295,3 +330,142 @@ class TestStepsFourAndFive:
             settings.LEXICAL_SOLUTION_DUPLICATE_THRESHOLD
             < settings.LEXICAL_SOLUTION_REUSE_THRESHOLD
         )
+
+
+class TestTheRelationIsTypedAndNeverOverwrites:
+    """One of four, and two of them wait for a person.
+
+    Web research made the middle case matter. A researched answer about a
+    moving number — a price, a rate, a date — is *similar* to the stored one
+    and is not a copy of it: it is the same fact, later. Called a duplicate it
+    is thrown away and nobody finds out; called new it leaves two answers to
+    one question. It is an UPDATE, and an update to promoted knowledge is a
+    human's decision.
+    """
+
+    FakeRetriever = TestStepsFourAndFive.FakeRetriever
+
+    def _row(self, db, client_row, question, answer):
+        return TestStepsFourAndFive._row(self, db, client_row, question, answer)
+
+    def _check(self, retriever, question, answer):
+        from app.learning.conflicts import check_against_known
+
+        return check_against_known(retriever, question=question, answer=answer)
+
+    def test_new_when_nothing_stored_is_close(self, db, client_row):
+        from app.learning.conflicts import KnowledgeRelation
+
+        check = self._check(
+            self.FakeRetriever([]), "what is the fib level rule", "Validate at PF 1.5."
+        )
+        assert check.relation is KnowledgeRelation.NEW
+        assert check.should_store and not check.requires_human
+
+    def test_duplicate_when_the_figures_match(self, db, client_row):
+        from app.learning.conflicts import KnowledgeRelation
+
+        stored = self._row(
+            db, client_row, "What port does the v7 bridge use?", "The bridge is on port 5001."
+        )
+        check = self._check(
+            self.FakeRetriever([(stored, 0.74)]),
+            "which port is the v7 bridge on",
+            "The bridge listens on port 5001.",
+        )
+        assert check.relation is KnowledgeRelation.DUPLICATE
+        assert not check.should_store
+        assert not check.requires_human
+
+    def test_update_when_the_same_fact_carries_a_different_figure(self, db, client_row):
+        """The case web research creates constantly, and the one that must not
+        be discarded: gold was 4180 when this was stored and is 4271 now."""
+        from app.learning.conflicts import KnowledgeRelation
+
+        stored = self._row(
+            db, client_row, "where is gold trading", "Spot gold is around 4,180 an ounce."
+        )
+        check = self._check(
+            self.FakeRetriever([(stored, 0.81)]),
+            "where is gold trading now",
+            "Spot gold is around 4271 an ounce.",
+        )
+        assert check.relation is KnowledgeRelation.UPDATE
+        assert check.should_store, "discarding this loses the newer fact silently"
+        assert check.requires_human, "promoted knowledge does not change by itself"
+        assert set(check.changed_figures) == {"4180", "4271"}
+
+    def test_dropping_a_figure_is_also_an_update_not_a_copy(self, db, client_row):
+        """Compared both ways on purpose. A vaguer answer is not a copy of a
+        precise one, and the one-way test would let it pass as one."""
+        from app.learning.conflicts import KnowledgeRelation
+
+        stored = self._row(
+            db, client_row, "where is gold trading", "Spot gold is around 4271 an ounce."
+        )
+        check = self._check(
+            self.FakeRetriever([(stored, 0.81)]),
+            "where is gold trading now",
+            "Spot gold is around record highs.",
+        )
+        assert check.relation is KnowledgeRelation.UPDATE
+
+    def test_contradiction_outranks_everything_else(self, db, client_row):
+        from app.learning.conflicts import KnowledgeRelation
+
+        stale = self._row(
+            db, client_row, "Is a stale bias usable?", "A stale bias is neutral and used."
+        )
+        check = self._check(
+            self.FakeRetriever([(stale, 0.8)]),
+            "how does the system treat a stale bias",
+            "A stale bias is invalid and unused, not neutral.",
+        )
+        assert check.relation is KnowledgeRelation.CONTRADICTION
+        assert check.should_store and check.requires_human
+
+    def test_only_a_duplicate_is_ever_discarded(self, db, client_row):
+        """Stated as a property rather than case by case, because the cost of
+        the two mistakes is not symmetric: an extra row waits for a person,
+        a dropped fact is never seen again."""
+        from app.learning.conflicts import _STORE, KnowledgeRelation
+
+        assert [r for r, store in _STORE.items() if not store] == [
+            KnowledgeRelation.DUPLICATE
+        ]
+        assert set(_STORE) == set(KnowledgeRelation)
+
+    def test_the_relation_travels_with_the_row_for_a_human_to_read(self, db, client_row):
+        stored = self._row(
+            db, client_row, "where is gold trading", "Spot gold is around 4,180 an ounce."
+        )
+        check = self._check(
+            self.FakeRetriever([(stored, 0.81)]),
+            "where is gold trading now",
+            "Spot gold is around 4271 an ounce.",
+        )
+        data = check.as_dict()
+        assert data["relation"] == "update"
+        assert data["requires_human"] is True
+        assert data["related_to"] == stored.id
+        assert data["duplicate_of"] is None, "an update is not a duplicate of anything"
+        assert "4271" in data["summary"]
+
+    def test_nothing_here_can_write_to_the_promoted_row(self, db, client_row):
+        """The guarantee, checked at the source: the module holds no write.
+
+        An update path that edits the row it relates to would be invisible in
+        a test that only inspects the returned object, so this reads the code
+        instead. `check_against_known` may read the index and return a verdict;
+        it may not change what is already promoted.
+        """
+        import inspect
+
+        from app.learning import conflicts
+
+        source = inspect.getsource(conflicts)
+        for forbidden in ("session.add", "session.commit", "session.delete", ".status ="):
+            assert forbidden not in source, (
+                f"conflicts.py contains `{forbidden}`: the check now writes, and "
+                "silently overwriting promoted knowledge is what it exists to prevent"
+            )

@@ -802,13 +802,11 @@ class GatewayRouter:
 
         # Steps 4 and 5 of the learning pipeline, before anything is written.
         known = check_against_known(self.retriever, question=question, answer=response.answer)
-        if known.is_duplicate:
+        if not known.should_store:
+            # DUPLICATE, the only one of the four that discards anything.
             # Retrieval serves anything above the reuse bar, so this is the band
             # underneath it: near enough that a second row is a second copy.
-            response.notes.append(
-                "not kept: this is already known "
-                f"(similar to a promoted solution at {known.duplicate_score:.2f})"
-            )
+            response.notes.append(f"not kept: {known.summary()}")
             return
         decision = capture(
             self.session,
@@ -830,27 +828,28 @@ class GatewayRouter:
         )
         if decision.captured and decision.solution is not None:
             response.solution_id = decision.solution.id
-            if known.has_conflict:
-                # The most interesting thing that can happen to a knowledge
-                # store: one of the two is stale and the system has just found
-                # out. Dropping it loses the discovery; storing it quietly
-                # leaves two answers that cannot both be true. So it is stored,
-                # marked, and put in front of the person who can say which.
-                decision.solution.validation_result = {
-                    **(decision.solution.validation_result or {}),
-                    "knowledge_check": known.as_dict(),
-                }
-                decision.solution.status_reason = (
-                    "disagrees with "
-                    f"{len(known.conflicts)} promoted solution(s) — needs a decision"
-                )[:300]
+            # The relation travels with the row, always — a reader of
+            # /admin/solutions should not have to infer why a candidate is
+            # there from the shape of its notes.
+            decision.solution.validation_result = {
+                **(decision.solution.validation_result or {}),
+                "knowledge_check": known.as_dict(),
+            }
+            if known.requires_human:
+                # UPDATE and CONTRADICTION. Neither touches the promoted row
+                # it relates to: the old answer keeps answering until a person
+                # says otherwise, and the new one waits. Silently overwriting
+                # promoted knowledge is the one thing this path may never do.
+                decision.solution.status_reason = f"{known.summary()} — needs a decision"[:300]
                 response.notes.append(
-                    "kept, and flagged: this answer disagrees with something already "
-                    "promoted. One of them is out of date — open /admin/solutions to say which"
+                    f"kept, and held for you: {known.summary()}. The promoted answer is "
+                    "unchanged — open /admin/solutions to decide"
                 )
                 log.warning(
-                    "knowledge_conflict",
+                    "knowledge_relation",
+                    relation=known.relation.value,
                     solution_id=decision.solution.id,
+                    related_to=known.duplicate.id if known.duplicate else None,
                     conflicts=[c.solution_id for c in known.conflicts],
                 )
             else:
