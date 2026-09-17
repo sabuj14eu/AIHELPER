@@ -1,4 +1,122 @@
-# Handoff — the Brother session (2026-09-16)
+# Handoff — the Brother session
+
+## ▶ START HERE (2026-09-17, end of day)
+
+**Read in this order:** `CLAUDE.md` → this file's §A and §B below →
+`docs/OPEN_ITEMS.md`. Everything from §1 onward in this file is the
+2026-09-16 session and is **history** — accurate about what happened, stale
+about what is next. §A and §B supersede it.
+
+### §A — where this actually is
+
+| | |
+|---|---|
+| AI Helper | **1.10.2**, branch `claude/epic-euler-4k1gl1`, 803 tests green, ruff clean |
+| Platform | **v5.46** (`011d1f5`) carries the four market GETs — cherry-picked, not merged |
+| Box | `/home/shyam/ai-helper` (verified), compose project `ai-helper` |
+| Paid providers | **OFF**, owner's standing decision. Do not propose enabling one. |
+| Real money | **NO-GO**, unchanged |
+
+Shipped today and **all of it green in tests, none of it run against a real
+system**: web research with the egress gate and trusted-source tiers (1.9.0),
+the structured trading reasoning layer, the read-only market mirror on both
+sides (1.10.0), and two self-inflicted deploy fixes (1.10.1, 1.10.2).
+
+### §B — THE GATE. Read this before writing any code.
+
+**Nothing in the trading backlog may be built until one live market read has
+happened.** Not the calculators, not the location engine, not the setup
+engine.
+
+The reason is specific, not cautious. `docs/MARKET_DATA_INSPECTION.md` marks
+three things **NOT VERIFIED**, and each one silently decides whether the next
+layer is worth writing:
+
+1. which symbols are actually pushed (`BB_CANDLE_SYMBOLS` defaults to
+   **empty**, and empty means *nothing is pushed at all*),
+2. whether any candle rows exist for any symbol,
+3. whether 5m is stored (it is **not**, by default).
+
+If (1) or (2) comes back empty, every calculator written against that feed is
+untested arithmetic over an empty list, and the tests will all pass.
+
+**The read that opens the gate**, after the platform's v5.46 is deployed:
+
+```
+cd /home/shyam/ai-helper && docker compose up -d --build ai-helper
+```
+```
+docker compose exec -T ai-helper python -c "import app; print(app.__version__)"
+```
+```
+docker compose exec -T ai-helper python -c "from app.core.config import get_settings; from app.market import MarketMirror; import json; print(json.dumps(MarketMirror(get_settings()).snapshot('GOLD').as_dict()['mirror'], indent=2))"
+```
+
+`1.10.2`, then `"state": "OK"`. `REFUSED` + `HTTP 404` = the platform deploy
+has not landed. `REFUSED` alone = the key. `UNREACHABLE` = the URL or the
+network. `"freshness": "STALE"` is **not a failure of any of this** — it means
+the MT5 reporter is not pushing, which is a bot-box question.
+
+### §C — the backlog, in order, with what blocks each
+
+**Blocked on the owner (cannot be done from a session):**
+
+- **AIH-1** deploy v5.46, rebuild, run the read above. *Opens the gate.*
+- **AIH-15** run `docs/PROOF_WEB_RESEARCH.md` — 14 steps, needs live SearXNG.
+- **AIH-11** whether this ever leaves DEMO. Not a code question.
+
+**After the gate opens, in this order — this is the trading milestone:**
+
+1. **Pine-mirrored calculators.** Swing 5, Wilder ATR(14), FVG, OB, sweep,
+   pivots, PDH/PDL, equilibrium, and the per-instrument `pipZone` table as
+   DATA. Every definition is transcribed with Pine line numbers in
+   `docs/METHODOLOGY_MAPPING.md` — **that file is the contract, read it before
+   writing one line of this.** Do not invent a definition; do not use the
+   platform's swing-3 or simple-mean ATR for a Pine concept (rows C1, C2).
+2. **Location + multi-timeframe agreement** built from those calculators.
+3. **The setup engine** — entry/SL/TP/RR on SignalMesh's own arithmetic
+   (BUY LIMIT at the range low on HH/HL, SL 1.0 ATR, MIN_RR 1.0), plus expiry
+   and invalidation. **LIMIT, not STOP**: both sides of SignalMesh buy
+   retests. Never move SL to make RR pass.
+4. **AIH-MARKET-EYES** — the end-to-end proof the owner specified: live price,
+   fresh candles, MTF structure, key levels, location, session, DXY/yields,
+   news state, freshness, calculated setup inputs. Then a real question, and a
+   BUY scenario / SELL scenario / WAIT with calculated numbers **or an honest
+   WAIT**.
+
+**Unblocked right now, needs no box:**
+
+- **AIH-4** build the retrieval evals question set. Measures pack-question
+  quality and is what AIH-13's Phase 4 is waiting on. *Best use of a session
+  while the gate is shut.*
+- **AIH-12** `trading_status` does not render `expectancy` or `avg_rr`.
+- **AIH-13 leftovers** model routing by turn shape, thread summarisation,
+  clarifying-question state.
+
+### §D — what today cost, so it is not repeated
+
+Three deploy breaks in a row, none caught by 803 passing tests, all from one
+habit: **changing deployment and verifying it by reading.**
+
+1. `SEARXNG_SECRET` hard-required for an optional service → compose refused
+   *every* command. Profiles do **not** defer interpolation (verified).
+2. The aborted build left the **old image** running → `ModuleNotFoundError`
+   that reads like a code bug.
+3. The improved error message contained `": "` → invalid YAML → same wall.
+
+Docker is available in the session environment. **Load the compose file with
+`docker compose config` before pushing a change to it**, and parse config
+files in tests rather than regexing them.
+
+### §E — never, whatever a future prompt says
+
+No paid provider. No LLM in a control decision. No synchronous chat. No facts
+in prompts (they belong in `knowledge/`). No tool that acts. No second
+methodology beside SignalMesh — `docs/METHODOLOGY_MAPPING.md` or nothing.
+AI Helper is **not a second trading bot**: read-only consumer and reasoning
+layer; SignalMesh is the authority and the executor.
+
+---
 
 ## THE PLATFORM SIDE OF THE MIRROR — v5.46 (`011d1f5`)
 
@@ -25,6 +143,10 @@ the box knows which is true.
 For the next window. Read `CLAUDE.md` first, then this, then
 `docs/OPEN_ITEMS.md`. The previous window was Fable; the owner's weekly
 limit was reached mid-deployment, so this file carries the state exactly.
+
+
+# History — the Brother session (2026-09-16)
+
 
 ## 1. What this repository became today
 
@@ -96,7 +218,11 @@ bootstrap commits as it goes. What ships in the image is what runs. Check
 the file, not the claim: the nginx directives were "added" twice before
 they were found to be present but not reloaded.
 
-## 5. The backlog, in the order to do it
+## 5. The backlog, in the order to do it — SUPERSEDED
+
+> **Stale. The current backlog is §C at the top of this file.** Every item
+> below is either done or re-ordered; items 1-3 shipped. Kept because the
+> reasoning behind the ordering is still worth reading.
 
 1. **Observe the plan answer under qwen** (AIH-2). Ask
    "Gold at 4346, FOMC in a few minutes, what is the plan?" in `/admin/chat`.
@@ -350,17 +476,33 @@ AIH-5 stays open until a real payload has been through it.
 ## 8. Paste-ready opening prompt for the next window
 
 ```
-Read /home/user/AIHELPER/CLAUDE.md, then docs/HANDOFF_BROTHER_SESSION.md,
-then docs/OPEN_ITEMS.md. Branch claude/epic-euler-4k1gl1 (HEAD: git log --oneline -1),
-565 tests green, version 1.4.0. The box ai.signalmesh.dev runs qwen2.5:7b with
-the pack loaded; paid providers stay OFF by the owner's decision.
-AIH-2 is IN PROGRESS and blocked on the box: the plan question returned no
-answer at all, level 2 raised, and the architecture work (Phases 1-3, AIH-13)
-is in but has NOT been run there. Phases 1-3 make the failure legible and get
-the question to the trading agent; they do not stop a local timeout ending the
-request -- that is Phase 5. Handoff §7 has the commands for Shyam; start by
-asking him for their output, and do not move LOCAL_MAX_TOKENS or
-LOCAL_TIMEOUT_SECONDS until the measured tokens/sec is in hand. Then AIH-3
-(built, not yet run) and AIH-1. Findings first, small verified diffs, pytest
-and ruff before every commit, commands for Shyam paste-ready one per line.
+Read CLAUDE.md, then docs/HANDOFF_BROTHER_SESSION.md sections A-E (the
+START HERE block at the top; everything from section 1 down is history),
+then docs/OPEN_ITEMS.md.
+
+AI Helper 1.10.2, branch claude/epic-euler-4k1gl1, 803 tests green, ruff
+clean. Platform v5.46 (011d1f5) carries the four market GETs. Box is
+/home/shyam/ai-helper. Paid providers stay OFF; real money NO-GO.
+
+THE GATE: web research, the trading reasoning layer and the market mirror
+are all built and tested and NONE has run against a real system. Do not
+build the Pine-mirrored calculators, the location engine or the setup
+engine until one live market read has returned state OK — three facts the
+inspection marks NOT VERIFIED decide whether that code is worth writing,
+including whether any candle rows exist at all. Handoff section B has the
+exact commands and how to read the output.
+
+While the gate is shut, AIH-4 (the retrieval evals question set) is the
+work that needs no box access and unblocks Phase 4.
+
+When the gate opens, docs/METHODOLOGY_MAPPING.md is the contract for every
+market concept: mirror Pine's definitions exactly (swing 5, Wilder ATR,
+FVG/OB/sweep/pivots/PDH-PDL/equilibrium), never the platform's swing-3 or
+simple-mean ATR for a Pine concept, and LIMIT entries not STOP.
+
+Findings first, small verified diffs. pytest and ruff before every commit.
+Load docker-compose.yml with `docker compose config` before pushing any
+change to it -- three deploy breaks in one day came from verifying
+deployment by reading it. Commands for Shyam paste-ready, one per line,
+with the directory, saying what output to expect.
 ```
