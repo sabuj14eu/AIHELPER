@@ -213,8 +213,9 @@ def create_app(settings: Settings | None = None, *, runtime: Runtime | None = No
     application.include_router(memory.router)
     application.include_router(models.router)
     application.include_router(solutions.router)
-    from app.api.routes import usage
+    from app.api.routes import market, usage
 
+    application.include_router(market.router)
     application.include_router(usage.router)
     application.include_router(admin.api_router)
     application.include_router(admin.ui_router)

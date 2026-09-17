@@ -78,6 +78,12 @@ row that reads DIFFERENT is declared there and labelled wherever it shows.
   VERIFIED / NOT VERIFIED / MISSING, and what AIH-1 must expose.
 - `docs/METHODOLOGY_MAPPING.md` SignalMesh → AI Helper, concept by concept,
   SAME or DIFFERENT with the reason. The contract for `app/trading/`.
+- `app/market/mirror.py` the read-only market mirror: four GETs on the
+  platform, named failure states, and `usable` only at LIVE. It imports
+  nothing from the research side — a test reads the import graph, because
+  a web snippet must have no path to a price field.
+- `app/api/routes/market.py` those four as AI Helper's own read-only GETs.
+  `docs/MARKET_MIRROR_API.md` is the contract for both halves.
 - `app/tools/egress.py` the one gate that lets a request reach the internet.
 - `config/trusted_sources.yaml` domains, tiers, routing and the learning
   floor. DATA: adding a source never touches `app/`.
@@ -89,7 +95,7 @@ row that reads DIFFERENT is declared there and labelled wherever it shows.
 - `knowledge/` the pack (see its README); `knowledge/sources/` verbatim
   copies stamped with commit and date.
 - `scripts/` setup, sync_knowledge, nginx_add_timeouts, backup, health.
-- `tests/` 740 tests; conftest disables the live connectors so no test
+- `tests/` 798 tests; conftest disables the live connectors so no test
   reaches the network.
 
 ## WORKING LAWS LEARNED ON THE FIRST REAL DEPLOYMENT (2026-09-16)
@@ -277,6 +283,34 @@ something up is not the same as believing it.
 - **The order lives in one place.** `REASONING_STEPS` renders the prompt, so
   the order Brother is told to think in and the order a record reports
   cannot drift. The order is method (prompt); every number is a fact (pack).
+
+## THE MARKET MIRROR (2026-09-17, v1.10.0)
+- **SearXNG is for research; the mirror is for price.** A web article
+  saying "gold is around 4270" is not a trading price. The separation is
+  enforced, not described: `web_search` carries `tool:network` and goes
+  through the egress gate; the mirror reads a fixed operator-configured
+  platform URL and imports nothing from the research side, which a test
+  checks by reading the import graph.
+- **STALE is not a degraded yes.** `usable` is true only at LIVE. The
+  platform's own rule is that a stale feed produces NO levels, and a
+  mirror that softened that would be the first place the Freshness Law
+  leaked. Absent freshness is UNKNOWN, never assumed fine — guessing
+  fresh is the dangerous guess.
+- **A failure is a word, not a sentence.** NOT_CONFIGURED · UNREACHABLE ·
+  REFUSED, because "the key is wrong" and "the platform is down" have
+  opposite fixes. `data` is null on any of them, never `{}`.
+- **A caller names an endpoint, never a URL.** Nothing a caller passes can
+  steer a read at another host or another route.
+- **An ISO timestamp with no offset is read as LOCAL time.** The candle
+  column is aware in PostgreSQL and naive in SQLite, so the platform makes
+  every stamp aware on the way out rather than trusting the driver. A
+  series shifted by the reader's timezone is the clock incident again:
+  not degraded data, a second parallel series.
+- **`age_min` is null when there is no bar, never 0.** Zero reads as
+  fresh, and there is nothing to be fresh.
+- **Whose number is this?** The platform's snapshot declares its swing=3
+  and simple-mean ATR, and says Pine uses 5 and Wilder. A consumer
+  mirroring Pine's method on the platform's data must not relabel them.
 
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the

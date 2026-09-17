@@ -391,3 +391,69 @@ class TestBrotherChat:
         db.commit()
         page = signed_in.get("/admin/solutions", params={"origin": "self"})
         assert "Confirm" in page.text
+
+
+class TestTheMarketMirrorEndpoints:
+    """Four read-only GETs. AI Helper consumes market data; it never owns it.
+
+    The platform is faked at the socket here, so what is under test is this
+    side: the authentication, the read-only surface, and that an unreachable
+    or unconfigured platform produces a named absence rather than a guess.
+    """
+
+    PATHS = [
+        "/api/v1/market/snapshot?symbol=GOLD",
+        "/api/v1/market/desk?symbol=GOLD",
+        "/api/v1/market/candles?symbol=GOLD&tf=15m",
+        "/api/v1/outlook?symbol=GOLD",
+    ]
+
+    @pytest.mark.parametrize("path", PATHS)
+    def test_a_key_is_required(self, api, path):
+        assert api.get(path).status_code == 401
+
+    @pytest.mark.parametrize("path", PATHS)
+    def test_an_ordinary_client_key_is_enough(self, api, keys, path):
+        """No admin scope: reading the market is not an administrative act."""
+        assert api.get(path, headers=auth(keys["user"])).status_code == 200
+
+    @pytest.mark.parametrize("path", [p.split("?")[0] for p in PATHS])
+    @pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
+    def test_no_write_verb_exists(self, api, keys, path, method):
+        # No body: TestClient.delete takes none, and a routed verb answers
+        # 405 before it ever looks at one.
+        response = getattr(api, method)(path, headers=auth(keys["user"]))
+        assert response.status_code in (404, 405), f"{method.upper()} {path} is routed"
+
+    @pytest.mark.parametrize("path", PATHS)
+    def test_an_unconfigured_platform_is_a_named_absence_not_an_error(
+        self, api, keys, settings, path
+    ):
+        """The box has no platform key yet (AIH-1). That must read as "not
+        configured", not as a crash and not as an empty success."""
+        settings.TRADING_PLATFORM_URL = ""
+        settings.TRADING_PLATFORM_API_KEY = ""
+        body = api.get(path, headers=auth(keys["user"])).json()
+        assert body["mirror"]["state"] == "NOT_CONFIGURED"
+        assert body["data"] is None
+        assert body["mirror"]["usable"] is False
+        assert body["mirror"]["freshness"]["state"] == "UNKNOWN"
+        assert "TRADING_PLATFORM_URL" in body["mirror"]["note"]
+
+    def test_the_symbol_is_required(self, api, keys):
+        assert api.get("/api/v1/market/snapshot",
+                       headers=auth(keys["user"])).status_code == 422
+
+    def test_the_candle_count_is_bounded_by_the_contract(self, api, keys):
+        """A 422 teaches the limit; a silently shortened series does not."""
+        assert api.get("/api/v1/market/candles?symbol=GOLD&n=99999",
+                       headers=auth(keys["user"])).status_code == 422
+        assert api.get("/api/v1/market/candles?symbol=GOLD&n=0",
+                       headers=auth(keys["user"])).status_code == 422
+
+    def test_the_symbol_is_normalised_before_it_leaves(self, api, keys, settings):
+        settings.TRADING_PLATFORM_URL = "https://platform.example"
+        settings.TRADING_PLATFORM_API_KEY = "bb_key"
+        body = api.get("/api/v1/market/snapshot?symbol=  gold  ",
+                       headers=auth(keys["user"])).json()
+        assert body["mirror"]["params"]["symbol"] == "GOLD"

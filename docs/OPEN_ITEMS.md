@@ -7,11 +7,17 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
 
 ## P1 — affects what the owner sees today
 
-- **AIH-1 Trading connector not configured on the box.** `TRADING_PLATFORM_URL`
-  and `TRADING_PLATFORM_API_KEY` are empty in the box's `.env`, so "bot
-  status" answers "not configured". Needs a USER key from the platform's
-  `/api-access` page, then `docker compose restart ai-helper`. Owner action.
-  Opened 2026-09-16. OPEN.
+- **AIH-1 The endpoints exist; the key does not.** The code half is DONE:
+  Sniper-System serves `/api/v1/market/{candles,snapshot,desk}` and
+  `/api/v1/outlook` on the read-only `api_user` dependency (`572e0c3`,
+  61 tests), and AI Helper consumes them (`app/market/mirror.py`, 58 tests).
+  Proof: both suites pass — 784 platform, 798 AI Helper.
+  **Still owner action:** create a READ key (write box UNTICKED) on the
+  platform's `/api-access` page, put it in the box's `.env` as
+  `TRADING_PLATFORM_API_KEY`, set `TRADING_PLATFORM_URL`, then
+  `docker compose up -d ai-helper`. Until then every market read answers
+  `NOT_CONFIGURED`, which is correct and is not a bug. Opened 2026-09-16.
+  OPEN (owner).
 - **AIH-2 Cause found, measured and fixed in code; not yet verified on the box.**
   The plan question returned nothing because the local call raised. The P0
   diagnosis (2026-09-16, read-only, owner ran the probes) settled why, and it
@@ -154,7 +160,10 @@ where the proof is. Status vocabulary: OPEN · IN PROGRESS · BLOCKED · DONE
   raw totals already shown. Not a defect — nothing is wrong with the line as
   it stands — so it was left alone rather than widened while fixing AIH-5.
   Opened 2026-09-16. OPEN.
-- **AIH-6 Outlook board is not readable.** The plan recipe says "restate
+- **AIH-6 ~~Outlook board is not readable.~~ Endpoint built, key pending.**
+  `GET /api/v1/outlook?symbol=` now serves `outlook.board` on both sides.
+  Blocked only by AIH-1's key. Original entry kept below for its context.
+  ORIGINAL: **AIH-6 Outlook board is not readable.** The plan recipe says "restate
   the posted outlook" but no connector reads the platform's outlook board
   (its API v1 has no outlook endpoint; the desk page is session-authed).
   Either the platform adds `GET /api/v1/outlooks` (read-only, Iron Rule 1

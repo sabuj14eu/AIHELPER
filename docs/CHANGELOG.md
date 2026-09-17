@@ -3,6 +3,62 @@
 Every schema change gets an Alembic revision and an entry here, with its
 migration note. Deploys follow: **backup → migrate → restart → verify logs.**
 
+## 1.10.0 — 2026-09-17
+
+**Migration:** none. No schema change; two settings that already existed
+(`TRADING_PLATFORM_URL`, `TRADING_PLATFORM_API_KEY`) now have a second
+consumer.
+
+### Added — the market mirror (AIH-1, AIH-6)
+
+Brother can read market data. The inspection
+(`docs/MARKET_DATA_INSPECTION.md`) found the platform already holds one
+disciplined market-data truth and that **no API key could read any of it** —
+the chart routes authenticate with a browser session. So the platform gained
+four read-only GETs and AI Helper gained four that consume them. Contract:
+`docs/MARKET_MIRROR_API.md`.
+
+- `GET /api/v1/market/candles` closed OHLC, oldest first, with tick volume,
+  per-bar spread and source.
+- `GET /api/v1/market/snapshot` the canonical decision snapshot plus the
+  level ladder.
+- `GET /api/v1/market/desk` the desk lanes, PAPER RESEARCH label intact.
+- `GET /api/v1/outlook` the posted weekly/monthly outlook (AIH-6).
+
+`app/market/mirror.py` is the client, and what it refuses is the design:
+
+- **STALE is not a degraded yes.** `usable` is true only at `LIVE`. The
+  platform's own rule is that a stale feed produces no levels at all, and a
+  mirror that softened that would be the first place the Freshness Law leaked.
+- **Absent freshness is UNKNOWN, not fine.** Guessing fresh is the dangerous
+  guess.
+- **A failure is a word, not a sentence.** `NOT_CONFIGURED` / `UNREACHABLE` /
+  `REFUSED`, because "the key is wrong" and "the platform is down" have
+  opposite fixes. `data` is `null` on any of them — never `{}`, never
+  partially filled.
+- **A caller names an endpoint, never a URL**, so nothing a caller passes can
+  steer it at another host.
+- **It cannot see a web search.** A test reads the import graph: nothing from
+  the research or web-search modules is importable here, so a snippet saying
+  "gold is around 4270" has no path to a price field. SearXNG is for research;
+  the mirror is for price.
+
+### Changed
+
+- `app/main.py` mounts the market router.
+
+### Not done on purpose
+
+No reasoning or model-routing change. The Pine-mirrored calculators (swing 5,
+Wilder ATR, FVG/OB/sweep/pivots/PDH-PDL/equilibrium, the per-instrument
+`pipZone` table) are specified in `docs/METHODOLOGY_MAPPING.md` and **not
+implemented** — this release is the data path only.
+
+### Not verified on the box
+
+No live platform call has been made: every test fakes the platform at the
+socket. `TRADING_PLATFORM_API_KEY` is still empty on the box (AIH-1).
+
 ## 1.9.0 — 2026-09-17
 
 **Migration:** none. Two new settings (`TRUSTED_SOURCES_FILE`,
