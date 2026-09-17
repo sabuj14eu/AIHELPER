@@ -312,6 +312,23 @@ something up is not the same as believing it.
   and simple-mean ATR, and says Pine uses 5 and Wilder. A consumer
   mirroring Pine's method on the platform's data must not relabel them.
 
+## DEPLOYMENT (learned on the box, 2026-09-17)
+- **A required variable blocks the whole project, not one service.**
+  `${VAR:?}` makes compose refuse `up`, `exec`, `ps` — everything — even
+  for a service that is off by default. Compose cannot scope a requirement:
+  **profiles do NOT defer interpolation** (verified, not assumed). So if
+  compose hard-requires a variable, *every* deployment must have it, and the
+  only honest way to ship one is to ship the thing that creates it.
+  `scripts/setup.sh` generates every `:?` variable, and a test asserts that
+  — it closes the class, not the instance.
+- **A blocking error message is read at a shell, mid-deploy, with
+  everything stopped.** "set X in .env" names the problem and withholds the
+  fix. Say how: `openssl rand -hex 32`.
+- **An optional feature that stops an existing deployment is not
+  optional.** New services are the upgrade path's problem, not only the
+  fresh install's. Every release that adds one carries the one-line
+  upgrade step in the CHANGELOG.
+
 ## SESSION HANDOFF AND OPEN ITEMS
 **docs/HANDOFF_BROTHER_SESSION.md** is the living handoff: the state on the
 box, what was verified live and what was not, the backlog in order, and the

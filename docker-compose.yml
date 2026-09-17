@@ -91,7 +91,7 @@ services:
     environment:
       # Overrides `server.secret_key` in the mounted settings file, so the
       # secret lives in .env and never in the repository (Iron Rule 7).
-      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?missing. Generate one and append it: openssl rand -hex 32}
       SEARXNG_BASE_URL: http://searxng:8080/
       SEARXNG_BIND_ADDRESS: 0.0.0.0
     volumes:

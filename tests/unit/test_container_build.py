@@ -140,6 +140,50 @@ class TestComposeFile:
             "the compose network needs it"
         )
 
+    def test_every_hard_required_variable_has_something_that_creates_it(self):
+        """The bug this closes, found on the box on 2026-09-17.
+
+        `${VAR:?...}` makes compose refuse **every command in the project** —
+        `up`, `exec`, `ps`, all of them — not only the service that needs the
+        variable. SEARXNG_SECRET shipped as hard-required with nothing that
+        generates it, so an existing deployment upgrading could not even run
+        `docker compose exec ai-helper` until it was set, for a service that
+        is off by default.
+
+        Docker Compose cannot scope a requirement to a service: profiles do
+        NOT defer interpolation (verified — a profiled service's `:?` still
+        blocks). So a hard-required variable is required of EVERY deployment,
+        and the only honest way to ship one is to also ship the thing that
+        creates it.
+        """
+        import re
+
+        required = set(re.findall(r"\$\{([A-Z0-9_]+):\?", self.COMPOSE))
+        assert required, "no hard-required variables found — has the syntax changed?"
+
+        env_example = (ROOT / ".env.example").read_text()
+        setup = (ROOT / "scripts" / "setup.sh").read_text()
+        for variable in sorted(required):
+            assert re.search(rf"^{variable}=", env_example, re.M), (
+                f"{variable} is hard-required by compose but is not in "
+                ".env.example, so nobody knows to set it"
+            )
+            assert variable in setup, (
+                f"{variable} is hard-required by compose but scripts/setup.sh "
+                "never generates it. Compose will refuse every command in the "
+                "project — including ones for unrelated services — until it is "
+                "set by hand."
+            )
+
+    def test_a_required_variables_message_says_how_to_fix_it(self):
+        """"set X in .env" names the problem; it does not hand over the fix.
+        The person reading it is at a shell, mid-deploy, with everything
+        blocked."""
+        import re
+
+        for variable, message in re.findall(r"\$\{([A-Z0-9_]+):\?([^}]*)\}", self.COMPOSE):
+            assert message.strip(), f"{variable} has an empty :? message"
+
     def test_secrets_have_no_usable_default(self):
         for variable in (
             "POSTGRES_PASSWORD",

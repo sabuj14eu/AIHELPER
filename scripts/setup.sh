@@ -19,7 +19,7 @@ else
     cp .env.example .env
     secret() { openssl rand -hex 32; }
     # Portable in-place edit (GNU sed and BSD sed disagree about -i).
-    for key in AUTH_SECRET N8N_ENCRYPTION_KEY WEBUI_SECRET_KEY; do
+    for key in AUTH_SECRET N8N_ENCRYPTION_KEY WEBUI_SECRET_KEY SEARXNG_SECRET; do
         value=$(secret)
         tmp=$(mktemp)
         sed "s|^${key}=.*|${key}=${value}|" .env > "$tmp" && mv "$tmp" .env
